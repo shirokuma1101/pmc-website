@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
+import { Noto_Sans_JP } from "next/font/google";
 import type { ReactNode } from "react";
 import { SiteFooter, SiteHeader } from "@/components/layout";
 import { CookieConsent, GoogleAnalytics } from "@/components/privacy";
@@ -11,12 +11,6 @@ export const dynamic = "force-dynamic";
 
 const notoSansJp = Noto_Sans_JP({
   variable: "--font-noto-sans-jp",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const notoSerifJp = Noto_Serif_JP({
-  variable: "--font-noto-serif-jp",
   subsets: ["latin"],
   display: "swap",
 });
@@ -46,7 +40,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html
       lang="ja"
-      className={`${notoSansJp.variable} ${notoSerifJp.variable}`}
+      className={notoSansJp.variable}
       data-theme="light"
       suppressHydrationWarning
     >
