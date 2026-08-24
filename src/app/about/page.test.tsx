@@ -13,6 +13,10 @@ vi.mock("@/lib/directus/about", () => ({
 
 <details><summary>HTML summary</summary><div>raw HTML content</div></details>
 
+<div class="image-gallery"><img src="https://images.example.com/one.png" alt="gallery image"></div>
+
+<div class="unsafe-layout"><p>classless content</p></div>
+
 [unsafe link](javascript:alert(1))
 
 ![safe image](https://images.example.com/example.png)`,
@@ -31,6 +35,8 @@ describe("About Us Markdown rendering", () => {
     expect(container.querySelector("script")).not.toBeInTheDocument();
     expect(screen.getByText("HTML summary").tagName).toBe("SUMMARY");
     expect(screen.getByText("raw HTML content").tagName).toBe("DIV");
+    expect(screen.getByRole("img", { name: "gallery image" }).parentElement).toHaveClass("image-gallery");
+    expect(screen.getByText("classless content").parentElement).not.toHaveClass("unsafe-layout");
     expect(screen.getByText("unsafe link").closest("a")).not.toHaveAttribute("href");
     expect(screen.getByRole("img", { name: "safe image" })).toHaveAttribute("src", "https://images.example.com/example.png");
     expect(screen.getByRole("link", { name: "参加フォームを開く" })).toHaveAttribute(

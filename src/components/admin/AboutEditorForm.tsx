@@ -51,7 +51,7 @@ export function AboutEditorForm({ initialContent }: AboutEditorFormProps) {
         id="about-markdown"
         name="markdown"
         label="About Us本文"
-        hint="Markdownと安全なHTMLタグを利用できます。危険なタグや属性は自動的に除去されます。"
+        hint={'Markdownと安全なHTMLタグを利用できます。画像の横並びには <div class="image-gallery"> を使用できます。'}
         value={markdown}
         onChange={setMarkdown}
         disabled={saving}

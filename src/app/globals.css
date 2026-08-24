@@ -3695,6 +3695,34 @@ html[data-theme="dark"] .theme-toggle__sun {
   border-radius: var(--radius-md);
 }
 
+.prose .image-gallery,
+.article-detail__body .image-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 1rem;
+  margin-block: 1.75rem;
+}
+
+.prose .image-gallery > p,
+.prose .image-gallery > figure,
+.article-detail__body .image-gallery > p,
+.article-detail__body .image-gallery > figure {
+  margin: 0;
+}
+
+.prose .image-gallery img,
+.article-detail__body .image-gallery img {
+  width: 100%;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .prose .image-gallery,
+  .article-detail__body .image-gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
 .prose ul,
 .prose ol,
 .article-detail__body ul,

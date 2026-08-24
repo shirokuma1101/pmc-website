@@ -194,7 +194,7 @@ export function ArticleEditor({
   id,
   name = "body",
   label = "本文",
-  hint = "Markdownと安全なHTMLタグを利用できます。危険なタグや属性は自動的に除去されます。",
+  hint = 'Markdownと安全なHTMLタグを利用できます。画像の横並びには <div class="image-gallery"> を使用できます。',
   error,
   disabled = false,
   minRows = 20,
