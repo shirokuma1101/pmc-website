@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
+import { MarkdownContent } from "@/components/markdown";
 import { Avatar, LikeButton, ShareButton } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
 import { articleExcerpt } from "@/lib/articles/excerpt";
@@ -115,9 +113,7 @@ export default async function ArticleDetailPage({
           </figure>
         ) : null}
         <div className="prose article-detail__body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} skipHtml>
-            {article.body}
-          </ReactMarkdown>
+          <MarkdownContent>{article.body}</MarkdownContent>
         </div>
       </article>
     </main>

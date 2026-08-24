@@ -44,7 +44,7 @@ export interface Article {
   slug: string;
   summary: string;
   tags: string[];
-  /** Markdown source. Raw HTML must remain disabled when rendering this value. */
+  /** Markdown source. Embedded HTML must be sanitized when rendering this value. */
   body: string;
   thumbnailUrl?: string;
   status: ArticleStatus;

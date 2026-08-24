@@ -1,7 +1,5 @@
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
+import { MarkdownContent } from "@/components/markdown";
 import { Alert } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
 import { getAboutContent } from "@/lib/directus/about";
@@ -37,9 +35,7 @@ export default async function AboutPage({ searchParams }: { searchParams: Promis
         {session?.user.isAdmin ? <Link className="button button--secondary" href="/admin/about">内容を編集</Link> : null}
       </header>
       <article className="prose about-markdown">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} skipHtml>
-          {content.markdown}
-        </ReactMarkdown>
+        <MarkdownContent>{content.markdown}</MarkdownContent>
       </article>
       <section className="about-history" aria-labelledby="about-history-title">
         <header className="about-section-heading">

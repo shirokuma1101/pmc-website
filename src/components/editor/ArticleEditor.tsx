@@ -4,6 +4,7 @@ import { memo, useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 
 import { getApiErrorMessage, unwrapApiData } from "../apiResponse";
+import { MarkdownContent } from "../markdown";
 import { classNames } from "../ui/classNames";
 
 export interface ArticleEditorProps {
@@ -74,6 +75,8 @@ function renderLines(lines: string[], keyPrefix: string) {
 }
 
 const MarkdownPreview = memo(function MarkdownPreview({ markdown }: { markdown: string }) {
+  if (markdown.includes("<")) return <MarkdownContent>{markdown}</MarkdownContent>;
+
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let index = 0;
@@ -191,7 +194,7 @@ export function ArticleEditor({
   id,
   name = "body",
   label = "本文",
-  hint = "Markdown記法を利用できます。入力したHTMLはそのまま文字として表示されます。",
+  hint = "Markdownと安全なHTMLタグを利用できます。危険なタグや属性は自動的に除去されます。",
   error,
   disabled = false,
   minRows = 20,

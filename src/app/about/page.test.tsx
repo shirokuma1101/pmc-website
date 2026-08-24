@@ -11,7 +11,7 @@ vi.mock("@/lib/directus/about", () => ({
 
 <script>alert("unsafe")</script>
 
-<div>raw HTML content</div>
+<details><summary>HTML summary</summary><div>raw HTML content</div></details>
 
 [unsafe link](javascript:alert(1))
 
@@ -22,14 +22,15 @@ vi.mock("@/lib/directus/about", () => ({
 import AboutPage from "./page";
 
 describe("About Us Markdown rendering", () => {
-  it("renders Markdown while dropping raw HTML and unsafe URL schemes", async () => {
+  it("renders safe HTML while dropping scripts and unsafe URL schemes", async () => {
     const page = await AboutPage({ searchParams: Promise.resolve({}) });
     const { container } = render(page);
 
     expect(screen.getByRole("heading", { name: "Safe heading" })).toBeInTheDocument();
     expect(screen.getByText("formatted text").tagName).toBe("STRONG");
     expect(container.querySelector("script")).not.toBeInTheDocument();
-    expect(screen.queryByText("raw HTML content")).not.toBeInTheDocument();
+    expect(screen.getByText("HTML summary").tagName).toBe("SUMMARY");
+    expect(screen.getByText("raw HTML content").tagName).toBe("DIV");
     expect(screen.getByText("unsafe link").closest("a")).not.toHaveAttribute("href");
     expect(screen.getByRole("img", { name: "safe image" })).toHaveAttribute("src", "https://images.example.com/example.png");
     expect(screen.getByRole("link", { name: "参加フォームを開く" })).toHaveAttribute(

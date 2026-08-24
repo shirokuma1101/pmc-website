@@ -1,8 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
 import { ReviewForm } from "@/components/admin";
+import { MarkdownContent } from "@/components/markdown";
 import { Avatar, StatusBadge } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
 import { getArticleById, getArticleReviews } from "@/lib/directus/articles";
@@ -40,7 +38,7 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ i
       {article.thumbnailUrl ? <img className="review-thumbnail" src={article.thumbnailUrl} alt="" /> : null}
       <div className="review-layout">
         <article className="prose review-preview">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} skipHtml>{article.body}</ReactMarkdown>
+          <MarkdownContent>{article.body}</MarkdownContent>
         </article>
         <aside className="review-sidebar">
           <ReviewForm articleId={article.id} articleTitle={article.title} />

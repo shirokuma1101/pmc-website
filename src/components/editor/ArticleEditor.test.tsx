@@ -30,6 +30,14 @@ describe("ArticleEditor", () => {
     expect(screen.getByLabelText("本文プレビュー")).toHaveTextContent("##");
   });
 
+  it("previews safe HTML and removes executable HTML", () => {
+    render(<EditorHarness initialValue={'<details open><summary>補足</summary><p onclick="alert(1)">内容</p><script>alert(1)</script></details>'} />);
+    fireEvent.click(screen.getByRole("button", { name: "プレビュー" }));
+    expect(screen.getByText("補足").tagName).toBe("SUMMARY");
+    expect(screen.getByText("内容")).not.toHaveAttribute("onclick");
+    expect(document.querySelector("script")).not.toBeInTheDocument();
+  });
+
   it("inserts an H2 marker without blocking further input", () => {
     render(<EditorHarness />);
     fireEvent.click(screen.getByRole("button", { name: "H2" }));
