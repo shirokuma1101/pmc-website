@@ -1,0 +1,111 @@
+name: pmc-website-dev
+
+services:
+  mailpit:
+    image: axllent/mailpit:v1.30.7@sha256:d5ecbb067db3705fa953d79e1b7f81ef84038df67aba6c52825d8c02a1ea748a
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 200
+      MP_DATABASE: /data/mailpit.db
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8026}:8025"
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  database:
+    image: postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pmc_website
+      POSTGRES_USER: pmc_website
+      POSTGRES_PASSWORD: ${DIRECTUS_DEV_DB_PASSWORD:?Run npm run env:setup first}
+    volumes:
+      - directus_database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmc_website -d pmc_website"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  directus:
+    image: directus/directus:12.3.0@sha256:568861dc03396477d0829897936731d861a3aa8ca68516a1422d68b4d3752621
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    environment:
+      SECRET: ${DIRECTUS_DEV_SECRET:?Run npm run env:setup first}
+      ADMIN_EMAIL: ${DIRECTUS_DEV_ADMIN_EMAIL:?Run npm run env:setup first}
+      ADMIN_PASSWORD: ${DIRECTUS_DEV_ADMIN_PASSWORD:?Run npm run env:setup first}
+      DB_CLIENT: pg
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_DATABASE: pmc_website
+      DB_USER: pmc_website
+      DB_PASSWORD: ${DIRECTUS_DEV_DB_PASSWORD:?Run npm run env:setup first}
+      PUBLIC_URL: http://localhost:${DIRECTUS_DEV_PORT:-8056}
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: http://localhost:3001,http://127.0.0.1:3001
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+      CORS_ALLOWED_HEADERS: Content-Type,Authorization
+      CORS_CREDENTIALS: "true"
+      EXTENSIONS_AUTO_RELOAD: "true"
+      EXTENSIONS_MUST_LOAD: "true"
+      TELEMETRY: "false"
+      WEBSOCKETS_ENABLED: "false"
+      FILES_MAX_UPLOAD_SIZE: 8mb
+      FILES_MIME_TYPE_ALLOW_LIST: image/jpeg,image/png,image/webp,image/gif
+      MAX_PAYLOAD_SIZE: 12mb
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
+      RATE_LIMITER_ENABLED: "true"
+      RATE_LIMITER_STORE: memory
+      RATE_LIMITER_POINTS: ${DIRECTUS_RATE_LIMITER_POINTS:-1000}
+      RATE_LIMITER_DURATION: ${DIRECTUS_RATE_LIMITER_DURATION:-60}
+      RATE_LIMITER_REGISTRATION_ENABLED: "true"
+      RATE_LIMITER_REGISTRATION_POINTS: ${DIRECTUS_REGISTRATION_RATE_LIMIT_POINTS:-5}
+      RATE_LIMITER_REGISTRATION_DURATION: ${DIRECTUS_REGISTRATION_RATE_LIMIT_DURATION:-3600}
+      PASSWORD_RESET_URL_ALLOW_LIST: ${PMC_WEBSITE_PUBLIC_URL:-http://localhost:3001}/reset-password
+      EMAIL_FROM: ${DIRECTUS_EMAIL_FROM:-no-reply@pmc-website.local}
+      EMAIL_TRANSPORT: smtp
+      EMAIL_SMTP_HOST: mailpit
+      EMAIL_SMTP_PORT: 1025
+      EMAIL_SMTP_SECURE: "false"
+      EMAIL_SMTP_IGNORE_TLS: "true"
+      PMC_WEBSITE_PUBLIC_URL: ${PMC_WEBSITE_PUBLIC_URL:-http://localhost:3001}
+      DISCORD_ARTICLE_WEBHOOK_URL: ${DISCORD_ARTICLE_WEBHOOK_URL:-}
+    ports:
+      - "127.0.0.1:${DIRECTUS_DEV_PORT:-8056}:8055"
+    volumes:
+      - directus_uploads:/directus/uploads
+      - ./directus/extensions:/directus/extensions:ro
+      - ./directus/schema:/directus/schema
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8055/server/ping').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  directus_database:
+  directus_uploads:
+  mailpit_data:

@@ -1,0 +1,139 @@
+.slider {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+
+.viewport {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: var(--color-surface-muted);
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+.slide[data-current="true"] {
+  z-index: 1;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.slide img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.55;
+  object-fit: cover;
+}
+
+.control {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  place-items: center;
+  color: #fff;
+  background: rgb(15 42 94 / 78%);
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 50%;
+  box-shadow: 0 4px 15px rgb(0 0 0 / 18%);
+  font-size: 1.8rem;
+  line-height: 1;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.control:hover {
+  background: var(--color-primary);
+}
+
+.control svg {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.previous {
+  left: 1rem;
+}
+
+.next {
+  right: 1rem;
+}
+
+.dots {
+  position: absolute;
+  right: 0;
+  bottom: 0.8rem;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.dots button {
+  width: 0.55rem;
+  height: 0.55rem;
+  padding: 0;
+  background: rgb(255 255 255 / 70%);
+  border: 1px solid rgb(15 42 94 / 55%);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+  cursor: pointer;
+}
+
+.dots button[aria-current="true"] {
+  background: var(--color-primary);
+  border-color: #fff;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .control {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .previous {
+    left: 0.6rem;
+  }
+
+  .next {
+    right: 0.6rem;
+  }
+}
+
+:global(html[data-theme="dark"]) .slide img {
+  opacity: 0.42;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide {
+    transition: none;
+  }
+}

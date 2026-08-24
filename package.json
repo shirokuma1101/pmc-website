@@ -1,0 +1,63 @@
+{
+  "name": "pmc-website",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0 --port 3001",
+    "env:setup": "node scripts/setup-local-env.mjs",
+    "cms:up": "docker compose -f docker-compose.dev.yml --env-file .env.local up -d --wait",
+    "cms:down": "docker compose -f docker-compose.dev.yml --env-file .env.local down",
+    "cms:logs": "docker compose -f docker-compose.dev.yml --env-file .env.local logs -f directus database",
+    "cms:restart": "docker compose -f docker-compose.dev.yml --env-file .env.local restart directus",
+    "cms:extension:build": "npm --prefix directus/extensions/directus-extension-pmc-website run build",
+    "cms:extension:check": "node --check directus/extensions/directus-extension-pmc-website/src/index.js",
+    "cms:extension:test": "npm --prefix directus/extensions/directus-extension-pmc-website test",
+    "cms:schema:apply": "docker compose -f docker-compose.dev.yml --env-file .env.local exec directus node cli.js schema apply --yes /directus/schema/snapshot.yaml",
+    "cms:schema:snapshot": "docker compose -f docker-compose.dev.yml --env-file .env.local exec directus node cli.js schema snapshot --yes /directus/schema/snapshot.yaml",
+    "cms:bootstrap": "node --env-file=.env.local directus/bootstrap.mjs",
+    "cms:init": "npm run cms:extension:build && npm run cms:up && npm run cms:schema:apply && npm run cms:restart && npm run cms:bootstrap",
+    "cms:smoke": "node --env-file=.env.local scripts/smoke-directus.mjs",
+    "prod:schema:dry-run": "docker compose --env-file .env exec directus node cli.js schema apply --dry-run /directus/schema/snapshot.yaml",
+    "prod:schema:apply": "docker compose --env-file .env exec directus node cli.js schema apply --yes /directus/schema/snapshot.yaml",
+    "prod:bootstrap": "docker compose --env-file .env --profile tools run --rm bootstrap",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0",
+    "lint": "eslint . --max-warnings=0",
+    "typegen": "next typegen",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "security:audit": "npm audit --audit-level=high",
+    "security:check": "npm run security:audit && npm run cms:extension:check && npm test"
+  },
+  "dependencies": {
+    "next": "16.3.1",
+    "qrcode": "1.5.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-markdown": "10.1.0",
+    "rehype-sanitize": "6.0.0",
+    "remark-gfm": "4.0.1",
+    "server-only": "0.0.1",
+    "sharp": "0.35.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "22.19.11",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "4.7.0",
+    "eslint": "9.39.3",
+    "eslint-config-next": "16.3.1",
+    "jsdom": "26.1.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

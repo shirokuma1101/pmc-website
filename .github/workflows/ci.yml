@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Directus extension
+        run: |
+          npm run cms:extension:check
+          npm run cms:extension:test
+          npm run cms:extension:build
+          git diff --exit-code -- directus/extensions/directus-extension-pmc-website/dist/index.js
+
+      - name: Validate local Directus Compose
+        run: docker compose -f docker-compose.dev.yml --env-file .env.local.example config --quiet
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+        env:
+          DIRECTUS_URL: https://directus.example.com
+          NEXT_PUBLIC_DIRECTUS_URL: https://directus.example.com
+          APP_URL: https://pmc.example.com
+          NEXT_PUBLIC_APP_URL: https://pmc.example.com
+
+      - name: Validate production Compose
+        run: docker compose --env-file .env.example config --quiet
+
+      - name: Build container
+        run: docker compose --env-file .env.example build frontend

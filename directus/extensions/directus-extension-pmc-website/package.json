@@ -1,0 +1,21 @@
+{
+  "name": "directus-extension-pmc-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "directus",
+    "directus-extension",
+    "directus-extension-endpoint"
+  ],
+  "directus:extension": {
+    "type": "endpoint",
+    "path": "dist/index.js",
+    "source": "src/index.js",
+    "host": "^12.3.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/test-webhook.mjs"
+  }
+}

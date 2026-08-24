@@ -1,0 +1,153 @@
+name: pmc-website
+
+x-directus-image: &directus-image directus/directus:12.3.0@sha256:568861dc03396477d0829897936731d861a3aa8ca68516a1422d68b4d3752621
+
+services:
+  database:
+    image: postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pmc_website
+      POSTGRES_USER: pmc_website
+      POSTGRES_PASSWORD: ${DIRECTUS_DB_PASSWORD:?Set DIRECTUS_DB_PASSWORD in .env}
+    volumes:
+      - directus_database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmc_website -d pmc_website"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  directus:
+    image: *directus-image
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      SECRET: ${DIRECTUS_SECRET:?Set DIRECTUS_SECRET in .env}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?Set DIRECTUS_ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?Set DIRECTUS_ADMIN_PASSWORD in .env}
+      DB_CLIENT: pg
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_DATABASE: pmc_website
+      DB_USER: pmc_website
+      DB_PASSWORD: ${DIRECTUS_DB_PASSWORD:?Set DIRECTUS_DB_PASSWORD in .env}
+      PUBLIC_URL: ${NEXT_PUBLIC_DIRECTUS_URL:?Set NEXT_PUBLIC_DIRECTUS_URL in .env}
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+      CORS_ALLOWED_HEADERS: Content-Type,Authorization
+      CORS_CREDENTIALS: "true"
+      EXTENSIONS_MUST_LOAD: "true"
+      TELEMETRY: "false"
+      WEBSOCKETS_ENABLED: "false"
+      FILES_MAX_UPLOAD_SIZE: 8mb
+      FILES_MIME_TYPE_ALLOW_LIST: image/jpeg,image/png,image/webp,image/gif
+      MAX_PAYLOAD_SIZE: 12mb
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
+      RATE_LIMITER_ENABLED: "true"
+      RATE_LIMITER_STORE: memory
+      RATE_LIMITER_POINTS: ${DIRECTUS_RATE_LIMITER_POINTS:-100}
+      RATE_LIMITER_DURATION: ${DIRECTUS_RATE_LIMITER_DURATION:-60}
+      RATE_LIMITER_REGISTRATION_ENABLED: "true"
+      RATE_LIMITER_REGISTRATION_POINTS: ${DIRECTUS_REGISTRATION_RATE_LIMIT_POINTS:-5}
+      RATE_LIMITER_REGISTRATION_DURATION: ${DIRECTUS_REGISTRATION_RATE_LIMIT_DURATION:-3600}
+      PASSWORD_RESET_URL_ALLOW_LIST: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}/reset-password
+      EMAIL_FROM: ${DIRECTUS_EMAIL_FROM:?Set DIRECTUS_EMAIL_FROM in .env}
+      EMAIL_TRANSPORT: smtp
+      EMAIL_SMTP_HOST: ${DIRECTUS_EMAIL_SMTP_HOST:?Set DIRECTUS_EMAIL_SMTP_HOST in .env}
+      EMAIL_SMTP_PORT: ${DIRECTUS_EMAIL_SMTP_PORT:-587}
+      EMAIL_SMTP_USER: ${DIRECTUS_EMAIL_SMTP_USER:-}
+      EMAIL_SMTP_PASSWORD: ${DIRECTUS_EMAIL_SMTP_PASSWORD:-}
+      EMAIL_SMTP_SECURE: ${DIRECTUS_EMAIL_SMTP_SECURE:-false}
+      EMAIL_SMTP_IGNORE_TLS: ${DIRECTUS_EMAIL_SMTP_IGNORE_TLS:-false}
+      PMC_WEBSITE_PUBLIC_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
+      DISCORD_ARTICLE_WEBHOOK_URL: ${DISCORD_ARTICLE_WEBHOOK_URL:-}
+    ports:
+      - "${DIRECTUS_BIND_IP:-127.0.0.1}:${DIRECTUS_PORT:-8055}:8055"
+    volumes:
+      - directus_uploads:/directus/uploads
+      - ./directus/extensions:/directus/extensions:ro
+      - ./directus/schema:/directus/schema:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8055/server/ping').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_DIRECTUS_URL: ${NEXT_PUBLIC_DIRECTUS_URL:?Set NEXT_PUBLIC_DIRECTUS_URL in .env}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
+        NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}
+    restart: unless-stopped
+    depends_on:
+      directus:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DIRECTUS_URL: http://directus:8055
+      NEXT_PUBLIC_DIRECTUS_URL: ${NEXT_PUBLIC_DIRECTUS_URL:?Set NEXT_PUBLIC_DIRECTUS_URL in .env}
+      APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
+      NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      AUTH_RATE_LIMIT_TRUST_PROXY: ${AUTH_RATE_LIMIT_TRUST_PROXY:-false}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
+      MAX_IMAGE_UPLOAD_BYTES: ${MAX_IMAGE_UPLOAD_BYTES:-8388608}
+      MAX_IMAGE_INPUT_PIXELS: ${MAX_IMAGE_INPUT_PIXELS:-40000000}
+    ports:
+      - "${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  bootstrap:
+    profiles: ["tools"]
+    image: *directus-image
+    depends_on:
+      directus:
+        condition: service_healthy
+    environment:
+      DIRECTUS_URL: http://directus:8055
+      DIRECTUS_ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?Set DIRECTUS_ADMIN_EMAIL in .env}
+      DIRECTUS_ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?Set DIRECTUS_ADMIN_PASSWORD in .env}
+    volumes:
+      - ./directus/bootstrap.mjs:/directus/bootstrap.mjs:ro
+    command: ["node", "/directus/bootstrap.mjs"]
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  directus_database:
+  directus_uploads:
