@@ -131,6 +131,22 @@ services:
     cap_drop:
       - ALL
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+      directus:
+        condition: service_healthy
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    command: ["tunnel", "--no-autoupdate", "run"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   bootstrap:
     profiles: ["tools"]
     image: *directus-image
