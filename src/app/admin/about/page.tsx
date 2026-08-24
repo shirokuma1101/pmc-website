@@ -12,7 +12,7 @@ export default async function AdminAboutPage() {
   const content = await getAboutContent(session.accessToken);
 
   return (
-    <main id="main-content" className="page-shell page-shell--narrow">
+    <main id="main-content" className="page-shell page-shell--editor">
       <header className="page-heading">
         <p className="eyebrow">About Us editor</p>
         <h1>About Usを編集</h1>
