@@ -1,6 +1,7 @@
 const baseUrl = (process.env.DIRECTUS_URL ?? "http://127.0.0.1:8056").replace(/\/$/, "");
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL ?? process.env.DIRECTUS_DEV_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD ?? process.env.DIRECTUS_DEV_ADMIN_PASSWORD;
+const adminOtp = process.env.DIRECTUS_ADMIN_OTP?.trim() || undefined;
 const memberEmail = process.env.DIRECTUS_DEV_MEMBER_EMAIL;
 const memberPassword = process.env.DIRECTUS_DEV_MEMBER_PASSWORD;
 
@@ -22,6 +23,10 @@ for (const [name, value] of Object.entries({
 
 if ((memberEmail && !memberPassword) || (!memberEmail && memberPassword)) {
   throw new Error("DIRECTUS_DEV_MEMBER_EMAIL and DIRECTUS_DEV_MEMBER_PASSWORD must be set together.");
+}
+
+if (adminOtp && !/^\d{6}$/.test(adminOtp)) {
+  throw new Error("DIRECTUS_ADMIN_OTP must be the current 6-digit one-time password.");
 }
 
 function sleep(milliseconds) {
@@ -522,7 +527,12 @@ const aliasDefinitions = [
 async function authenticate() {
   const result = await api("/auth/login", {
     method: "POST",
-    body: { email: adminEmail, password: adminPassword, mode: "json" },
+    body: {
+      email: adminEmail,
+      password: adminPassword,
+      ...(adminOtp ? { otp: adminOtp } : {}),
+      mode: "json",
+    },
   });
   accessToken = result.data.access_token;
 }
