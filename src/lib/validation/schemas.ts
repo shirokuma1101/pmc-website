@@ -73,6 +73,12 @@ const articleFields = {
 
 export const createArticleSchema = z.object(articleFields).strict();
 
+export const adminArticleFieldsSchema = z.object({
+  authorId: z.string().uuid().optional(),
+  createdAt: z.string().datetime({ offset: true }).optional(),
+  publishedAt: z.string().datetime({ offset: true }).optional(),
+}).strict();
+
 export const updateArticleSchema = z.object({
   title: articleFields.title.optional(),
   slug: articleFields.slug,

@@ -10,7 +10,7 @@ import {
 import { assertStoredImages } from "@/lib/directus/files";
 import { storedImageIdsInMarkdown } from "@/lib/articles/images";
 import { assertSameOrigin } from "@/lib/security/csrf";
-import { idSchema, updateArticleSchema } from "@/lib/validation/schemas";
+import { adminArticleFieldsSchema, idSchema, updateArticleSchema } from "@/lib/validation/schemas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +39,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     const session = await requireSession();
     const id = await routeId(context);
     let input: Record<string, unknown>;
+    let adminInput: { authorId?: string; createdAt?: string; publishedAt?: string } = {};
 
     if (isMultipart(request)) {
       const form = await request.formData();
@@ -51,8 +52,29 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
           : {}),
         ...(form.has("body") ? { body: formString(form, "body") ?? "" } : {}),
       };
+      if (session.user.isAdmin) {
+        adminInput = adminArticleFieldsSchema.parse({
+          ...(formString(form, "authorId") ? { authorId: formString(form, "authorId") } : {}),
+          ...(formString(form, "createdAt") ? { createdAt: formString(form, "createdAt") } : {}),
+          ...(formString(form, "publishedAt") ? { publishedAt: formString(form, "publishedAt") } : {}),
+        });
+      }
     } else {
-      input = await readObjectBody(request);
+      const body = await readObjectBody(request);
+      input = session.user.isAdmin ? {
+        ...(body.title !== undefined ? { title: body.title } : {}),
+        ...(body.slug !== undefined ? { slug: body.slug } : {}),
+        ...(body.summary !== undefined ? { summary: body.summary } : {}),
+        ...(body.tags !== undefined ? { tags: body.tags } : {}),
+        ...(body.body !== undefined ? { body: body.body } : {}),
+      } : body;
+      if (session.user.isAdmin) {
+        adminInput = adminArticleFieldsSchema.parse({
+          ...(body.authorId !== undefined ? { authorId: body.authorId } : {}),
+          ...(body.createdAt !== undefined ? { createdAt: body.createdAt } : {}),
+          ...(body.publishedAt !== undefined ? { publishedAt: body.publishedAt } : {}),
+        });
+      }
     }
 
     const validated = updateArticleSchema.parse(input);
@@ -66,6 +88,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
     }
     const article = await updateArticle(id, {
       ...validated,
+      ...adminInput,
     }, session.accessToken);
     return dataResponse(article);
   });

@@ -1420,28 +1420,28 @@ html[data-theme="dark"] .theme-toggle__sun {
   font-size: 0.75rem;
 }
 
-.post-admin-fields {
+.content-admin-fields {
   padding: 0.85rem;
   background: var(--color-surface-soft);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
 }
 
-.post-admin-fields summary {
+.content-admin-fields summary {
   color: var(--color-primary);
   font-size: 0.82rem;
   font-weight: 750;
   cursor: pointer;
 }
 
-.post-admin-fields__grid {
+.content-admin-fields__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
   margin-top: 0.85rem;
 }
 
-.post-card__edit > .post-admin-fields__grid {
+.post-card__edit > .content-admin-fields__grid {
   margin-top: 0;
 }
 
@@ -4333,7 +4333,7 @@ html[data-theme="dark"] .theme-toggle__sun {
     justify-content: space-between;
   }
 
-  .post-admin-fields__grid {
+  .content-admin-fields__grid {
     grid-template-columns: 1fr;
   }
 

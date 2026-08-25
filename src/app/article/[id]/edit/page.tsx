@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ArticleForm } from "@/components/article";
 import { getSession } from "@/lib/auth/session";
+import { getContentAuthors } from "@/lib/directus/authors";
 import { getArticleById, getArticleReviews } from "@/lib/directus/articles";
 
 export const metadata = { title: "記事を編集" };
@@ -17,7 +18,10 @@ export default async function EditArticlePage({
   const article = await getArticleById(id, session.accessToken);
   if (!article || (!session.user.isAdmin && article.author.id !== session.user.id)) notFound();
 
-  const reviews = await getArticleReviews(id, session.accessToken).catch(() => []);
+  const [reviews, authorOptions] = await Promise.all([
+    getArticleReviews(id, session.accessToken).catch(() => []),
+    session.user.isAdmin ? getContentAuthors(session.accessToken) : Promise.resolve([]),
+  ]);
   const lastRejection = reviews.toReversed().find((review) => review.action === "rejected" && review.comment);
   const articleWithFeedback = lastRejection?.comment
     ? { ...article, reviewComment: lastRejection.comment }
@@ -29,6 +33,8 @@ export default async function EditArticlePage({
         article={articleWithFeedback}
         allowPublishedEdit
         adminMode={session.user.isAdmin}
+        currentUserId={session.user.id}
+        authorOptions={authorOptions}
         cancelHref={article.status === "published" ? `/articles/${article.slug}` : "/me"}
       />
     </main>

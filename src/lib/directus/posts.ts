@@ -1,6 +1,5 @@
-import type { PaginatedResult, Post, PostAuthorOption } from "@/types";
+import type { PaginatedResult, Post } from "@/types";
 import type { DirectusItemResponse, DirectusPostRaw } from "@/types/directus";
-import { directusAssetUrl } from "@/lib/config";
 import { directusRequest } from "./client";
 import { DIRECTUS_APP_ENDPOINT } from "./constants";
 import { mapPost } from "./mappers";
@@ -75,18 +74,6 @@ export async function updatePost(
     },
   });
   return getPost(id, accessToken);
-}
-
-export async function getPostAuthors(accessToken: string): Promise<PostAuthorOption[]> {
-  const response = await directusRequest<{ data: Array<{ id: string; display_name: string; avatar?: string | null }> }>(
-    `${DIRECTUS_APP_ENDPOINT}/admin/post-authors`,
-    { accessToken },
-  );
-  return response.data.map((author) => ({
-    id: author.id,
-    displayName: author.display_name,
-    ...(author.avatar ? { avatarUrl: directusAssetUrl(author.avatar) } : {}),
-  }));
 }
 
 export async function deletePost(id: string, accessToken: string): Promise<void> {

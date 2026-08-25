@@ -131,6 +131,9 @@ export interface SaveArticleInput {
   summary: string;
   tags: string[];
   body: string;
+  authorId?: string;
+  createdAt?: string;
+  publishedAt?: string;
 }
 
 function articlePayload(input: Partial<SaveArticleInput>): Record<string, unknown> {
@@ -140,17 +143,16 @@ function articlePayload(input: Partial<SaveArticleInput>): Record<string, unknow
     ...(input.summary !== undefined ? { summary: input.summary } : {}),
     ...(input.tags !== undefined ? { tags: input.tags } : {}),
     ...(input.body !== undefined ? { body: input.body } : {}),
+    ...(input.authorId !== undefined ? { author_id: input.authorId } : {}),
+    ...(input.createdAt !== undefined ? { created_at: input.createdAt } : {}),
+    ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
   };
 }
 
 export async function createArticle(
   input: SaveArticleInput,
   accessToken: string,
-  explicitAuthorId?: string,
 ): Promise<Article> {
-  // Kept for call-site compatibility; the endpoint always derives the author
-  // from the authenticated Directus session, including for administrators.
-  void explicitAuthorId;
   const created = await directusRequest<DirectusItemResponse<{ id: string }>>(`${DIRECTUS_APP_ENDPOINT}/articles`, {
     method: "POST",
     accessToken,
@@ -161,7 +163,6 @@ export async function createArticle(
   return article;
 }
 
-/** Article edits deliberately never include status, author or published_at. */
 export async function updateArticle(
   id: string,
   input: Partial<SaveArticleInput>,
