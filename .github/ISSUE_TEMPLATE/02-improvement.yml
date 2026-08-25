@@ -1,0 +1,82 @@
+name: 改善提案
+description: 既存機能の使いやすさ、表示、性能、運用を改善する
+title: "[Improvement]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        既存機能の改善提案ありがとうございます。現在と改善後の違いが分かるように記入してください。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 事前確認
+      options:
+        - label: 同じ内容のIssueがないことを確認しました
+          required: true
+        - label: 現在の動作が明確な不具合である場合は、バグ報告を利用します
+          required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 現在の状態
+      description: 現在の画面や操作、運用方法を記載してください。
+      placeholder: 現在は〇〇すると△△と表示されます。
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 改善したい点
+      description: 分かりにくい、操作しにくい、時間がかかるなど、具体的な問題を記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 希望する改善後の状態
+      description: どのような状態になると使いやすくなるかを記載してください。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 主な対象領域
+      options:
+        - 公開ページ
+        - 記事・Markdownエディター
+        - タイムライン・投稿
+        - アカウント・認証
+        - プロフィール
+        - 管理者機能
+        - Directus・API
+        - インフラ・運用
+        - その他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 影響度
+      description: 提案者から見た影響度を選択してください。最終的な優先度はメンテナーが判断します。
+      options:
+        - 小さい（見た目や軽微な操作性）
+        - 中程度（日常的な操作に影響する）
+        - 大きい（多くの利用者や運用に影響する）
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 参考資料
+      description: スクリーンショット、画面案、参考URLなどがあれば添付してください。秘密情報は含めないでください。
+    validations:
+      required: false
