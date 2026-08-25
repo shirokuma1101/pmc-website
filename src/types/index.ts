@@ -18,6 +18,7 @@ export interface Profile {
   id: string;
   displayName: string;
   bio: string;
+  xboxGamertag?: string;
   avatarUrl?: string;
   user?: UserSummary;
   createdAt?: string;

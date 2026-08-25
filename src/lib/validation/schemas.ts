@@ -92,6 +92,7 @@ export const updateArticleSchema = z.object({
 export const profileSchema = z.object({
   displayName: z.string().trim().min(1).max(80),
   bio: z.string().trim().max(1_000).default(""),
+  xboxGamertag: z.string().trim().max(50).default(""),
   avatarId: z.string().uuid().nullable().optional(),
 }).strict();
 

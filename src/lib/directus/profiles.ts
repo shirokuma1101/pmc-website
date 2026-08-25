@@ -31,6 +31,7 @@ export async function getProfileByUserId(
 export interface SaveProfileInput {
   displayName: string;
   bio: string;
+  xboxGamertag: string;
   avatarId?: string | null;
 }
 
@@ -38,6 +39,7 @@ function profilePayload(input: Partial<SaveProfileInput>): Record<string, unknow
   return {
     ...(input.displayName !== undefined ? { display_name: input.displayName } : {}),
     ...(input.bio !== undefined ? { bio: input.bio } : {}),
+    ...(input.xboxGamertag !== undefined ? { xbox_gamertag: input.xboxGamertag } : {}),
     ...(input.avatarId !== undefined ? { avatar: input.avatarId } : {}),
   };
 }

@@ -2494,6 +2494,53 @@ html[data-theme="dark"] .theme-toggle__sun {
   font-size: 0.84rem;
 }
 
+.auth-otp {
+  position: relative;
+  display: grid;
+  gap: 0.65rem;
+  cursor: text;
+}
+
+.auth-otp__slots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: clamp(0.35rem, 2vw, 0.65rem);
+}
+
+.auth-otp__slots > span {
+  display: grid;
+  min-width: 0;
+  aspect-ratio: 0.9;
+  place-items: center;
+  color: var(--color-ink);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  font-size: clamp(1.2rem, 5vw, 1.65rem);
+  font-weight: 800;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.auth-otp:focus-within .auth-otp__slots > span.is-active,
+.auth-otp:focus-within .auth-otp__slots > span:last-child:not(:empty) {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.auth-otp__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-otp .field__hint {
+  margin: 0;
+}
+
 .auth-card__footer {
   padding-top: 1.25rem;
   margin-top: 1.5rem;
@@ -3596,11 +3643,30 @@ html[data-theme="dark"] .theme-toggle__sun {
   font-size: clamp(1.7rem, 4vw, 2.4rem);
 }
 
-.profile-hero div > p:last-child {
+.profile-hero__bio {
   max-width: 42rem;
   margin-bottom: 0;
   color: var(--color-ink-soft);
   white-space: pre-wrap;
+}
+
+.profile-hero__gamertag {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  color: var(--color-ink);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.profile-hero__gamertag span {
+  padding: 0.12rem 0.4rem;
+  color: #fff;
+  background: #107c10;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
 }
 
 .profile-layout {

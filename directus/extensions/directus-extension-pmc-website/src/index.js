@@ -92,6 +92,7 @@ const PROFILE_FIELDS = [
   "id",
   "display_name",
   "bio",
+  "xbox_gamertag",
   "created_at",
   "updated_at",
   "avatar.id",
@@ -451,10 +452,11 @@ function articleInput(request, { partial = false } = {}) {
 
 function profileInput(request) {
   const body = objectBody(request);
-  strictKeys(body, new Set(["display_name", "bio", "avatar"]));
+  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar"]));
   return {
     display_name: requiredText(body.display_name, "display_name", 80),
     bio: optionalText(body.bio, "bio", 1_000) ?? "",
+    xbox_gamertag: optionalText(body.xbox_gamertag, "xbox_gamertag", 50) ?? "",
     avatar: body.avatar === undefined ? undefined : uuid(body.avatar, "avatar", { nullable: true }),
   };
 }

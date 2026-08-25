@@ -42,6 +42,7 @@ export interface DirectusProfileRaw {
   user?: string | DirectusUserRaw | null;
   display_name?: string | null;
   bio?: string | null;
+  xbox_gamertag?: string | null;
   avatar?: string | DirectusFileRaw | null;
   created_at?: string | null;
   updated_at?: string | null;

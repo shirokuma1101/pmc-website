@@ -32,6 +32,7 @@ export function ProfileForm({
   const avatarObjectUrlRef = useRef<string | null>(null);
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? "");
+  const [xboxGamertag, setXboxGamertag] = useState(profile.xboxGamertag ?? "");
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatarUrl ?? null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
@@ -95,6 +96,7 @@ export function ProfileForm({
       const formData = new FormData();
       formData.append("displayName", normalizedName);
       formData.append("bio", bio.trim());
+      formData.append("xboxGamertag", xboxGamertag.trim());
       if (avatar) formData.append("avatar", avatar);
       if (removeAvatar) formData.append("removeAvatar", "true");
 
@@ -170,6 +172,16 @@ export function ProfileForm({
         hint={`${bio.length} / 300文字。公開プロフィールに表示されます。`}
         disabled={submitting}
         onChange={(event) => setBio(event.target.value)}
+      />
+      <Input
+        label="Xbox ゲーマータグ"
+        name="xboxGamertag"
+        value={xboxGamertag}
+        maxLength={50}
+        hint={`${xboxGamertag.length} / 50文字。任意項目です。公開プロフィールに表示されます。`}
+        autoComplete="off"
+        disabled={submitting}
+        onChange={(event) => setXboxGamertag(event.target.value)}
       />
 
       {error ? <Alert tone="error">{error}</Alert> : null}

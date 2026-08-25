@@ -48,6 +48,15 @@ describe("Directus domain mappers", () => {
     });
   });
 
+  it("maps an optional Xbox gamertag", () => {
+    expect(mapProfile({
+      id: "profile",
+      display_name: "Player",
+      bio: "",
+      xbox_gamertag: "  ExamplePlayer  ",
+    } as DirectusProfileRaw).xboxGamertag).toBe("ExamplePlayer");
+  });
+
   it("sorts post images and supplies safe like defaults", () => {
     const post = mapPost({
       id: "post",

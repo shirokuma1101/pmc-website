@@ -50,6 +50,7 @@ async function upsert(request: Request): Promise<Response> {
       input = {
         displayName: formString(form, "displayName") ?? "",
         bio: formString(form, "bio") ?? "",
+        xboxGamertag: formString(form, "xboxGamertag") ?? "",
         ...(form.has("avatarId") ? { avatarId: formString(form, "avatarId") || null } : {}),
         ...(formString(form, "removeAvatar") === "true" ? { avatarId: null } : {}),
         ...(avatar ? { avatarId: crypto.randomUUID() } : {}),
@@ -75,6 +76,7 @@ async function upsert(request: Request): Promise<Response> {
     const profile = await upsertMyProfile(session.user.id, {
       displayName: validated.displayName,
       bio: validated.bio,
+      xboxGamertag: validated.xboxGamertag,
       ...(avatarId !== undefined ? { avatarId } : {}),
     }, session.accessToken);
     return dataResponse(profile);
