@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: セキュリティ脆弱性の非公開報告
+    url: https://github.com/shirokuma1101/pmc-website/security/advisories/new
+    about: 脆弱性や秘密情報の漏えいは、公開Issueではなくこちらから報告してください。

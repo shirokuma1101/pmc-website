@@ -1,0 +1,140 @@
+name: バックエンド・開発環境のバグ報告
+description: Directus、API、Docker、CI、デプロイなどの不具合を報告する
+title: "[Backend/Dev Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バックエンド・開発環境の不具合報告ありがとうございます。再現と原因調査に必要な情報を記入してください。
+        パスワード、認証コード、Cookie、token、`.env`、Webhook URLなどの秘密情報は貼り付けないでください。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 事前確認
+      options:
+        - label: 同じ内容のIssueがないことを確認しました
+          required: true
+        - label: セキュリティ上の脆弱性に関する報告ではありません
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 不具合の概要
+      description: どのサービスまたは処理で何が起きているかを簡潔に記載してください。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: 発生環境
+      multiple: true
+      options:
+        - ローカル開発環境
+        - Docker Compose・Dockge
+        - 本番環境
+        - GitHub Actions・CI
+        - その他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: service
+    attributes:
+      label: 対象サービス・領域
+      options:
+        - Directus・拡張機能
+        - PostgreSQL・データ
+        - Next.js API・認証
+        - Docker Compose・Dockge
+        - Cloudflare Tunnel・ネットワーク
+        - GitHub Actions・CI
+        - ビルド・テスト
+        - 本番デプロイ・更新手順
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順・実行コマンド
+      description: 不具合が発生するまでの操作やコマンドを、秘密情報を除いて順番に記載してください。
+      placeholder: |
+        1. docker compose up -d を実行する
+        2. 〇〇コンテナのログを確認する
+        3. △△エラーが表示される
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+      description: 本来どのような結果になるべきかを記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      description: 実際の結果やエラーの概要を記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: バージョン・構成情報
+      description: 関係するものだけ記載してください。秘密情報や環境変数の値は含めないでください。
+      placeholder: |
+        - OS: Ubuntu Server 24.04
+        - Docker: 28.x
+        - Docker Compose: 2.x
+        - Directus: 12.x
+        - Node.js: 22.x
+        - 対象コミット: abc1234
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: エラーログ
+      description: 関連部分を貼り付けてください。パスワード、token、Cookie、メールアドレスなどは必ず削除してください。
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: 発生頻度
+      options:
+        - 毎回
+        - ときどき
+        - 1回のみ
+        - 不明
+    validations:
+      required: true
+
+  - type: textarea
+    id: recent_changes
+    attributes:
+      label: 直前に行った変更
+      description: 更新、設定変更、schema適用、依存関係更新などがあれば記載してください。
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 補足情報
+      description: 回避方法や追加の調査結果があれば記載してください。
+    validations:
+      required: false

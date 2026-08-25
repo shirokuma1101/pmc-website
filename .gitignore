@@ -23,6 +23,7 @@ FRONTEND_REQUIREMENTS_DRAFT.md
 /directus/uploads
 /directus/extensions/**/node_modules
 /.local-backups
+/backups
 
 # logs, editors, and local tooling
 *.log

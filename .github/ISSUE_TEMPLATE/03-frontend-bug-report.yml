@@ -1,0 +1,129 @@
+name: フロントエンドのバグ報告
+description: 画面表示、ブラウザ操作、スマートフォン表示などの不具合を報告する
+title: "[Frontend Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        フロントエンドの不具合報告ありがとうございます。再現と原因調査に必要な情報を記入してください。
+        パスワード、認証コード、Cookie、token、`.env`の内容などの秘密情報は貼り付けないでください。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 事前確認
+      options:
+        - label: 同じ内容のIssueがないことを確認しました
+          required: true
+        - label: ページの再読み込みや再ログイン後も発生することを確認しました
+          required: false
+        - label: セキュリティ上の脆弱性に関する報告ではありません
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 不具合の概要
+      description: どの画面で何が起きているかを簡潔に記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 別の人が同じ不具合を再現できるよう、操作を順番に記載してください。
+      placeholder: |
+        1. 〇〇ページを開く
+        2. △△を入力する
+        3. □□ボタンを押す
+        4. 表示が崩れる、またはエラーが表示される
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する表示・動作
+      description: 本来どのように表示または動作するべきかを記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の表示・動作
+      description: 期待と異なる表示、動作、画面上のエラーを記載してください。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 発生した領域
+      options:
+        - トップページ・公開ページ
+        - 記事一覧・記事詳細
+        - 記事・Markdownエディター
+        - タイムライン・投稿
+        - アカウント・認証画面
+        - プロフィール
+        - 管理者画面
+        - レスポンシブ・スマートフォン表示
+        - その他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: 発生頻度
+      options:
+        - 毎回
+        - ときどき
+        - 1回のみ
+        - 不明
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: 端末
+      multiple: true
+      options:
+        - Windows PC
+        - macOS
+        - Linux PC
+        - iPhone・iPad
+        - Android
+        - その他
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: ブラウザとバージョン
+      description: 利用しているブラウザとバージョンを記載してください。
+      placeholder: Chrome 140
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: スクリーンショット・ブラウザログ
+      description: 必要に応じて画像やコンソールログを添付してください。秘密情報や個人情報は必ず削除してください。
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 補足情報
+      description: 発生し始めた時期、直前に行った操作、回避方法などがあれば記載してください。
+    validations:
+      required: false

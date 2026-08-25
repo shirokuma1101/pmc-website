@@ -1,0 +1,83 @@
+name: 機能追加
+description: 新しい機能や仕組みを提案する
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        機能追加の提案ありがとうございます。目的と完了条件が分かるように記入してください。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 事前確認
+      options:
+        - label: 同じ内容のIssueがないことを確認しました
+          required: true
+        - label: セキュリティ上の脆弱性に関する報告ではありません
+          required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景・解決したい課題
+      description: 誰が、どのような状況で困っているかを記載してください。
+      placeholder: 現在は〇〇できないため、△△の作業に時間がかかっています。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 希望する機能
+      description: 実現したい動作を、利用者の視点で具体的に記載してください。
+      placeholder: 〇〇画面で△△を選択すると、□□できるようにしたいです。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 主な対象領域
+      options:
+        - 公開ページ
+        - 記事・Markdownエディター
+        - タイムライン・投稿
+        - アカウント・認証
+        - プロフィール
+        - 管理者機能
+        - Directus・API
+        - インフラ・運用
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: 何ができれば機能追加が完了したと判断できるかを記載してください。
+      placeholder: |
+        - [ ] 利用者が〇〇できる
+        - [ ] スマートフォンでも操作できる
+        - [ ] 管理者以外には表示されない
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案・検討した方法
+      description: 現在の回避策や、ほかに検討した方法があれば記載してください。
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 参考資料
+      description: 参考URL、画像、画面案などがあれば添付してください。秘密情報は含めないでください。
+    validations:
+      required: false
