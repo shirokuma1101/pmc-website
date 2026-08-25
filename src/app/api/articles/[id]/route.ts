@@ -8,7 +8,7 @@ import {
   updateArticle,
 } from "@/lib/directus/articles";
 import { assertStoredImages } from "@/lib/directus/files";
-import { storedImageIdsInMarkdown } from "@/lib/articles/images";
+import { newlyReferencedImageIds } from "@/lib/articles/images";
 import { assertSameOrigin } from "@/lib/security/csrf";
 import { adminArticleFieldsSchema, idSchema, updateArticleSchema } from "@/lib/validation/schemas";
 
@@ -79,8 +79,10 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
 
     const validated = updateArticleSchema.parse(input);
     if (validated.body !== undefined) {
+      const existingArticle = await getArticleById(id, session.accessToken);
+      if (!existingArticle) throw new ApiRouteError("Article not found", 404, "NOT_FOUND");
       await assertStoredImages(
-        storedImageIdsInMarkdown(validated.body),
+        newlyReferencedImageIds(existingArticle.body, validated.body),
         session.user.id,
         session.accessToken,
         session.user.isAdmin,
