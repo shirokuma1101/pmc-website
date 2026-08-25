@@ -157,6 +157,7 @@ services:
       DIRECTUS_URL: http://directus:8055
       DIRECTUS_ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?Set DIRECTUS_ADMIN_EMAIL in .env}
       DIRECTUS_ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?Set DIRECTUS_ADMIN_PASSWORD in .env}
+      DIRECTUS_ADMIN_OTP: ${DIRECTUS_ADMIN_OTP:-}
     volumes:
       - ./directus/bootstrap.mjs:/directus/bootstrap.mjs:ro
     command: ["node", "/directus/bootstrap.mjs"]

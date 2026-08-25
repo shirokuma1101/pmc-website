@@ -154,6 +154,17 @@ docker compose --env-file .env up -d --build
 docker compose --env-file .env ps
 ```
 
+Directus管理者で2FAを有効にしている場合は、bootstrap実行時だけ現在の6桁OTPを渡します。
+OTPは短時間で失効するため、`.env`には保存しません。
+
+```sh
+read -r -s -p "Directus OTP: " directus_admin_otp
+printf '\n'
+docker compose --env-file .env --profile tools run --rm \
+  -e DIRECTUS_ADMIN_OTP="$directus_admin_otp" bootstrap
+unset directus_admin_otp
+```
+
 既定ではFrontendを`127.0.0.1:3000`、Directusを`127.0.0.1:8055`へbindします。同一ホストの
 reverse proxyから、FrontendとDirectusをそれぞれHTTPSで公開してください。reverse proxyが別マシンに
 ある場合は、`FRONTEND_BIND_IP`と`DIRECTUS_BIND_IP`へDockerホストのprivate IPを指定し、firewallで
@@ -172,8 +183,8 @@ Article公開時のDiscord通知を有効にする場合は、本番`.env`へ
 通知処理を安全にスキップします。
 
 `bootstrap` serviceはDirectusの管理者資格情報を使ってrole、policy、upload folderを冪等に作成します。
-本番ではローカル検証ユーザーを作成しません。更新時もDBとuploadsをバックアップし、schema dry-runを
-確認してから適用してください。
+管理者で2FAが有効な場合は、実行時に`DIRECTUS_ADMIN_OTP`も必要です。本番ではローカル検証ユーザーを
+作成しません。更新時もDBとuploadsをバックアップし、schema dry-runを確認してから適用してください。
 
 この本番Composeは空のpmc-website専用DBを新規作成します。旧共有Directusの記事、画像、ユーザーは
 自動移行しません。必要なコンテンツは新instanceの初期化後に個別の移行手順で取り込み、共有
