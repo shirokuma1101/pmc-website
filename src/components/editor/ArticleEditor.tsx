@@ -25,6 +25,15 @@ const PREVIEW_DELAY_MS = 300;
 const MAX_EDITOR_IMAGE_BYTES = 8 * 1024 * 1024;
 const EDITOR_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+function parseSafeHttpUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const tokenPattern = /(!\[[^\]\n]*\]\(https?:\/\/[^\s)]+\)|\*\*[^*\n]+\*\*|__[^_\n]+__|`[^`\n]+`|\*[^*\n]+\*|_[^_\n]+_|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))/g;
   const nodes: ReactNode[] = [];
@@ -39,7 +48,8 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
 
     if (token.startsWith("![")) {
       const image = token.match(/^!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)$/);
-      nodes.push(image ? <img key={key} src={image[2]} alt={image[1]} loading="lazy" /> : token);
+      const imageUrl = image ? parseSafeHttpUrl(image[2]) : null;
+      nodes.push(image && imageUrl ? <img key={key} src={imageUrl} alt={image[1]} loading="lazy" /> : token);
     } else if ((token.startsWith("**") && token.endsWith("**")) || (token.startsWith("__") && token.endsWith("__"))) {
       nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
     } else if (token.startsWith("`") && token.endsWith("`")) {
@@ -48,9 +58,10 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       nodes.push(<em key={key}>{token.slice(1, -1)}</em>);
     } else {
       const link = token.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
-      if (link) {
+      const linkUrl = link ? parseSafeHttpUrl(link[2]) : null;
+      if (link && linkUrl) {
         nodes.push(
-          <a key={key} href={link[2]} target="_blank" rel="noreferrer noopener">
+          <a key={key} href={linkUrl} target="_blank" rel="noreferrer noopener">
             {link[1]}
           </a>,
         );

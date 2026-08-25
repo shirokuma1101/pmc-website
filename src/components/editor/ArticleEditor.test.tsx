@@ -76,6 +76,30 @@ describe("ArticleEditor", () => {
     expect(document.querySelector("script")).not.toBeInTheDocument();
   });
 
+  it("keeps HTTP image and link previews while rejecting non-HTTP destinations", () => {
+    render(
+      <EditorHarness
+        initialValue={[
+          "![記事画像](https://cdn.example.com/article.png)",
+          "[公式サイト](http://example.com/guide)",
+          "[危険なリンク](javascript:alert(1))",
+        ].join("\n\n")}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "プレビュー" }));
+
+    expect(screen.getByRole("img", { name: "記事画像" })).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/article.png",
+    );
+    expect(screen.getByRole("link", { name: "公式サイト" })).toHaveAttribute(
+      "href",
+      "http://example.com/guide",
+    );
+    expect(screen.queryByRole("link", { name: "危険なリンク" })).not.toBeInTheDocument();
+    expect(screen.getByText(/危険なリンク/)).toBeInTheDocument();
+  });
+
   it("inserts an H2 marker without blocking further input", () => {
     render(<EditorHarness />);
     fireEvent.click(screen.getByRole("button", { name: "H2" }));
