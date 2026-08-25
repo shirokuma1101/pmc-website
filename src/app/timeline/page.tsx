@@ -2,7 +2,8 @@ import Link from "next/link";
 import { PostCard, PostComposer } from "@/components/timeline";
 import { EmptyState, Pagination } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
-import { getPostAuthors, getPosts } from "@/lib/directus/posts";
+import { getContentAuthors } from "@/lib/directus/authors";
+import { getPosts } from "@/lib/directus/posts";
 
 const PAGE_SIZE = 12;
 
@@ -22,7 +23,7 @@ export default async function TimelinePage({
   const session = await getSession();
   const [result, postAuthors] = await Promise.all([
     getPosts({ page, limit: PAGE_SIZE, accessToken: session?.accessToken }),
-    session?.user.isAdmin ? getPostAuthors(session.accessToken) : Promise.resolve([]),
+    session?.user.isAdmin ? getContentAuthors(session.accessToken) : Promise.resolve([]),
   ]);
   const totalPages = result.pagination.total
     ? Math.max(1, Math.ceil(result.pagination.total / result.pagination.limit))

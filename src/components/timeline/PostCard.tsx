@@ -165,7 +165,7 @@ export function PostCard({
               onChange={(event) => setContent(event.target.value)}
             />
             {adminMode ? (
-              <div className="post-admin-fields__grid">
+              <div className="content-admin-fields__grid">
                 <label className="field">
                   <span className="field__label">投稿者</span>
                   <select className="input" value={authorId} disabled={saving} onChange={(event) => setAuthorId(event.target.value)}>

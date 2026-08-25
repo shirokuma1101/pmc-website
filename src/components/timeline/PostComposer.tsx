@@ -172,9 +172,9 @@ export function PostComposer({
         />
 
         {isAdmin ? (
-          <details className="post-admin-fields" open={adminMode} onToggle={(event) => setAdminMode(event.currentTarget.open)}>
+          <details className="content-admin-fields" open={adminMode} onToggle={(event) => setAdminMode(event.currentTarget.open)}>
             <summary>管理者モード</summary>
-            <div className="post-admin-fields__grid">
+            <div className="content-admin-fields__grid">
               <label className="field">
                 <span className="field__label">投稿者</span>
                 <select className="input" value={authorId} disabled={submitting} onChange={(event) => setAuthorId(event.target.value)}>

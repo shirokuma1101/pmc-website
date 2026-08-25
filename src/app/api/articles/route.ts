@@ -11,6 +11,7 @@ import { assertStoredImages } from "@/lib/directus/files";
 import { storedImageIdsInMarkdown } from "@/lib/articles/images";
 import { assertSameOrigin } from "@/lib/security/csrf";
 import {
+  adminArticleFieldsSchema,
   articleStatusSchema,
   createArticleSchema,
   idSchema,
@@ -55,6 +56,7 @@ export async function POST(request: Request): Promise<Response> {
     assertSameOrigin(request);
     const session = await requireSession();
     let input: Record<string, unknown>;
+    let adminInput: { authorId?: string; createdAt?: string; publishedAt?: string } = {};
 
     if (isMultipart(request)) {
       const form = await request.formData();
@@ -65,8 +67,29 @@ export async function POST(request: Request): Promise<Response> {
         tags: (formString(form, "tags") ?? "").split(",").map((tag) => tag.trim()).filter(Boolean),
         body: formString(form, "body") ?? "",
       };
+      if (session.user.isAdmin) {
+        adminInput = adminArticleFieldsSchema.parse({
+          ...(formString(form, "authorId") ? { authorId: formString(form, "authorId") } : {}),
+          ...(formString(form, "createdAt") ? { createdAt: formString(form, "createdAt") } : {}),
+          ...(formString(form, "publishedAt") ? { publishedAt: formString(form, "publishedAt") } : {}),
+        });
+      }
     } else {
-      input = await readObjectBody(request);
+      const body = await readObjectBody(request);
+      input = session.user.isAdmin ? {
+        title: body.title,
+        ...(body.slug !== undefined ? { slug: body.slug } : {}),
+        summary: body.summary,
+        tags: body.tags,
+        body: body.body,
+      } : body;
+      if (session.user.isAdmin) {
+        adminInput = adminArticleFieldsSchema.parse({
+          ...(body.authorId !== undefined ? { authorId: body.authorId } : {}),
+          ...(body.createdAt !== undefined ? { createdAt: body.createdAt } : {}),
+          ...(body.publishedAt !== undefined ? { publishedAt: body.publishedAt } : {}),
+        });
+      }
     }
 
     const validated = createArticleSchema.parse(input);
@@ -82,7 +105,8 @@ export async function POST(request: Request): Promise<Response> {
       summary: validated.summary,
       tags: validated.tags,
       body: validated.body,
-    }, session.accessToken, session.user.isAdmin ? session.user.id : undefined);
+      ...adminInput,
+    }, session.accessToken);
     return dataResponse(article, 201);
   });
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FormEvent } from "react";
-import type { Article } from "@/types";
+import type { Article, ArticleAuthorOption } from "@/types";
 
 import { getApiErrorMessage, unwrapApiData } from "../apiResponse";
 import { ArticleEditor } from "../editor/ArticleEditor";
@@ -12,9 +12,18 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { StatusBadge } from "../ui/StatusBadge";
+import { useUnsavedChangesWarning } from "./useUnsavedChangesWarning";
 
 type SaveIntent = "draft" | "review";
 type FieldErrors = Partial<Record<"title" | "body", string>>;
+type ArticleDraftSnapshot = {
+  title: string;
+  tags: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
+  publishedAt: string;
+};
 
 export interface ArticleFormProps {
   article?: Article | null;
@@ -23,7 +32,17 @@ export interface ArticleFormProps {
   redirectAfterSubmit?: string;
   allowPublishedEdit?: boolean;
   adminMode?: boolean;
+  currentUserId?: string;
+  authorOptions?: ArticleAuthorOption[];
   onSaved?: (article: Article) => void;
+}
+
+function dateTimeLocalValue(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
 }
 
 export function ArticleForm({
@@ -33,6 +52,8 @@ export function ArticleForm({
   redirectAfterSubmit = "/me?status=pending",
   allowPublishedEdit = false,
   adminMode = false,
+  currentUserId,
+  authorOptions = [],
   onSaved,
 }: ArticleFormProps) {
   const router = useRouter();
@@ -44,10 +65,25 @@ export function ArticleForm({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [authorId, setAuthorId] = useState(article?.author.id ?? currentUserId ?? authorOptions[0]?.id ?? "");
+  const [createdAt, setCreatedAt] = useState(dateTimeLocalValue(article?.createdAt));
+  const [publishedAt, setPublishedAt] = useState(dateTimeLocalValue(article?.publishedAt));
+  const [savedSnapshot, setSavedSnapshot] = useState<ArticleDraftSnapshot>({
+    title: article?.title ?? "",
+    tags: article?.tags.join(", ") ?? "",
+    body: article?.body ?? "",
+    authorId: article?.author.id ?? currentUserId ?? authorOptions[0]?.id ?? "",
+    createdAt: dateTimeLocalValue(article?.createdAt),
+    publishedAt: dateTimeLocalValue(article?.publishedAt),
+  });
 
   const editingPublished = article?.status === "published" && allowPublishedEdit;
   const locked = (article?.status === "pending" && !adminMode)
     || (article?.status === "published" && !allowPublishedEdit);
+  const currentSnapshot: ArticleDraftSnapshot = { title, tags, body, authorId, createdAt, publishedAt };
+  const isDirty = !locked && Object.entries(currentSnapshot)
+    .some(([field, value]) => savedSnapshot[field as keyof ArticleDraftSnapshot] !== value);
+  useUnsavedChangesWarning(isDirty);
 
   function validate(intent: SaveIntent) {
     const nextErrors: FieldErrors = {};
@@ -65,6 +101,13 @@ export function ArticleForm({
     formData.append("title", title.trim());
     formData.append("tags", tags);
     formData.append("body", body);
+    if (adminMode) {
+      if (authorId) formData.append("authorId", authorId);
+      if (createdAt) formData.append("createdAt", new Date(createdAt).toISOString());
+      if (article?.status === "published" && publishedAt) {
+        formData.append("publishedAt", new Date(publishedAt).toISOString());
+      }
+    }
 
     const endpoint = persistedId ? `/api/articles/${encodeURIComponent(persistedId)}` : createEndpoint;
     const response = await fetch(endpoint, {
@@ -83,6 +126,7 @@ export function ArticleForm({
 
     if (!articleId) throw new Error("保存した記事を特定できませんでした。もう一度お試しください。");
     setPersistedId(articleId);
+    setSavedSnapshot(currentSnapshot);
 
     if (intent === "review") {
       const submitResponse = await fetch(`/api/articles/${encodeURIComponent(articleId)}/submit`, {
@@ -168,6 +212,31 @@ export function ArticleForm({
 
       <fieldset className="article-form__fieldset" disabled={locked || savingIntent !== null}>
         <legend className="sr-only">記事の内容</legend>
+        {adminMode ? (
+          <details className="content-admin-fields" open>
+            <summary>管理者モード</summary>
+            <div className="content-admin-fields__grid">
+              <label className="field">
+                <span className="field__label">著者</span>
+                <select className="input" value={authorId} required onChange={(event) => setAuthorId(event.target.value)}>
+                  {authorOptions.map((author) => <option key={author.id} value={author.id}>{author.displayName}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span className="field__label">作成日時</span>
+                <input className="input" type="datetime-local" value={createdAt} onChange={(event) => setCreatedAt(event.target.value)} />
+                <span className="field__hint">新規記事で未指定の場合は現在日時になります。</span>
+              </label>
+              {article?.status === "published" ? (
+                <label className="field">
+                  <span className="field__label">公開日時</span>
+                  <input className="input" type="datetime-local" value={publishedAt} required onChange={(event) => setPublishedAt(event.target.value)} />
+                  <span className="field__hint">公開ページや記事一覧に表示される日時です。</span>
+                </label>
+              ) : null}
+            </div>
+          </details>
+        ) : null}
         <Input
           label="タイトル"
           name="title"

@@ -73,6 +73,12 @@ const articleFields = {
 
 export const createArticleSchema = z.object(articleFields).strict();
 
+export const adminArticleFieldsSchema = z.object({
+  authorId: z.string().uuid().optional(),
+  createdAt: z.string().datetime({ offset: true }).optional(),
+  publishedAt: z.string().datetime({ offset: true }).optional(),
+}).strict();
+
 export const updateArticleSchema = z.object({
   title: articleFields.title.optional(),
   slug: articleFields.slug,
@@ -86,6 +92,7 @@ export const updateArticleSchema = z.object({
 export const profileSchema = z.object({
   displayName: z.string().trim().min(1).max(80),
   bio: z.string().trim().max(1_000).default(""),
+  xboxGamertag: z.string().trim().max(50).default(""),
   avatarId: z.string().uuid().nullable().optional(),
 }).strict();
 

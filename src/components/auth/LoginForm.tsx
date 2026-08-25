@@ -53,11 +53,6 @@ export function LoginForm({
       setError("認証アプリに表示された6桁のコードを入力してください。");
       return;
     }
-    if (!requiresOtp && otp && !/^\d{6}$/.test(otp)) {
-      setError("2段階認証コードは6桁で入力してください。");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const response = await fetch(endpoint, {
@@ -102,39 +97,51 @@ export function LoginForm({
 
   return (
     <section className="auth-card" aria-labelledby="login-title">
-      <div className="auth-card__mark" aria-hidden="true">記</div>
+      <div className="auth-card__mark" aria-hidden="true">{requiresOtp ? "鍵" : "記"}</div>
       <div className="auth-card__heading">
-        <p className="eyebrow">SIGN IN</p>
-        <h1 id="login-title">{title}</h1>
-        <p>{description}</p>
+        <p className="eyebrow">{requiresOtp ? "TWO-FACTOR AUTHENTICATION" : "SIGN IN"}</p>
+        <h1 id="login-title">{requiresOtp ? "認証コードを入力" : title}</h1>
+        <p>{requiresOtp ? "認証アプリに表示されている6桁のコードを入力してください。" : description}</p>
       </div>
 
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
-        {notice ? <Alert tone="success">{notice}</Alert> : null}
+        {notice && !requiresOtp ? <Alert tone="success">{notice}</Alert> : null}
         {requiresOtp ? (
           <>
-            <Alert tone="info" title="2段階認証">
-              認証アプリに表示された6桁のコードを入力してください。
-            </Alert>
             <p className="auth-form__identity">
               ログイン先: <strong>{email.trim()}</strong>
             </p>
-            <Input
-              label="認証コード"
-              hint="コードは一定時間で切り替わります。現在表示されているコードを入力してください。"
-              id="login-otp"
-              name="otp"
-              type="text"
-              value={otp}
-              autoComplete="one-time-code"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              required
-              autoFocus
-              disabled={submitting}
-              onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-            />
+            <label className="auth-otp" htmlFor="login-otp">
+              <span className="field__label">認証コード<span className="field__required">必須</span></span>
+              <span className="auth-otp__slots" aria-hidden="true">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <span
+                    key={index}
+                    className={index === otp.length ? "is-active" : undefined}
+                  >
+                    {otp[index] ?? ""}
+                  </span>
+                ))}
+              </span>
+              <input
+                className="auth-otp__input"
+                aria-label="認証コード"
+                aria-describedby="login-otp-hint"
+                id="login-otp"
+                name="otp"
+                type="text"
+                value={otp}
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                required
+                autoFocus
+                disabled={submitting}
+                onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              />
+              <span className="field__hint" id="login-otp-hint">コードは一定時間で切り替わります。現在表示されているコードを入力してください。</span>
+            </label>
           </>
         ) : (
           <>
@@ -160,20 +167,6 @@ export function LoginForm({
               required
               disabled={submitting}
               onChange={(event) => setPassword(event.target.value)}
-            />
-            <Input
-              label="2段階認証コード（設定している場合）"
-              hint="2段階認証を有効にしている方は、認証アプリの6桁コードも入力してください。"
-              id="login-otp-optional"
-              name="otp"
-              type="text"
-              value={otp}
-              autoComplete="one-time-code"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              disabled={submitting}
-              onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
             />
           </>
         )}

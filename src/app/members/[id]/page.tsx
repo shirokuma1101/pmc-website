@@ -31,7 +31,8 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
         <div>
           <p className="eyebrow">Member</p>
           <h1>{profile.displayName}</h1>
-          <p>{profile.bio || "活動を記録しているPostMineClanメンバーです。"}</p>
+          <p className="profile-hero__bio">{profile.bio || "活動を記録しているPostMineClanメンバーです。"}</p>
+          {profile.xboxGamertag ? <p className="profile-hero__gamertag"><span>Xbox</span>{profile.xboxGamertag}</p> : null}
         </div>
       </header>
 

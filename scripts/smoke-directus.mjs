@@ -86,7 +86,7 @@ try {
   await request("/pmc-website/profile", {
     method: "PUT",
     token: memberToken,
-    body: { display_name: "Local Member", bio: "Local smoke-test profile", avatar: null },
+    body: { display_name: "Local Member", bio: "Local smoke-test profile", xbox_gamertag: "LocalPlayer", avatar: null },
   });
   const session = await request("/pmc-website/session", { token: memberToken });
   if (session.data.email !== memberEmail || session.data.isAdmin !== false) {

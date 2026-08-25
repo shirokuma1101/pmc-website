@@ -92,6 +92,7 @@ const PROFILE_FIELDS = [
   "id",
   "display_name",
   "bio",
+  "xbox_gamertag",
   "created_at",
   "updated_at",
   "avatar.id",
@@ -415,7 +416,7 @@ function postInput(request, { partial = false } = {}) {
 
 function articleInput(request, { partial = false } = {}) {
   const body = objectBody(request);
-  strictKeys(body, new Set(["title", "slug", "summary", "tags", "body"]));
+  strictKeys(body, new Set(["title", "slug", "summary", "tags", "body", "author_id", "created_at", "published_at"]));
   const title = body.title === undefined && partial
     ? undefined
     : requiredText(body.title, "title", 160);
@@ -435,18 +436,27 @@ function articleInput(request, { partial = false } = {}) {
   const thumbnail = articleBody === undefined
     ? undefined
     : storedImageIdsInMarkdown(articleBody)[0] ?? null;
-  if (partial && [title, slug, summary, tags, articleBody, thumbnail].every((value) => value === undefined)) {
+  const author = body.author_id === undefined ? undefined : uuid(body.author_id, "author_id");
+  const createdAt = body.created_at === undefined ? undefined : timestamp(body.created_at, "created_at");
+  const publishedAt = body.published_at === undefined ? undefined : timestamp(body.published_at, "published_at");
+  if ((author !== undefined || createdAt !== undefined || publishedAt !== undefined)
+    && request.accountability?.admin !== true) {
+    throw new EndpointError(403, "ADMIN_REQUIRED", "Only administrators can change article metadata");
+  }
+  if (partial && [title, slug, summary, tags, articleBody, thumbnail, author, createdAt, publishedAt]
+    .every((value) => value === undefined)) {
     throw new EndpointError(400, "INVALID_PAYLOAD", "At least one editable field is required");
   }
-  return { title, slug, summary, tags, body: articleBody, thumbnail };
+  return { title, slug, summary, tags, body: articleBody, thumbnail, author, createdAt, publishedAt };
 }
 
 function profileInput(request) {
   const body = objectBody(request);
-  strictKeys(body, new Set(["display_name", "bio", "avatar"]));
+  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar"]));
   return {
     display_name: requiredText(body.display_name, "display_name", 80),
     bio: optionalText(body.bio, "bio", 1_000) ?? "",
+    xbox_gamertag: optionalText(body.xbox_gamertag, "xbox_gamertag", 50) ?? "",
     avatar: body.avatar === undefined ? undefined : uuid(body.avatar, "avatar", { nullable: true }),
   };
 }
@@ -626,7 +636,7 @@ export default {
       response.status(204).send();
     }));
 
-    router.get("/admin/post-authors", route(async (request, response) => {
+    router.get("/admin/authors", route(async (request, response) => {
       requireAdmin(request);
       const data = await database("directus_users as users")
         .innerJoin("profiles as profiles", "profiles.user", "users.id")
@@ -1011,13 +1021,17 @@ export default {
       const userId = currentUser(request);
       const input = articleInput(request);
       await assertOwnedUploads(database, storedImageIdsInMarkdown(input.body), userId);
+      if (input.author) {
+        const author = await database("directus_users").select("id").where({ id: input.author, status: "active" }).first();
+        if (!author) throw new EndpointError(400, "INVALID_AUTHOR", "The selected author is not active");
+      }
       const schema = await getSchema();
       const articles = new ItemsService("articles", {
         schema,
         accountability: elevatedAccountability(request),
       });
       const id = await articles.createOne({
-        author: userId,
+        author: input.author ?? userId,
         title: input.title,
         slug: input.slug,
         summary: input.summary,
@@ -1026,6 +1040,12 @@ export default {
         thumbnail: input.thumbnail ?? null,
         status: "draft",
       });
+      if (input.createdAt || input.publishedAt) {
+        await database("articles").where({ id }).update({
+          ...(input.createdAt ? { created_at: input.createdAt } : {}),
+          ...(input.publishedAt ? { published_at: input.publishedAt } : {}),
+        });
+      }
       response.status(201).json({ data: { id } });
     }));
 
@@ -1050,13 +1070,26 @@ export default {
           request.accountability?.admin === true ? null : record.author,
         );
       }
-      const data = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+      if (input.author) {
+        const author = await database("directus_users").select("id").where({ id: input.author, status: "active" }).first();
+        if (!author) throw new EndpointError(400, "INVALID_AUTHOR", "The selected author is not active");
+      }
+      const data = Object.fromEntries(Object.entries(input).filter(([key, value]) => (
+        value !== undefined && !["author", "createdAt", "publishedAt"].includes(key)
+      )));
       const schema = await getSchema();
       const articles = new ItemsService("articles", {
         schema,
         accountability: elevatedAccountability(request),
       });
-      await articles.updateOne(id, data);
+      if (Object.keys(data).length > 0) await articles.updateOne(id, data);
+      if (input.author !== undefined || input.createdAt !== undefined || input.publishedAt !== undefined) {
+        await database("articles").where({ id }).update({
+          ...(input.author !== undefined ? { author: input.author } : {}),
+          ...(input.createdAt !== undefined ? { created_at: input.createdAt } : {}),
+          ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
+        });
+      }
       response.status(204).send();
     }));
 

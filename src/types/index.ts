@@ -18,6 +18,7 @@ export interface Profile {
   id: string;
   displayName: string;
   bio: string;
+  xboxGamertag?: string;
   avatarUrl?: string;
   user?: UserSummary;
   createdAt?: string;
@@ -36,7 +37,9 @@ export interface Post {
   canLike: boolean;
 }
 
-export type PostAuthorOption = UserSummary;
+export type ContentAuthorOption = UserSummary;
+export type PostAuthorOption = ContentAuthorOption;
+export type ArticleAuthorOption = ContentAuthorOption;
 
 export interface Article {
   id: string;

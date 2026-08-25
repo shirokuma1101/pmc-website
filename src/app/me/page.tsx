@@ -55,7 +55,8 @@ export default async function MyPage({
         <div>
           <p className="eyebrow">My PostMineClan</p>
           <h1>{profile.displayName}</h1>
-          <p>{profile.bio || "プロフィールを整えて、活動について紹介しましょう。"}</p>
+          <p className="profile-hero__bio">{profile.bio || "プロフィールを整えて、活動について紹介しましょう。"}</p>
+          {profile.xboxGamertag ? <p className="profile-hero__gamertag"><span>Xbox</span>{profile.xboxGamertag}</p> : null}
         </div>
         <Link className="button button--primary" href="/article/new">新しい記事を書く</Link>
       </header>

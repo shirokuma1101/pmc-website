@@ -60,6 +60,7 @@ export function mapProfile(raw: DirectusProfileRaw): Profile {
     id: raw.id,
     displayName: raw.display_name?.trim() || user?.displayName || "Member",
     bio: raw.bio ?? "",
+    ...(raw.xbox_gamertag?.trim() ? { xboxGamertag: raw.xbox_gamertag.trim() } : {}),
     ...(avatar ? { avatarUrl: directusAssetUrl(avatar) } : {}),
     ...(user ? { user } : {}),
     ...(raw.created_at ? { createdAt: raw.created_at } : {}),
