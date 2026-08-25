@@ -7,3 +7,8 @@ export function storedImageIdsInMarkdown(markdown: string): string[] {
   }
   return [...ids];
 }
+
+export function newlyReferencedImageIds(previousMarkdown: string, nextMarkdown: string): string[] {
+  const previousIds = new Set(storedImageIdsInMarkdown(previousMarkdown));
+  return storedImageIdsInMarkdown(nextMarkdown).filter((id) => !previousIds.has(id));
+}

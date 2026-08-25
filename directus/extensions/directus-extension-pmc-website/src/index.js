@@ -19,6 +19,11 @@ export function storedImageIdsInMarkdown(markdown) {
   }
   return [...ids];
 }
+
+export function newlyReferencedImageIds(previousMarkdown, nextMarkdown) {
+  const previousIds = new Set(storedImageIdsInMarkdown(previousMarkdown));
+  return storedImageIdsInMarkdown(nextMarkdown).filter((id) => !previousIds.has(id));
+}
 const DEFAULT_ABOUT_CONTENT = {
   markdown: `# 好きなものが、創れる世界へ
 
@@ -1066,8 +1071,8 @@ export default {
       if (input.body !== undefined) {
         await assertOwnedUploads(
           database,
-          storedImageIdsInMarkdown(input.body),
-          request.accountability?.admin === true ? null : record.author,
+          newlyReferencedImageIds(record.body ?? "", input.body),
+          request.accountability?.admin === true ? null : userId,
         );
       }
       if (input.author) {

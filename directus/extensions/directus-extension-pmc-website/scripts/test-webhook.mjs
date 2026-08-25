@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 
-import { discordArticlePayload, storedImageIdsInMarkdown } from "../src/index.js";
+import {
+  discordArticlePayload,
+  newlyReferencedImageIds,
+  storedImageIdsInMarkdown,
+} from "../src/index.js";
 
 const bodyImageId = "123e4567-e89b-42d3-a456-426614174000";
 assert.deepEqual(
@@ -8,6 +12,15 @@ assert.deepEqual(
   [bodyImageId],
 );
 assert.deepEqual(storedImageIdsInMarkdown("![外部画像](https://example.com/image.webp)"), []);
+
+const addedImageId = "123e4567-e89b-42d3-a456-426614174001";
+assert.deepEqual(
+  newlyReferencedImageIds(
+    `![既存](https://cms.example.com/pmc-website/assets/${bodyImageId})`,
+    `![既存](https://cms.example.com/pmc-website/assets/${bodyImageId})\n![追加](https://cms.example.com/pmc-website/assets/${addedImageId})`,
+  ),
+  [addedImageId],
+);
 
 const payload = discordArticlePayload(
   {
