@@ -12,9 +12,18 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { StatusBadge } from "../ui/StatusBadge";
+import { useUnsavedChangesWarning } from "./useUnsavedChangesWarning";
 
 type SaveIntent = "draft" | "review";
 type FieldErrors = Partial<Record<"title" | "body", string>>;
+type ArticleDraftSnapshot = {
+  title: string;
+  tags: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
+  publishedAt: string;
+};
 
 export interface ArticleFormProps {
   article?: Article | null;
@@ -59,10 +68,22 @@ export function ArticleForm({
   const [authorId, setAuthorId] = useState(article?.author.id ?? currentUserId ?? authorOptions[0]?.id ?? "");
   const [createdAt, setCreatedAt] = useState(dateTimeLocalValue(article?.createdAt));
   const [publishedAt, setPublishedAt] = useState(dateTimeLocalValue(article?.publishedAt));
+  const [savedSnapshot, setSavedSnapshot] = useState<ArticleDraftSnapshot>({
+    title: article?.title ?? "",
+    tags: article?.tags.join(", ") ?? "",
+    body: article?.body ?? "",
+    authorId: article?.author.id ?? currentUserId ?? authorOptions[0]?.id ?? "",
+    createdAt: dateTimeLocalValue(article?.createdAt),
+    publishedAt: dateTimeLocalValue(article?.publishedAt),
+  });
 
   const editingPublished = article?.status === "published" && allowPublishedEdit;
   const locked = (article?.status === "pending" && !adminMode)
     || (article?.status === "published" && !allowPublishedEdit);
+  const currentSnapshot: ArticleDraftSnapshot = { title, tags, body, authorId, createdAt, publishedAt };
+  const isDirty = !locked && Object.entries(currentSnapshot)
+    .some(([field, value]) => savedSnapshot[field as keyof ArticleDraftSnapshot] !== value);
+  useUnsavedChangesWarning(isDirty);
 
   function validate(intent: SaveIntent) {
     const nextErrors: FieldErrors = {};
@@ -105,6 +126,7 @@ export function ArticleForm({
 
     if (!articleId) throw new Error("保存した記事を特定できませんでした。もう一度お試しください。");
     setPersistedId(articleId);
+    setSavedSnapshot(currentSnapshot);
 
     if (intent === "review") {
       const submitResponse = await fetch(`/api/articles/${encodeURIComponent(articleId)}/submit`, {

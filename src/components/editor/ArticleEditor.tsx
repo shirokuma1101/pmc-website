@@ -4,7 +4,7 @@ import { memo, useEffect, useId, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 
 import { getApiErrorMessage, unwrapApiData } from "../apiResponse";
-import { MarkdownContent } from "../markdown";
+import { MARKDOWN_ALLOWED_HTML_TAGS, MarkdownContent } from "../markdown";
 import { classNames } from "../ui/classNames";
 
 export interface ArticleEditorProps {
@@ -105,7 +105,7 @@ const MarkdownPreview = memo(function MarkdownPreview({ markdown }: { markdown: 
       continue;
     }
 
-    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
       const level = heading[1].length;
       const content = renderInline(heading[2], `heading-${index}`);
@@ -194,7 +194,7 @@ export function ArticleEditor({
   id,
   name = "body",
   label = "本文",
-  hint = 'Markdownと安全なHTMLタグを利用できます。画像の横並びには <div class="image-gallery"> を使用できます。',
+  hint = "Markdownと安全なHTMLタグを利用できます。記法や利用できるタグについて、詳しくはヘルプをご覧ください。",
   error,
   disabled = false,
   minRows = 20,
@@ -203,11 +203,18 @@ export function ArticleEditor({
   const generatedId = useId();
   const editorId = id ?? generatedId;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const helpButtonRef = useRef<HTMLButtonElement>(null);
+  const helpCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const scrollSyncFrameRef = useRef<number | null>(null);
+  const syncingScrollRef = useRef(false);
+  const lastScrollSourceRef = useRef<"input" | "preview">("input");
   const [view, setView] = useState<EditorView>("write");
   const [previewValue, setPreviewValue] = useState(value);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const errorId = error ? `${editorId}-error` : undefined;
   const hintId = `${editorId}-hint`;
 
@@ -216,6 +223,60 @@ export function ArticleEditor({
     const timer = window.setTimeout(() => setPreviewValue(value), PREVIEW_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [previewValue, value, view]);
+
+  useEffect(() => () => {
+    if (scrollSyncFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollSyncFrameRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!helpOpen) return;
+    helpCloseButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHelpOpen(false);
+        window.requestAnimationFrame(() => helpButtonRef.current?.focus());
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [helpOpen]);
+
+  function closeHelp() {
+    setHelpOpen(false);
+    window.requestAnimationFrame(() => helpButtonRef.current?.focus());
+  }
+
+  function syncSplitScroll(
+    source: HTMLElement,
+    target: HTMLElement | null,
+    sourceName: "input" | "preview",
+  ) {
+    if (view !== "split" || !target || syncingScrollRef.current) return;
+    lastScrollSourceRef.current = sourceName;
+    const sourceRange = source.scrollHeight - source.clientHeight;
+    const targetRange = target.scrollHeight - target.clientHeight;
+    const progress = sourceRange > 0 ? source.scrollTop / sourceRange : 0;
+
+    syncingScrollRef.current = true;
+    target.scrollTop = Math.max(0, targetRange) * progress;
+    scrollSyncFrameRef.current = window.requestAnimationFrame(() => {
+      syncingScrollRef.current = false;
+      scrollSyncFrameRef.current = null;
+    });
+  }
+
+  function resyncAfterPreviewResize() {
+    const textarea = textareaRef.current;
+    const preview = previewRef.current;
+    if (!textarea || !preview) return;
+    if (lastScrollSourceRef.current === "preview") {
+      syncSplitScroll(preview, textarea, "preview");
+    } else {
+      syncSplitScroll(textarea, preview, "input");
+    }
+  }
 
   function selectView(nextView: EditorView) {
     setView(nextView);
@@ -237,15 +298,15 @@ export function ArticleEditor({
   }
 
   async function uploadArticleImage(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (!file || disabled) return;
+    if (files.length === 0 || disabled) return;
     setImageError(null);
-    if (!EDITOR_IMAGE_TYPES.has(file.type)) {
+    if (files.some((file) => !EDITOR_IMAGE_TYPES.has(file.type))) {
       setImageError("JPEG、PNG、WebP形式の画像を選んでください。");
       return;
     }
-    if (file.size > MAX_EDITOR_IMAGE_BYTES) {
+    if (files.some((file) => file.size > MAX_EDITOR_IMAGE_BYTES)) {
       setImageError("画像サイズは8MB以下にしてください。");
       return;
     }
@@ -255,23 +316,30 @@ export function ArticleEditor({
     const end = textarea?.selectionEnd ?? start;
     setUploadingImage(true);
     try {
-      const form = new FormData();
-      form.append("image", file);
-      const response = await fetch(imageUploadEndpoint, {
-        method: "POST",
-        body: form,
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error(await getApiErrorMessage(response, "画像をアップロードできませんでした。"));
+      const uploadedImages: Array<{ file: File; url: string }> = [];
+      for (const file of files) {
+        const form = new FormData();
+        form.append("image", file);
+        const response = await fetch(imageUploadEndpoint, {
+          method: "POST",
+          body: form,
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error(await getApiErrorMessage(response, "画像をアップロードできませんでした。"));
+        }
+        const payload: unknown = await response.json();
+        const uploaded = unwrapApiData<{ id: string; url: string }>(payload);
+        if (!uploaded?.url) throw new Error("アップロードした画像URLを取得できませんでした。");
+        uploadedImages.push({ file, url: uploaded.url });
       }
-      const payload: unknown = await response.json();
-      const uploaded = unwrapApiData<{ id: string; url: string }>(payload);
-      if (!uploaded?.url) throw new Error("アップロードした画像URLを取得できませんでした。");
 
       const before = start > 0 && value[start - 1] !== "\n" ? "\n\n" : "";
       const after = end < value.length && value[end] !== "\n" ? "\n\n" : "\n";
-      const markdown = `${before}![記事内画像](${uploaded.url})${after}`;
+      const imagesMarkdown = uploadedImages
+        .map(({ file, url }) => `![${file.name}](${url})`)
+        .join("\n\n");
+      const markdown = `${before}${imagesMarkdown}${after}`;
       onChange(`${value.slice(0, start)}${markdown}${value.slice(end)}`);
       requestAnimationFrame(() => {
         textarea?.focus();
@@ -327,9 +395,21 @@ export function ArticleEditor({
           className="sr-only"
           type="file"
           accept="image/jpeg,image/png,image/webp"
+          multiple
           tabIndex={-1}
           onChange={uploadArticleImage}
         />
+        <button
+          ref={helpButtonRef}
+          type="button"
+          className="article-editor__help-button"
+          aria-haspopup="dialog"
+          aria-expanded={helpOpen}
+          onClick={() => setHelpOpen(true)}
+        >
+          <span aria-hidden="true">?</span>
+          ヘルプ
+        </button>
       </div>
 
       <div className={classNames("article-editor__panels", `article-editor__panels--${view}`)}>
@@ -346,11 +426,19 @@ export function ArticleEditor({
               aria-invalid={Boolean(error)}
               spellCheck
               onChange={(event) => onChange(event.target.value)}
+              onScroll={(event) => syncSplitScroll(event.currentTarget, previewRef.current, "input")}
             />
           </div>
         ) : null}
         {view !== "write" ? (
-          <div className="article-editor__preview" aria-label="本文プレビュー" tabIndex={0}>
+          <div
+            ref={previewRef}
+            className="article-editor__preview"
+            aria-label="本文プレビュー"
+            tabIndex={0}
+            onLoadCapture={resyncAfterPreviewResize}
+            onScroll={(event) => syncSplitScroll(event.currentTarget, textareaRef.current, "preview")}
+          >
             {previewValue.trim() ? (
               <MarkdownPreview markdown={previewValue} />
             ) : (
@@ -361,6 +449,67 @@ export function ArticleEditor({
       </div>
       {imageError ? <p className="field__error article-editor__image-error" role="alert">{imageError}</p> : null}
       {error ? <p className="field__error" id={errorId} role="alert">{error}</p> : null}
+      {helpOpen ? (
+        <div
+          className="article-editor-help__backdrop"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) closeHelp();
+          }}
+        >
+          <section
+            className="article-editor-help"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${editorId}-help-title`}
+          >
+            <header className="article-editor-help__header">
+              <div>
+                <p className="eyebrow">EDITOR HELP</p>
+                <h2 id={`${editorId}-help-title`}>Markdown・HTMLヘルプ</h2>
+              </div>
+              <button ref={helpCloseButtonRef} type="button" aria-label="ヘルプを閉じる" onClick={closeHelp}>×</button>
+            </header>
+            <div className="article-editor-help__body">
+              <section>
+                <h3>Markdown記法</h3>
+                <div className="article-editor-help__table-wrap">
+                  <table>
+                    <thead><tr><th>用途</th><th>入力例</th></tr></thead>
+                    <tbody>
+                      <tr><td>見出し</td><td><code>## 見出し</code></td></tr>
+                      <tr><td>太字・斜体</td><td><code>**太字**</code> / <code>*斜体*</code></td></tr>
+                      <tr><td>引用</td><td><code>&gt; 引用文</code></td></tr>
+                      <tr><td>箇条書き</td><td><code>- 項目</code></td></tr>
+                      <tr><td>番号付きリスト</td><td><code>1. 項目</code></td></tr>
+                      <tr><td>リンク</td><td><code>[表示名](https://example.com)</code></td></tr>
+                      <tr><td>画像</td><td><code>![代替テキスト](画像URL)</code></td></tr>
+                      <tr><td>コード</td><td><code>`code`</code> / <code>```複数行```</code></td></tr>
+                      <tr><td>区切り線</td><td><code>---</code></td></tr>
+                      <tr><td>チェックリスト</td><td><code>- [ ] 未完了</code> / <code>- [x] 完了</code></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              <section>
+                <h3>利用できるHTMLタグ</h3>
+                <p>安全性を確認した以下のタグを利用できます。</p>
+                <div className="article-editor-help__tags">
+                  {MARKDOWN_ALLOWED_HTML_TAGS.map((tag) => <code key={tag}>&lt;{tag}&gt;</code>)}
+                </div>
+              </section>
+              <section>
+                <h3>画像の横並び</h3>
+                <pre><code>{'<div class="image-gallery">\n  <img src="画像URL" alt="説明">\n  <img src="画像URL" alt="説明">\n</div>'}</code></pre>
+                <p><code>div</code>の<code>class=&quot;image-gallery&quot;</code>のみ、ギャラリー表示用として許可されています。</p>
+              </section>
+              <aside className="article-editor-help__notice">
+                <strong>安全性について</strong>
+                <p><code>script</code>、<code>style</code>、<code>onclick</code>などのイベント属性は保存・表示時に除去されます。リンクや画像URLは安全なプロトコルだけが許可されます。</p>
+              </aside>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

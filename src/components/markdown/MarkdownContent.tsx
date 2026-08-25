@@ -7,6 +7,8 @@ export interface MarkdownContentProps {
   children: string;
 }
 
+export const MARKDOWN_ALLOWED_HTML_TAGS = [...(defaultSchema.tagNames ?? [])].sort();
+
 const markdownHtmlSchema = {
   ...defaultSchema,
   attributes: {
