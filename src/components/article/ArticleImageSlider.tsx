@@ -11,7 +11,9 @@ export interface ArticleImageSliderProps {
 
 export function ArticleImageSlider({ articles }: ArticleImageSliderProps) {
   const slides = articles.filter(
-    (article): article is Article & { thumbnailUrl: string } => Boolean(article.thumbnailUrl),
+    (article): article is Article & { thumbnailUrl: string } => (
+      article.tags.includes("Minecraft") && Boolean(article.thumbnailUrl)
+    ),
   );
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
