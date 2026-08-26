@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { useCloseDetailsOnOutsideClick } from "./useCloseDetailsOnOutsideClick";
 
 interface AdminNotification {
   id: string;
@@ -29,8 +31,10 @@ function notificationDate(value: string) {
 }
 
 export function AdminNotificationTray({ onNavigate }: { onNavigate?: () => void }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const [notifications, setNotifications] = useState<NotificationData>({ items: [], total: 0 });
   const [failed, setFailed] = useState(false);
+  useCloseDetailsOnOutsideClick(detailsRef);
 
   const refresh = useCallback(async () => {
     try {
@@ -62,7 +66,7 @@ export function AdminNotificationTray({ onNavigate }: { onNavigate?: () => void 
   }, [refresh]);
 
   return (
-    <details className="notification-tray">
+    <details ref={detailsRef} className="notification-tray">
       <summary aria-label={`管理通知 ${notifications.total}件`} title="通知">
         <svg aria-hidden="true" viewBox="0 0 24 24">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />

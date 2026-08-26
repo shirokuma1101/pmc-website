@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { UserSummary } from "@/types";
 
 import { Alert } from "../ui/Alert";
@@ -11,6 +11,7 @@ import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { classNames } from "../ui/classNames";
 import { AdminNotificationTray } from "./AdminNotificationTray";
+import { useCloseDetailsOnOutsideClick } from "./useCloseDetailsOnOutsideClick";
 
 export interface SiteHeaderProps {
   currentUser?: UserSummary | null;
@@ -31,9 +32,11 @@ export function SiteHeader({
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const adminNavigationRef = useRef<HTMLDetailsElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useCloseDetailsOnOutsideClick(adminNavigationRef);
 
   useLayoutEffect(() => {
     const storedTheme = localStorage.getItem("pmc-theme");
@@ -133,7 +136,7 @@ export function SiteHeader({
                       <div className="site-header__desktop-notifications">
                         <AdminNotificationTray onNavigate={() => setMenuOpen(false)} />
                       </div>
-                      <details className="admin-navigation">
+                      <details ref={adminNavigationRef} className="admin-navigation">
                         <summary>管理</summary>
                         <div className="admin-navigation__menu">
                           <Link href="/admin/reviews" onClick={() => setMenuOpen(false)}>レビュー</Link>
