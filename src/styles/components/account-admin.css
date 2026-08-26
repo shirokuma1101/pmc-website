@@ -439,8 +439,6 @@
 }
 
 .review-form {
-  position: sticky;
-  top: 100px;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
