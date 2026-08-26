@@ -2871,8 +2871,6 @@ html[data-theme="dark"] .theme-toggle__sun {
 }
 
 .review-form {
-  position: sticky;
-  top: 100px;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
@@ -4368,10 +4366,6 @@ html[data-theme="dark"] .theme-toggle__sun {
 
   .review-layout {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .review-form {
-    position: static;
   }
 
   .review-grid {
