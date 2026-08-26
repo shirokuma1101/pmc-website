@@ -1,0 +1,130 @@
+:root {
+  --color-canvas: #fff;
+  --color-canvas-deep: #f1f5fc;
+  --color-surface: #fff;
+  --color-surface-soft: #f7f9fd;
+  --color-ink: #111827;
+  --color-ink-soft: #4b5563;
+  --color-ink-faint: #6b7280;
+  --color-line: #dbe3f0;
+  --color-line-strong: #b8c5d9;
+  --color-primary: #244b9c;
+  --color-primary-strong: #193873;
+  --color-primary-soft: #e9effb;
+  --color-accent: #3562b3;
+  --color-accent-soft: #eaf0fb;
+  --color-danger: #9a403c;
+  --color-danger-soft: #f8e5e3;
+  --color-warning: #8a621e;
+  --color-warning-soft: #fbf0cf;
+  --color-success: #2f6750;
+  --color-success-soft: #e1efe7;
+  --shadow-sm: 0 1px 2px rgb(17 24 39 / 5%), 0 5px 16px rgb(36 75 156 / 6%);
+  --shadow-md: 0 12px 36px rgb(36 75 156 / 12%);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  /* Site-wide font policy: use Noto Sans JP exclusively. */
+  --font-sans: var(--font-noto-sans-jp);
+  --content-width: 1120px;
+  --reading-width: 880px;
+  --reading-width: 760px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  color-scheme: light;
+  scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+  background: var(--color-canvas);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--color-ink);
+  background:
+    radial-gradient(circle at 4% 0%, rgb(143 245 207 / 12%), transparent 26rem),
+    radial-gradient(circle at 100% 12%, rgb(36 75 156 / 8%), transparent 32rem),
+    var(--color-canvas);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.75;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  color: inherit;
+  font: inherit;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-sans);
+}
+
+button,
+label[for],
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  border: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--color-primary);
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--color-primary-strong);
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+::selection {
+  color: var(--color-ink);
+  background: #dce8ff;
+}
+
+:focus-visible {
+  outline: 3px solid rgb(36 75 156 / 38%);
+  outline-offset: 3px;
+}
