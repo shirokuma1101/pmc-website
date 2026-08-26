@@ -18,6 +18,7 @@ type SaveIntent = "draft" | "review";
 type FieldErrors = Partial<Record<"title" | "body", string>>;
 type ArticleDraftSnapshot = {
   title: string;
+  summary: string;
   tags: string;
   body: string;
   authorId: string;
@@ -58,6 +59,7 @@ export function ArticleForm({
 }: ArticleFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(article?.title ?? "");
+  const [summary, setSummary] = useState(article?.summary ?? "");
   const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
   const [body, setBody] = useState(article?.body ?? "");
   const [persistedId, setPersistedId] = useState<string | null>(article?.id ?? null);
@@ -70,6 +72,7 @@ export function ArticleForm({
   const [publishedAt, setPublishedAt] = useState(dateTimeLocalValue(article?.publishedAt));
   const [savedSnapshot, setSavedSnapshot] = useState<ArticleDraftSnapshot>({
     title: article?.title ?? "",
+    summary: article?.summary ?? "",
     tags: article?.tags.join(", ") ?? "",
     body: article?.body ?? "",
     authorId: article?.author.id ?? currentUserId ?? authorOptions[0]?.id ?? "",
@@ -80,7 +83,7 @@ export function ArticleForm({
   const editingPublished = article?.status === "published" && allowPublishedEdit;
   const locked = (article?.status === "pending" && !adminMode)
     || (article?.status === "published" && !allowPublishedEdit);
-  const currentSnapshot: ArticleDraftSnapshot = { title, tags, body, authorId, createdAt, publishedAt };
+  const currentSnapshot: ArticleDraftSnapshot = { title, summary, tags, body, authorId, createdAt, publishedAt };
   const isDirty = !locked && Object.entries(currentSnapshot)
     .some(([field, value]) => savedSnapshot[field as keyof ArticleDraftSnapshot] !== value);
   useUnsavedChangesWarning(isDirty);
@@ -99,6 +102,7 @@ export function ArticleForm({
   async function saveArticle(intent: SaveIntent) {
     const formData = new FormData();
     formData.append("title", title.trim());
+    formData.append("summary", summary.trim());
     formData.append("tags", tags);
     formData.append("body", body);
     if (adminMode) {
@@ -259,6 +263,20 @@ export function ArticleForm({
           autoComplete="off"
           onChange={(event) => setTags(event.target.value)}
         />
+
+        <label className="field">
+          <span className="field__label">概要（任意）</span>
+          <textarea
+            className="input"
+            name="summary"
+            value={summary}
+            rows={3}
+            maxLength={500}
+            placeholder="記事の要点を簡潔に入力してください"
+            onChange={(event) => setSummary(event.target.value)}
+          />
+          <span className="field__hint">未入力の場合は本文の先頭から自動生成します。{summary.length} / 500文字</span>
+        </label>
 
         <ArticleEditor
           value={body}

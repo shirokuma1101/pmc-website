@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Article } from "@/types";
-import { articleExcerpt } from "@/lib/articles/excerpt";
+import { articleSummary } from "@/lib/articles/excerpt";
 
 import { Avatar } from "../ui/Avatar";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -56,7 +56,7 @@ export function ArticleCard({
         <Heading className="article-card__title">
           <Link href={articleHref}>{article.title}</Link>
         </Heading>
-        <p className="article-card__summary">{articleExcerpt(article.body) || "本文はまだありません。"}</p>
+        <p className="article-card__summary">{articleSummary(article) || "本文はまだありません。"}</p>
         {article.tags.length ? (
           <ul className="article-tags" aria-label="タグ">
             {article.tags.map((tag) => <li key={tag}><Link href={`/articles?tag=${encodeURIComponent(tag)}`}>#{tag}</Link></li>)}
