@@ -319,11 +319,6 @@
     margin-top: 2rem;
   }
 
-  .about-cta {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .about-history__timeline li {
     grid-template-columns: 1.25rem minmax(0, 1fr);
     gap: 0.35rem 0.85rem;
