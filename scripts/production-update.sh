@@ -203,6 +203,11 @@ update_source() {
   log "Fetching origin/main"
   git -C "${PROJECT_DIR}" fetch origin main
   git -C "${PROJECT_DIR}" pull --ff-only origin main
+  # Files checked out while the script-wide umask is 077 may otherwise be
+  # unreadable by the non-root Directus user through the read-only bind mount.
+  chmod -R a+rX \
+    "${PROJECT_DIR}/directus/extensions" \
+    "${PROJECT_DIR}/directus/schema"
   local target_file="${BACKUP_DIR}/target-${TIMESTAMP}.txt"
   git -C "${PROJECT_DIR}" rev-parse HEAD > "${target_file}"
   chmod 600 "${target_file}"
