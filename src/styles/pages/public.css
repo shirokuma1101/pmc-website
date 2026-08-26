@@ -237,6 +237,11 @@
   font-size: clamp(1.75rem, 4vw, 3rem);
 }
 
+.about-cta h2 span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 .about-statement > p:last-child {
   max-width: 44rem;
   margin: 0;
