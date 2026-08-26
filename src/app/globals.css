@@ -4099,18 +4099,6 @@ html[data-theme="dark"] .theme-toggle__sun {
   margin-left: auto;
 }
 
-.article-detail__thumbnail {
-  margin: 0 0 clamp(2.5rem, 7vw, 4.5rem);
-}
-
-.article-detail__thumbnail img {
-  width: 100%;
-  max-height: 34rem;
-  object-fit: cover;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-}
-
 .article-detail__body {
   padding-bottom: 2rem;
 }

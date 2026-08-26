@@ -107,11 +107,6 @@ export default async function ArticleDetailPage({
             <ShareButton title={article.title} text={shareText} url={articleUrl} />
           </div>
         </header>
-        {article.thumbnailUrl ? (
-          <figure className="article-detail__thumbnail">
-            <img src={article.thumbnailUrl} alt="" />
-          </figure>
-        ) : null}
         <div className="prose article-detail__body">
           <MarkdownContent>{article.body}</MarkdownContent>
         </div>
