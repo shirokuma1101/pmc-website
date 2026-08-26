@@ -55,7 +55,9 @@ export default async function AboutPage({ searchParams }: { searchParams: Promis
       <section className="about-cta" aria-labelledby="about-join-title">
         <div>
           <p className="eyebrow">Join Us</p>
-          <h2 id="about-join-title">PostMineClanに参加する</h2>
+          <h2 id="about-join-title">
+            <span>PostMineClanに</span><span>参加する</span>
+          </h2>
         </div>
         <div className="about-cta__actions">
           <a
