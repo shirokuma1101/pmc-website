@@ -3573,6 +3573,66 @@ html[data-theme="dark"] .theme-toggle__sun {
   width: min(100%, 760px);
 }
 
+.home-activity-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
+  align-items: start;
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+.activity-ranking {
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.activity-ranking__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.activity-ranking__heading h2 { margin: 0.2rem 0 0; font-size: 1.05rem; }
+.activity-ranking__heading > span { flex: 0 0 auto; color: var(--color-ink-faint); font-size: 0.68rem; }
+.activity-ranking__period { padding: 0.65rem 1.1rem; margin: 0; color: var(--color-ink-faint); background: var(--color-surface-soft); border-bottom: 1px solid var(--color-line); font-size: 0.68rem; text-align: center; }
+.activity-ranking__list { padding: 0; margin: 0; list-style: none; }
+.activity-ranking__list li {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1.1rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.activity-ranking__position { color: var(--color-primary); font-size: 0.82rem; font-weight: 800; text-align: center; }
+.activity-ranking__list li:nth-child(-n + 3) .activity-ranking__position { color: var(--color-accent-strong); font-size: 1rem; }
+.activity-ranking__list a {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--color-ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.activity-ranking__list a > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-ranking__list strong { color: var(--color-primary-strong); font-size: 0.8rem; white-space: nowrap; }
+.activity-ranking__list small { color: var(--color-ink-faint); font-size: 0.62rem; }
+.activity-ranking__rules, .activity-ranking__empty { margin: 0; color: var(--color-ink-faint); font-size: 0.7rem; }
+.activity-ranking__rules { padding: 0.8rem 1.1rem; text-align: center; }
+.activity-ranking__empty { padding: 2rem 1.25rem; text-align: center; border-bottom: 1px solid var(--color-line); }
+
+@media (max-width: 920px) {
+  .home-activity-layout { grid-template-columns: 1fr; }
+  .home-timeline { width: 100%; }
+}
+
 .signin-prompt {
   display: flex;
   align-items: center;

@@ -699,6 +699,46 @@ export default {
       response.json({ data });
     }));
 
+    router.get("/activity-ranking", route(async (_request, response) => {
+      const now = new Date();
+      const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
+      const until = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+
+      const result = await database.raw(`
+        WITH activity_events AS (
+          SELECT author AS user_id, 10 AS exp FROM articles WHERE created_at >= ? AND created_at < ?
+          UNION ALL
+          SELECT author AS user_id, 5 AS exp FROM posts WHERE created_at >= ? AND created_at < ?
+          UNION ALL
+          SELECT posts.author AS user_id, 1 AS exp
+          FROM post_likes INNER JOIN posts ON posts.id = post_likes.post
+          WHERE post_likes.created_at >= ? AND post_likes.created_at < ?
+          UNION ALL
+          SELECT articles.author AS user_id, 1 AS exp
+          FROM article_likes INNER JOIN articles ON articles.id = article_likes.article
+          WHERE article_likes.created_at >= ? AND article_likes.created_at < ?
+        )
+        SELECT activity_events.user_id, profiles.display_name, profiles.avatar,
+          SUM(activity_events.exp)::integer AS activity_exp
+        FROM activity_events
+        INNER JOIN directus_users ON directus_users.id = activity_events.user_id
+        INNER JOIN profiles ON profiles.user = activity_events.user_id
+        WHERE directus_users.status = 'active'
+        GROUP BY activity_events.user_id, profiles.display_name, profiles.avatar
+        ORDER BY activity_exp DESC, profiles.display_name ASC, activity_events.user_id ASC
+        LIMIT 5
+      `, [since, until, since, until, since, until, since, until]);
+
+      response.json({
+        data: result.rows.map((row, index) => ({
+          rank: index + 1,
+          user: { id: row.user_id, display_name: row.display_name, avatar: row.avatar },
+          activity_exp: Number(row.activity_exp),
+        })),
+        meta: { since: since.toISOString(), until: until.toISOString() },
+      });
+    }));
+
     router.get("/profiles/:id", route(async (request, response) => {
       const id = routeId(request);
       const exists = await database("profiles").select("id").where({ id }).first();

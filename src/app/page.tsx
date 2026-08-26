@@ -2,10 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArticleGrid } from "@/components/article/ArticleGrid";
 import { ArticleImageSlider } from "@/components/article/ArticleImageSlider";
+import { ActivityRanking } from "@/components/activity";
 import { PostCard } from "@/components/timeline";
 import { EmptyState } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
 import { getPublishedArticles } from "@/lib/directus/articles";
+import { getActivityRanking } from "@/lib/directus/activity";
 import { getPosts } from "@/lib/directus/posts";
 import styles from "./page.module.css";
 
@@ -27,9 +29,10 @@ function GitHubPlaceholderIcon() {
 
 export default async function HomePage() {
   const session = await getSession();
-  const [posts, articles] = await Promise.all([
+  const [posts, articles, activityRanking] = await Promise.all([
     getPosts({ limit: 3, accessToken: session?.accessToken }),
     getPublishedArticles({ limit: 10, accessToken: session?.accessToken }),
+    getActivityRanking(),
   ]);
 
   return (
@@ -84,12 +87,15 @@ export default async function HomePage() {
           </div>
           <Link className="text-link" href="/timeline">すべて見る <span aria-hidden="true">→</span></Link>
         </div>
-        <div className="home-timeline">
-          {posts.data.length ? posts.data.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={session?.user.id} />
-          )) : (
-            <EmptyState title="最初の活動を待っています" description="ログインすると、日々の小さな進捗を投稿できます。" symbol="記" />
-          )}
+        <div className="home-activity-layout">
+          <div className="home-timeline">
+            {posts.data.length ? posts.data.map((post) => (
+              <PostCard key={post.id} post={post} currentUserId={session?.user.id} />
+            )) : (
+              <EmptyState title="最初の活動を待っています" description="ログインすると、日々の小さな進捗を投稿できます。" symbol="記" />
+            )}
+          </div>
+          <ActivityRanking ranking={activityRanking} />
         </div>
       </section>
 

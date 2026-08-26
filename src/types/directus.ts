@@ -108,6 +108,17 @@ export interface DirectusItemResponse<T> {
   data: T;
 }
 
+export interface DirectusActivityRankingEntryRaw {
+  rank: number;
+  user: { id: string; display_name?: string | null; avatar?: string | null };
+  activity_exp: number;
+}
+
+export interface DirectusActivityRankingResponse {
+  data: DirectusActivityRankingEntryRaw[];
+  meta: { since: string; until: string };
+}
+
 export interface DirectusSessionData {
   session_token: string;
   expires: number;
