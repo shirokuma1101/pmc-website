@@ -55,5 +55,10 @@ jobs:
       - name: Validate production Compose
         run: docker compose --env-file .env.example config --quiet
 
+      - name: Validate production update script
+        run: |
+          bash -n scripts/production-update.sh
+          bash scripts/production-update.sh --help
+
       - name: Build container
         run: docker compose --env-file .env.example build frontend

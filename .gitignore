@@ -24,6 +24,7 @@ FRONTEND_REQUIREMENTS_DRAFT.md
 /directus/extensions/**/node_modules
 /.local-backups
 /backups
+/.production-update.lock
 
 # logs, editors, and local tooling
 *.log

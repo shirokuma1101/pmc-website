@@ -134,6 +134,17 @@ Linux/macOSの場合：
 cp .env.example .env
 ```
 
+既存の本番環境を更新するときは、バックアップ、スキーマdry-run、コンテナ更新、health checkをまとめたスクリプトを利用できます。
+
+```sh
+./scripts/production-update.sh              # 通常更新（スキーマ適用前に手動承認）
+./scripts/production-update.sh --preflight  # 更新前確認のみ
+./scripts/production-update.sh --backup-only
+./scripts/production-update.sh --dry-run
+```
+
+ホスト側でnpmは実行しません。詳細、手動確認項目、復旧時の注意は`PRODUCTION_UPDATE.md`を参照してください。
+
 `.env`の公開URL、bind先、Directus・PostgreSQLのsecret、管理者資格情報、SMTP設定を変更します。
 最初にDBとDirectusを起動し、schemaの差分を確認します。
 
