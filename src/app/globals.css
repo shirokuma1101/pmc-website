@@ -27,6 +27,7 @@
   /* Site-wide font policy: use Noto Sans JP exclusively. */
   --font-sans: var(--font-noto-sans-jp);
   --content-width: 1120px;
+  --reading-width: 880px;
   --reading-width: 760px;
 }
 
@@ -3213,6 +3214,7 @@ html[data-theme="dark"] .theme-toggle__sun {
 }
 
 .about-page {
+  width: min(calc(100% - 2.5rem), var(--reading-width));
   display: grid;
   gap: clamp(4rem, 10vw, 8rem);
 }
@@ -4038,7 +4040,7 @@ html[data-theme="dark"] .theme-toggle__sun {
 }
 
 .article-detail {
-  width: min(calc(100% - 2.5rem), 880px);
+  width: min(calc(100% - 2.5rem), var(--reading-width));
 }
 
 .article-detail__header {
