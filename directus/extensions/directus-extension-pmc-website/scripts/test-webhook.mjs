@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   discordArticlePayload,
   newlyReferencedImageIds,
+  publicArticleView,
   storedImageIdsInMarkdown,
 } from "../src/index.js";
 
@@ -51,5 +52,33 @@ const withoutThumbnail = discordArticlePayload(
   "http://cms.example.com",
 );
 assert.equal(withoutThumbnail.embeds[0].image, undefined);
+
+const revision = {
+  id: "article-id",
+  title: "承認待ちのタイトル",
+  slug: "pending-slug",
+  summary: "承認待ちの概要",
+  tags: ["Draft"],
+  body: "承認待ちの本文",
+  thumbnail: { id: "pending-thumbnail" },
+  status: "pending",
+  published_version_title: "公開中のタイトル",
+  published_version_slug: "published-slug",
+  published_version_summary: "公開中の概要",
+  published_version_tags: ["Published"],
+  published_version_body: "公開中の本文",
+  published_version_thumbnail: { id: "published-thumbnail" },
+};
+assert.deepEqual(publicArticleView(revision), {
+  ...revision,
+  title: "公開中のタイトル",
+  slug: "published-slug",
+  summary: "公開中の概要",
+  tags: ["Published"],
+  body: "公開中の本文",
+  thumbnail: { id: "published-thumbnail" },
+  status: "published",
+});
+assert.equal(publicArticleView({ id: "draft", status: "draft" }).status, "draft");
 
 console.log("Discord article payload tests passed");

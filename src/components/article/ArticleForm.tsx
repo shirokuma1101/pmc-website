@@ -81,6 +81,7 @@ export function ArticleForm({
   });
 
   const editingPublished = article?.status === "published" && allowPublishedEdit;
+  const requiresPublishedReview = editingPublished && !adminMode;
   const locked = (article?.status === "pending" && !adminMode)
     || (article?.status === "published" && !allowPublishedEdit);
   const currentSnapshot: ArticleDraftSnapshot = { title, summary, tags, body, authorId, createdAt, publishedAt };
@@ -204,7 +205,9 @@ export function ArticleForm({
       ) : null}
       {editingPublished ? (
         <Alert tone="warning" title="公開中の記事を編集しています">
-          保存した変更は、すぐに公開ページへ反映されます。
+          {requiresPublishedReview
+            ? "編集前の記事は公開されたまま維持されます。変更内容は管理者の承認後に公開されます。"
+            : "保存した変更は、すぐに公開ページへ反映されます。"}
         </Alert>
       ) : null}
       {article?.status === "rejected" ? (
@@ -297,11 +300,11 @@ export function ArticleForm({
               <Button
                 type="submit"
                 name="intent"
-                value="draft"
-                loading={savingIntent === "draft"}
+                value={requiresPublishedReview ? "review" : "draft"}
+                loading={savingIntent === (requiresPublishedReview ? "review" : "draft")}
                 disabled={savingIntent !== null}
               >
-                変更を保存
+                {requiresPublishedReview ? "変更内容のレビューを依頼" : "変更を保存"}
               </Button>
             ) : (
               <>

@@ -66,6 +66,14 @@ const ARTICLE_FIELDS = [
   "thumbnail.id",
   "thumbnail.description",
   "thumbnail.type",
+  "published_version_title",
+  "published_version_slug",
+  "published_version_summary",
+  "published_version_tags",
+  "published_version_body",
+  "published_version_thumbnail.id",
+  "published_version_thumbnail.description",
+  "published_version_thumbnail.type",
 ];
 const REVIEW_FIELDS = [
   "id",
@@ -289,6 +297,51 @@ function articleTags(value, { optional = false } = {}) {
   }
   return tags;
 }
+
+export function publicArticleView(article) {
+  if (!article?.published_version_title) return article;
+  return {
+    ...article,
+    title: article.published_version_title,
+    slug: article.published_version_slug,
+    summary: article.published_version_summary,
+    tags: article.published_version_tags,
+    body: article.published_version_body,
+    thumbnail: article.published_version_thumbnail,
+    status: "published",
+  };
+}
+
+async function assertArticleSlugAvailable(database, slug, articleId = null) {
+  if (slug === undefined) return;
+  const query = database("articles")
+    .select("id")
+    .where((builder) => builder.where({ slug }).orWhere({ published_version_slug: slug }));
+  if (articleId) query.whereNot({ id: articleId });
+  if (await query.first()) {
+    throw new EndpointError(409, "SLUG_ALREADY_EXISTS", "The article slug is already in use");
+  }
+}
+
+function publishedVersionSnapshot(article) {
+  return {
+    published_version_title: article.title,
+    published_version_slug: article.slug,
+    published_version_summary: article.summary ?? "",
+    published_version_tags: article.tags ?? [],
+    published_version_body: article.body ?? "",
+    published_version_thumbnail: article.thumbnail ?? null,
+  };
+}
+
+const CLEAR_PUBLISHED_VERSION = {
+  published_version_title: null,
+  published_version_slug: null,
+  published_version_summary: null,
+  published_version_tags: null,
+  published_version_body: null,
+  published_version_thumbnail: null,
+};
 
 function uuid(value, field, { nullable = false } = {}) {
   if (nullable && value === null) return null;
@@ -807,8 +860,11 @@ export default {
         database("posts_files").select("id").where({ directus_files_id: id }).first(),
         database("articles")
           .select("id")
-          .where({ thumbnail: id })
+          .where((builder) => builder
+            .where({ thumbnail: id })
+            .orWhere({ published_version_thumbnail: id }))
           .orWhere("body", "like", `%/pmc-website/assets/${id}%`)
+          .orWhere("published_version_body", "like", `%/pmc-website/assets/${id}%`)
           .first(),
       ]);
       if (postReference || articleReference) {
@@ -861,8 +917,13 @@ export default {
       const count = database("articles");
 
       if (scope === "published") {
-        filter.status = { _eq: "published" };
-        count.where({ status: "published" });
+        filter._or = [
+          { status: { _eq: "published" } },
+          { published_version_title: { _nnull: true } },
+        ];
+        count.where((builder) => builder
+          .where({ status: "published" })
+          .orWhereNotNull("published_version_title"));
         if (request.query.author_id !== undefined) {
           const author = uuid(request.query.author_id, "author_id");
           filter.author = { _eq: author };
@@ -872,8 +933,10 @@ export default {
           const tag = requiredText(request.query.tag, "tag", 30);
           const matchingRows = await database("articles")
             .select("id")
-            .where({ status: "published" })
-            .whereRaw("tags::jsonb @> ?::jsonb", [JSON.stringify([tag])]);
+            .where((builder) => builder
+              .where({ status: "published" })
+              .orWhereNotNull("published_version_title"))
+            .whereRaw("COALESCE(published_version_tags, tags)::jsonb @> ?::jsonb", [JSON.stringify([tag])]);
           const matchingIds = matchingRows.map((row) => row.id);
           filter.id = { _in: matchingIds.length ? matchingIds : ["00000000-0000-0000-0000-000000000000"] };
           count.whereIn("id", matchingIds.length ? matchingIds : ["00000000-0000-0000-0000-000000000000"]);
@@ -911,7 +974,8 @@ export default {
         offset,
       });
       const totalRow = await count.count("id", { as: "count" }).first();
-      const enriched = await withLikeState(database, data, "article_likes", "article", request.accountability?.user);
+      const visibleData = scope === "published" ? data.map(publicArticleView) : data;
+      const enriched = await withLikeState(database, visibleData, "article_likes", "article", request.accountability?.user);
       response.json({
         data: enriched,
         meta: { filter_count: Number(totalRow?.count ?? 0) },
@@ -920,9 +984,10 @@ export default {
 
     router.get("/articles/tags", route(async (_request, response) => {
       const rows = await database.raw(`
-        SELECT DISTINCT json_array_elements_text(tags) AS tag
+        SELECT DISTINCT json_array_elements_text(COALESCE(published_version_tags, tags)) AS tag
         FROM articles
-        WHERE status = 'published' AND json_typeof(tags) = 'array'
+        WHERE (status = 'published' OR published_version_title IS NOT NULL)
+          AND json_typeof(COALESCE(published_version_tags, tags)) = 'array'
         ORDER BY tag ASC
       `);
       response.json({ data: rows.rows.map((row) => row.tag) });
@@ -934,25 +999,36 @@ export default {
       const articles = new ItemsService("articles", { schema, accountability: null });
       const data = await articles.readByQuery({
         fields: ARTICLE_FIELDS,
-        filter: { slug: { _eq: slug }, status: { _eq: "published" } },
+        filter: {
+          _or: [
+            { slug: { _eq: slug }, status: { _eq: "published" } },
+            { published_version_slug: { _eq: slug }, published_version_title: { _nnull: true } },
+          ],
+        },
         limit: 1,
       });
       if (!data[0]) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
-      response.json({ data: (await withLikeState(database, [data[0]], "article_likes", "article", request.accountability?.user))[0] });
+      response.json({ data: (await withLikeState(database, [publicArticleView(data[0])], "article_likes", "article", request.accountability?.user))[0] });
     }));
 
     router.get("/articles/:id", route(async (request, response) => {
       const id = routeId(request);
-      const record = await database("articles").select("id", "author", "status").where({ id }).first();
+      const record = await database("articles")
+        .select("id", "author", "status", "published_version_title")
+        .where({ id })
+        .first();
       if (!record) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
       const user = request.accountability?.user ? String(request.accountability.user) : null;
-      if (record.status !== "published" && request.accountability?.admin !== true && record.author !== user) {
+      const ownsArticle = record.author === user;
+      const publiclyVisible = record.status === "published" || record.published_version_title !== null;
+      if (!publiclyVisible && request.accountability?.admin !== true && !ownsArticle) {
         throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
       }
       const schema = await getSchema();
       const articles = new ItemsService("articles", { schema, accountability: null });
       const data = await articles.readOne(id, { fields: ARTICLE_FIELDS });
-      response.json({ data: (await withLikeState(database, [data], "article_likes", "article", request.accountability?.user))[0] });
+      const visible = request.accountability?.admin === true || ownsArticle ? data : publicArticleView(data);
+      response.json({ data: (await withLikeState(database, [visible], "article_likes", "article", request.accountability?.user))[0] });
     }));
 
     router.get("/articles/:id/reviews", route(async (request, response) => {
@@ -1065,6 +1141,7 @@ export default {
     router.post("/articles", route(async (request, response) => {
       const userId = currentUser(request);
       const input = articleInput(request);
+      await assertArticleSlugAvailable(database, input.slug);
       await assertOwnedUploads(database, storedImageIdsInMarkdown(input.body), userId);
       if (input.author) {
         const author = await database("directus_users").select("id").where({ id: input.author, status: "active" }).first();
@@ -1108,6 +1185,7 @@ export default {
       if (request.accountability?.admin !== true && !EDITABLE_ARTICLE_STATUSES.has(record.status)) {
         throw new EndpointError(409, "ARTICLE_NOT_EDITABLE", "Only drafts, rejected, and published articles can be edited");
       }
+      await assertArticleSlugAvailable(database, input.slug, id);
       if (input.body !== undefined) {
         await assertOwnedUploads(
           database,
@@ -1127,7 +1205,16 @@ export default {
         schema,
         accountability: elevatedAccountability(request),
       });
-      if (Object.keys(data).length > 0) await articles.updateOne(id, data);
+      const beginsPublishedRevision = request.accountability?.admin !== true
+        && record.status === "published"
+        && record.published_version_title == null;
+      if (Object.keys(data).length > 0 || beginsPublishedRevision) {
+        await articles.updateOne(id, {
+          ...(beginsPublishedRevision ? publishedVersionSnapshot(record) : {}),
+          ...(beginsPublishedRevision ? { status: "draft", review_comment: null } : {}),
+          ...data,
+        });
+      }
       if (input.author !== undefined || input.createdAt !== undefined || input.publishedAt !== undefined) {
         await database("articles").where({ id }).update({
           ...(input.author !== undefined ? { author: input.author } : {}),
@@ -1151,6 +1238,9 @@ export default {
       if (request.accountability?.admin !== true && !DELETABLE_ARTICLE_STATUSES.has(record.status)) {
         throw new EndpointError(409, "ARTICLE_NOT_DELETABLE", "Only drafts and rejected articles can be deleted");
       }
+      if (request.accountability?.admin !== true && record.published_version_title != null) {
+        throw new EndpointError(409, "ARTICLE_NOT_DELETABLE", "A published article with a pending revision cannot be deleted");
+      }
       const schema = await getSchema();
       const articles = new ItemsService("articles", {
         schema,
@@ -1163,8 +1253,11 @@ export default {
     router.post("/articles/:id/like", route(async (request, response) => {
       const userId = currentUser(request);
       const id = routeId(request);
-      const article = await database("articles").select("id", "status").where({ id }).first();
-      if (!article || article.status !== "published") {
+      const article = await database("articles")
+        .select("id", "status", "published_version_title")
+        .where({ id })
+        .first();
+      if (!article || (article.status !== "published" && article.published_version_title == null)) {
         throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
       }
       const count = await setLike(database, "article_likes", "article", id, userId, true);
@@ -1216,7 +1309,10 @@ export default {
       if (body.action === "reject" && !comment) {
         throw new EndpointError(400, "INVALID_PAYLOAD", "A rejection comment is required");
       }
-      const article = await database("articles").select("id", "status").where({ id }).first();
+      const article = await database("articles")
+        .select("id", "status", "published_version_title")
+        .where({ id })
+        .first();
       if (!article) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
       if (article.status !== "pending") {
         throw new EndpointError(409, "ARTICLE_NOT_REVIEWABLE", "Only pending articles can be reviewed");
@@ -1229,7 +1325,7 @@ export default {
       await database.transaction(async (transaction) => {
         await articles.fork({ knex: transaction }).updateOne(id, {
           status: approved ? "published" : "rejected",
-          published_at: approved ? new Date() : null,
+          ...(approved ? { published_at: new Date(), ...CLEAR_PUBLISHED_VERSION } : {}),
           review_comment: comment ?? null,
         });
         await reviews.fork({ knex: transaction }).createOne({
