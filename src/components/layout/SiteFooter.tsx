@@ -19,7 +19,7 @@ export function SiteFooter({ brandName = "PostMineClan" }: SiteFooterProps) {
       <div className="site-footer__inner">
         <div>
           <p className="site-footer__brand">{brandName}</p>
-          <p className="site-footer__copy">好きなものを創り、活動を残す場所</p>
+          <p className="site-footer__copy">好きなものが創れるMinecraftコミュニティ</p>
           <div className="site-footer__socials" aria-label="ソーシャルリンク">
             <a href="https://x.com/PostMineClan" target="_blank" rel="noreferrer" aria-label="PostMineClanのXを開く" title="X">
               <XIcon />

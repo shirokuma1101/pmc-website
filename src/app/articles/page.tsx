@@ -59,7 +59,7 @@ export default async function ArticlesPage({
       <header className="page-heading page-heading--split">
         <div>
           <p className="eyebrow">Articles</p>
-          <h1>記事を読む</h1>
+          <h1>ニュース</h1>
         </div>
         <div className="articles-heading__aside">
           <p>活動から得た発見や考えを、まとまった文章で共有します。</p>
