@@ -34,7 +34,7 @@ export default async function TimelinePage({
       <header className="page-heading">
         <p className="eyebrow">Timeline</p>
         <h1>みんなの活動</h1>
-        <p>日々の小さな前進や、いま取り組んでいること。</p>
+        <p>PostMineClanの活動を日々アップデート</p>
       </header>
 
       {session ? (
