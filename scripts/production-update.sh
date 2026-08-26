@@ -208,6 +208,7 @@ update_source() {
   chmod -R a+rX \
     "${PROJECT_DIR}/directus/extensions" \
     "${PROJECT_DIR}/directus/schema"
+  chmod a+r "${PROJECT_DIR}/directus/bootstrap.mjs"
   local target_file="${BACKUP_DIR}/target-${TIMESTAMP}.txt"
   git -C "${PROJECT_DIR}" rev-parse HEAD > "${target_file}"
   chmod 600 "${target_file}"
