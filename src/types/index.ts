@@ -98,6 +98,18 @@ export interface PaginatedResult<T> {
   pagination: Pagination;
 }
 
+export interface ActivityRankingEntry {
+  rank: number;
+  user: UserSummary;
+  activityExp: number;
+}
+
+export interface ActivityRanking {
+  entries: ActivityRankingEntry[];
+  since: string;
+  until: string;
+}
+
 export interface ApiErrorBody {
   error: {
     code: string;
