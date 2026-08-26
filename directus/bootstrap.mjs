@@ -307,6 +307,37 @@ const collectionDefinitions = [
         meta: { interface: "input-multiline", readonly: true },
         schema: { is_nullable: true },
       },
+      {
+        field: "published_version_title",
+        type: "string",
+        meta: { interface: "input", hidden: true, readonly: true },
+        schema: { is_nullable: true, max_length: 160 },
+      },
+      {
+        field: "published_version_slug",
+        type: "string",
+        meta: { interface: "input", hidden: true, readonly: true },
+        schema: { is_nullable: true, max_length: 180 },
+      },
+      {
+        field: "published_version_summary",
+        type: "text",
+        meta: { interface: "input-multiline", hidden: true, readonly: true },
+        schema: { is_nullable: true },
+      },
+      {
+        field: "published_version_tags",
+        type: "json",
+        meta: { interface: "tags", hidden: true, readonly: true },
+        schema: { is_nullable: true },
+      },
+      {
+        field: "published_version_body",
+        type: "text",
+        meta: { interface: "input-code", hidden: true, readonly: true, options: { language: "markdown" } },
+        schema: { is_nullable: true },
+      },
+      manyToOne("published_version_thumbnail", { hidden: true }),
     ],
   },
   {
@@ -440,6 +471,17 @@ const relationDefinitions = [
     related_collection: "directus_files",
     schema: { on_delete: "SET NULL" },
     meta: { many_collection: "articles", many_field: "thumbnail", one_collection: "directus_files" },
+  },
+  {
+    collection: "articles",
+    field: "published_version_thumbnail",
+    related_collection: "directus_files",
+    schema: { on_delete: "SET NULL" },
+    meta: {
+      many_collection: "articles",
+      many_field: "published_version_thumbnail",
+      one_collection: "directus_files",
+    },
   },
   {
     collection: "article_reviews",
