@@ -237,8 +237,8 @@
   font-size: clamp(1.75rem, 4vw, 3rem);
 }
 
-.about-cta h2 span {
-  display: inline-block;
+.about-cta h2 {
+  font-size: clamp(1.1rem, 5.2vw, 2.75rem);
   white-space: nowrap;
 }
 
@@ -288,9 +288,9 @@
 
 .about-cta {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 2rem;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 1.5rem;
   padding: clamp(2rem, 6vw, 4rem);
   background: var(--color-surface-soft);
   border: 1px solid var(--color-line);
@@ -301,6 +301,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.about-cta__actions .button {
+  white-space: nowrap;
 }
 
 .about-history__timeline {

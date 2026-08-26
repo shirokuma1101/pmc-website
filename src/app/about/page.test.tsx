@@ -43,6 +43,9 @@ describe("About Us Markdown rendering", () => {
       "href",
       "https://forms.gle/nAfeagxWa9JFMWHw5",
     );
+    const joinHeading = screen.getByRole("heading", { name: "PostMineClanに参加する" });
+    expect(joinHeading).toHaveTextContent("PostMineClanに参加する");
+    expect(joinHeading.querySelector("span")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "歴史" })).toBeInTheDocument();
     expect(screen.getByText("PostMineClan設立（当時10人ほど）")).toBeInTheDocument();
     expect(screen.getByText("PMC 6.0開始（活動再開）")).toBeInTheDocument();
