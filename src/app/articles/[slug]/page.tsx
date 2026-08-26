@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { MarkdownContent } from "@/components/markdown";
 import { Avatar, LikeButton, ShareButton } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
-import { articleExcerpt } from "@/lib/articles/excerpt";
+import { articleSummary } from "@/lib/articles/excerpt";
 import { getArticleBySlug } from "@/lib/directus/articles";
 import { getPublicAppUrl } from "@/lib/config";
 
@@ -26,7 +26,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
   if (!article) return { title: "記事が見つかりません" };
-  const description = articleExcerpt(article.body, 160);
+  const description = articleSummary(article, 160);
   const articleUrl = `${getPublicAppUrl()}/articles/${encodeURIComponent(article.slug)}`;
   const socialImage = article.thumbnailUrl ?? "/pmc-logo.png";
   return {
@@ -65,7 +65,8 @@ export default async function ArticleDetailPage({
   if (!article) notFound();
   const canEdit = session?.user.isAdmin === true || session?.user.id === article.author.id;
   const articleUrl = `${getPublicAppUrl()}/articles/${encodeURIComponent(article.slug)}`;
-  const shareText = articleExcerpt(article.body, 100) || "PostMineClanの記事を共有します。";
+  const summary = articleSummary(article, 220);
+  const shareText = articleSummary(article, 100) || "PostMineClanの記事を共有します。";
 
   return (
     <main id="main-content">
@@ -74,9 +75,7 @@ export default async function ArticleDetailPage({
           <Link className="back-link" href="/articles"><span aria-hidden="true">←</span> 記事一覧</Link>
           <p className="eyebrow">Article</p>
           <h1>{article.title}</h1>
-          {articleExcerpt(article.body, 220) ? (
-            <p className="article-detail__summary">{articleExcerpt(article.body, 220)}</p>
-          ) : null}
+          {summary ? <p className="article-detail__summary">{summary}</p> : null}
           {article.tags.length ? (
             <ul className="article-tags article-detail__tags" aria-label="タグ">
               {article.tags.map((tag) => <li key={tag}><Link href={`/articles?tag=${encodeURIComponent(tag)}`}>#{tag}</Link></li>)}

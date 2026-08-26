@@ -4,7 +4,7 @@ import { MarkdownContent } from "@/components/markdown";
 import { Avatar, StatusBadge } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
 import { getArticleById, getArticleReviews } from "@/lib/directus/articles";
-import { articleExcerpt } from "@/lib/articles/excerpt";
+import { articleSummary } from "@/lib/articles/excerpt";
 
 export const metadata = { title: "記事レビュー" };
 
@@ -28,7 +28,7 @@ export default async function ReviewDetailPage({ params }: { params: Promise<{ i
       <header className="review-header">
         <div><p className="eyebrow">Review preview</p><h1>{article.title}</h1></div>
         <StatusBadge status={article.status} />
-        <p>{articleExcerpt(article.body, 220) || "本文はまだありません。"}</p>
+        <p>{articleSummary(article, 220) || "本文はまだありません。"}</p>
         <div className="review-header__author">
           <Avatar user={article.author} size="md" />
           <span><strong>{article.author.displayName}</strong><small>最終更新 {formatDate(article.updatedAt ?? article.createdAt)}</small></span>
