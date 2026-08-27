@@ -59,10 +59,10 @@ export default async function ArticlesPage({
       <header className="page-heading page-heading--split">
         <div>
           <p className="eyebrow">Articles</p>
-          <h1>ニュース</h1>
+          <h1>記事を読む</h1>
         </div>
         <div className="articles-heading__aside">
-          <p>活動から得た発見や考えを、まとまった文章で共有します。</p>
+          <p>ニュース</p>
           <nav className="article-view-toggle" aria-label="記事の表示方法">
             <Link href={articlesHref("grid", tag)} aria-current={view === "grid" ? "page" : undefined}>
               <span className="article-view-toggle__grid" aria-hidden="true">
