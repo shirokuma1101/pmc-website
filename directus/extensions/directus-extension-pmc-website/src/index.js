@@ -995,20 +995,20 @@ export default {
 
     router.get("/articles/by-slug/:slug", route(async (request, response) => {
       const slug = requiredText(request.params.slug, "slug", 180);
+      const record = await database("articles")
+        .select("id")
+        .where((builder) => builder
+          .where({ slug, status: "published" })
+          .orWhere((publishedVersion) => publishedVersion
+            .where({ published_version_slug: slug })
+            .whereNotNull("published_version_title")))
+        .first();
+      if (!record) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
+
       const schema = await getSchema();
       const articles = new ItemsService("articles", { schema, accountability: null });
-      const data = await articles.readByQuery({
-        fields: ARTICLE_FIELDS,
-        filter: {
-          _or: [
-            { slug: { _eq: slug }, status: { _eq: "published" } },
-            { published_version_slug: { _eq: slug }, published_version_title: { _nnull: true } },
-          ],
-        },
-        limit: 1,
-      });
-      if (!data[0]) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
-      response.json({ data: (await withLikeState(database, [publicArticleView(data[0])], "article_likes", "article", request.accountability?.user))[0] });
+      const data = await articles.readOne(record.id, { fields: ARTICLE_FIELDS });
+      response.json({ data: (await withLikeState(database, [publicArticleView(data)], "article_likes", "article", request.accountability?.user))[0] });
     }));
 
     router.get("/articles/:id", route(async (request, response) => {
