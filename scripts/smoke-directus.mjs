@@ -204,6 +204,10 @@ try {
     body: { action: "approve", comment: "Smoke-test approval" },
   });
   const published = await request(`/pmc-website/articles/by-slug/${slug}`);
+  if (published.data.id !== articleId || published.data.slug !== slug) {
+    throw new Error("The article slug resolved to a different article.");
+  }
+  await request(`/pmc-website/articles/by-slug/missing-${suffix}`, { expected: [404] });
   if (published.data.status !== "published") throw new Error("The reviewed article was not published.");
   if (!published.data.published_at) throw new Error("The reviewed article has no publication timestamp.");
   if (!published.data.tags?.includes(articleTag)) throw new Error("The article tags were not saved.");
