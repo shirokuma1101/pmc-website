@@ -191,7 +191,9 @@ reverse proxyからの接続だけを許可します。PostgreSQLはホストへ
 Article公開時のDiscord通知を有効にする場合は、本番`.env`へ
 `DISCORD_ARTICLE_WEBHOOK_URL`を設定します。Webhook URLはチャンネルへ
 投稿できる秘密情報のため、Frontend環境、Browser、GitHub、ログへ保存しないでください。未設定時は
-通知処理を安全にスキップします。
+通知処理を安全にスキップします。新規記事の初回承認は通知されますが、既存公開記事の改訂承認は
+既定では通知されません。改訂承認も通知する場合は`DISCORD_ARTICLE_WEBHOOK_NOTIFY_UPDATES=true`を
+設定してDirectusコンテナを再作成してください。
 
 `bootstrap` serviceはDirectusの管理者資格情報を使ってrole、policy、upload folderを冪等に作成します。
 管理者で2FAが有効な場合は、実行時に`DIRECTUS_ADMIN_OTP`も必要です。本番ではローカル検証ユーザーを
@@ -217,6 +219,7 @@ Frontendにはファイル管理機能を設けず、ログイン済み利用者
 - `DIRECTUS_RATE_LIMITER_*`: Directus API全体の補助的なIP制限。複数instance構成ではmemoryではなくRedisを使用
 - `NEXT_PUBLIC_DIRECTUS_URL`: reverse proxy経由でBrowserから到達できるDirectus公開URL
 - `DISCORD_ARTICLE_WEBHOOK_URL`: Article承認時のDiscord Webhook URL。Directus側だけで秘密情報として管理し、未設定時は通知を無効化
+- `DISCORD_ARTICLE_WEBHOOK_NOTIFY_UPDATES`: `true`の場合、既存公開記事の改訂承認時にもDiscordへ通知。既定値は`false`
 - Directusの`SECRET`、DBパスワード、管理者資格情報、license key: deployment hostの`.env`だけで管理
 
 `.env`と`.env.local`は`.gitignore`対象です。`.env.example`と`.env.local.example`には実際の

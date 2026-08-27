@@ -5,6 +5,7 @@ import {
   encodedDownloadFilename,
   newlyReferencedImageIds,
   publicArticleView,
+  shouldNotifyDiscordForArticleApproval,
   storedImageIdsInMarkdown,
 } from "../src/index.js";
 
@@ -55,6 +56,11 @@ const withoutThumbnail = discordArticlePayload(
   "http://cms.example.com",
 );
 assert.equal(withoutThumbnail.embeds[0].image, undefined);
+
+assert.equal(shouldNotifyDiscordForArticleApproval({ published_version_title: null }), true);
+assert.equal(shouldNotifyDiscordForArticleApproval({ published_version_title: "公開中の記事" }), false);
+assert.equal(shouldNotifyDiscordForArticleApproval({ published_version_title: "公開中の記事" }, "true"), true);
+assert.equal(shouldNotifyDiscordForArticleApproval({ published_version_title: "公開中の記事" }, "false"), false);
 
 const revision = {
   id: "article-id",
