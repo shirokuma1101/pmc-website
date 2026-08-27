@@ -202,8 +202,9 @@ Article公開時のDiscord通知を有効にする場合は、本番`.env`へ
 過去ワールドは、bootstrapが作成するDirectusの`Past Minecraft worlds`フォルダーへ管理者が
 手動で配置します。各ファイルの`Description`が詳細テキスト、アップロード日時が表示日時になります。
 Frontendにはファイル管理機能を設けず、ログイン済み利用者だけが`/worlds`と認証付きダウンロードAPIを
-利用できます。説明文は管理者が`/admin/worlds`から編集できます。`.mcworld`はZIP系または
-`application/octet-stream`として判定されるため、これらのMIME typeをDirectusで許可しています。
+利用できます。説明文は管理者が`/admin/worlds`から編集できます。`.mcworld`はZIP系、
+`application/octet-stream`、またはWindowsブラウザでMIME typeなしとして判定されるため、
+これらをDirectusで許可しています。
 大容量ファイルはTUSによる8MB単位の分割アップロードを使用し、既定の上限は2GBです。上限とchunk sizeは
 `DIRECTUS_FILES_MAX_UPLOAD_SIZE`、`DIRECTUS_TUS_CHUNK_SIZE`で変更できます。reverse proxyにもchunk size以上の
 request bodyを許可し、設定変更後はDirectusコンテナを再作成してください。Frontendの画像投稿APIは
