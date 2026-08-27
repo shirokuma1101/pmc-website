@@ -12,7 +12,10 @@ function pageNumber(value: string | string[] | undefined) {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
-export const metadata = { title: "タイムライン" };
+export const metadata = {
+  title: "タイムライン",
+  description: "PostMineClanメンバーの活動フィードです",
+};
 
 export default async function TimelinePage({
   searchParams,
