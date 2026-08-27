@@ -202,7 +202,12 @@ Article公開時のDiscord通知を有効にする場合は、本番`.env`へ
 過去ワールドは、bootstrapが作成するDirectusの`Past Minecraft worlds`フォルダーへ管理者が
 手動で配置します。各ファイルの`Description`が詳細テキスト、アップロード日時が表示日時になります。
 Frontendにはファイル管理機能を設けず、ログイン済み利用者だけが`/worlds`と認証付きダウンロードAPIを
-利用できます。説明文は管理者が`/admin/worlds`から編集できます。
+利用できます。説明文は管理者が`/admin/worlds`から編集できます。`.mcworld`はZIP系または
+`application/octet-stream`として判定されるため、これらのMIME typeをDirectusで許可しています。
+大容量ファイルはTUSによる8MB単位の分割アップロードを使用し、既定の上限は2GBです。上限とchunk sizeは
+`DIRECTUS_FILES_MAX_UPLOAD_SIZE`、`DIRECTUS_TUS_CHUNK_SIZE`で変更できます。reverse proxyにもchunk size以上の
+request bodyを許可し、設定変更後はDirectusコンテナを再作成してください。Frontendの画像投稿APIは
+引き続き画像形式のみ、既定8MBに制限されます。
 
 この本番Composeは空のpmc-website専用DBを新規作成します。旧共有Directusの記事、画像、ユーザーは
 自動移行しません。必要なコンテンツは新instanceの初期化後に個別の移行手順で取り込み、共有
@@ -218,6 +223,8 @@ Frontendにはファイル管理機能を設けず、ログイン済み利用者
 - `AUTH_RATE_LIMIT_TRUST_PROXY`: 信頼するreverse proxyが`X-Forwarded-For`を上書きする本番構成でのみ`true`
 - `DIRECTUS_RATE_LIMITER_*`: Directus API全体の補助的なIP制限。複数instance構成ではmemoryではなくRedisを使用
 - `NEXT_PUBLIC_DIRECTUS_URL`: reverse proxy経由でBrowserから到達できるDirectus公開URL
+- `DIRECTUS_FILES_MAX_UPLOAD_SIZE`: Directus管理画面で扱う1ファイルの上限。過去ワールド用の既定値は`2gb`
+- `DIRECTUS_TUS_CHUNK_SIZE`: Directusの分割アップロードで送信する1chunkのサイズ。既定値は`8mb`
 - `DISCORD_ARTICLE_WEBHOOK_URL`: Article承認時のDiscord Webhook URL。Directus側だけで秘密情報として管理し、未設定時は通知を無効化
 - `DISCORD_ARTICLE_WEBHOOK_NOTIFY_UPDATES`: `true`の場合、既存公開記事の改訂承認時にもDiscordへ通知。既定値は`false`
 - Directusの`SECRET`、DBパスワード、管理者資格情報、license key: deployment hostの`.env`だけで管理
