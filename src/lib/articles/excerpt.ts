@@ -9,7 +9,7 @@ function truncate(text: string, maximum: number) {
 
 export function articleExcerpt(body: string, maximum = 160) {
   const plainText = body
-    .replace(MARKDOWN_IMAGE, "$1")
+    .replace(MARKDOWN_IMAGE, "")
     .replace(MARKDOWN_LINK, "$1")
     .replace(MARKDOWN_DECORATION, "$1")
     .replace(/<[^>]*>/g, "")

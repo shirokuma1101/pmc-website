@@ -8,6 +8,12 @@ describe("articleExcerpt", () => {
       .toBe("見出し 本文の 大切な リンクです。");
   });
 
+  it("omits Markdown image URLs and alt text", () => {
+    expect(articleExcerpt(
+      "![画像の説明](https://cms.example.com/assets/image.png)\n\n画像の後に続く本文です。",
+    )).toBe("画像の後に続く本文です。");
+  });
+
   it("truncates long text with an ellipsis", () => {
     expect(articleExcerpt("1234567890", 6)).toBe("12345…");
   });
