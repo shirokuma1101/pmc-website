@@ -33,6 +33,7 @@ export function SiteFooter({ brandName = "PostMineClan" }: SiteFooterProps) {
           <Link href="/timeline">タイムライン</Link>
           <Link href="/articles">記事</Link>
           <Link href="/about">About Us</Link>
+          <Link href="/worlds">過去ワールド</Link>
           <Link href="/privacy">プライバシーポリシー</Link>
           <Link href="/terms">利用規約</Link>
           <CookieSettingsButton />

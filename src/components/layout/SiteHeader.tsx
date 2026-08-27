@@ -25,6 +25,10 @@ const publicNavigation = [
   { href: "/about", label: "About Us" },
 ];
 
+const memberNavigation = [
+  { href: "/worlds", label: "過去ワールド" },
+];
+
 export function SiteHeader({
   currentUser = null,
   isAdmin = false,
@@ -109,7 +113,7 @@ export function SiteHeader({
             aria-label="メインナビゲーション"
           >
             <div className="site-navigation__links">
-              {publicNavigation.map((item) => (
+              {[...publicNavigation, ...(currentUser ? memberNavigation : [])].map((item) => (
                 <Link
                   key={item.href}
                   className={classNames(
@@ -141,6 +145,7 @@ export function SiteHeader({
                         <div className="admin-navigation__menu">
                           <Link href="/admin/reviews" onClick={() => setMenuOpen(false)}>レビュー</Link>
                           <Link href="/admin/registrations" onClick={() => setMenuOpen(false)}>アカウント承認</Link>
+                          <Link href="/admin/worlds" onClick={() => setMenuOpen(false)}>過去ワールド説明文</Link>
                         </div>
                       </details>
                     </>

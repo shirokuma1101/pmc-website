@@ -115,6 +115,8 @@ export const aboutContentSchema = z.object({
   markdown: z.string().trim().min(1).max(100_000),
 }).strict();
 
+export const worldsContentSchema = aboutContentSchema;
+
 export function slugify(value: string): string {
   const normalized = value
     .normalize("NFKD")

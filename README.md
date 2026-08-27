@@ -197,6 +197,11 @@ Article公開時のDiscord通知を有効にする場合は、本番`.env`へ
 管理者で2FAが有効な場合は、実行時に`DIRECTUS_ADMIN_OTP`も必要です。本番ではローカル検証ユーザーを
 作成しません。更新時もDBとuploadsをバックアップし、schema dry-runを確認してから適用してください。
 
+過去ワールドは、bootstrapが作成するDirectusの`Past Minecraft worlds`フォルダーへ管理者が
+手動で配置します。各ファイルの`Description`が詳細テキスト、アップロード日時が表示日時になります。
+Frontendにはファイル管理機能を設けず、ログイン済み利用者だけが`/worlds`と認証付きダウンロードAPIを
+利用できます。説明文は管理者が`/admin/worlds`から編集できます。
+
 この本番Composeは空のpmc-website専用DBを新規作成します。旧共有Directusの記事、画像、ユーザーは
 自動移行しません。必要なコンテンツは新instanceの初期化後に個別の移行手順で取り込み、共有
 `directus_users`をそのまま接続または複製しないでください。

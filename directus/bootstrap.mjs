@@ -6,6 +6,7 @@ const memberEmail = process.env.DIRECTUS_DEV_MEMBER_EMAIL;
 const memberPassword = process.env.DIRECTUS_DEV_MEMBER_PASSWORD;
 
 const UPLOAD_FOLDER_ID = "0ebf4c62-1014-4a72-99db-2b1198c59f1f";
+const WORLD_DOWNLOAD_FOLDER_ID = "a5c3b26e-2b4b-4a2e-9f65-37b925f0cdea";
 const MEMBER_POLICY_NAME = "pmc-website Member API";
 const MEMBER_ROLE_NAME = "pmc-website Member";
 
@@ -622,14 +623,14 @@ async function ensureAlias(definition) {
   }
 }
 
-async function ensureFolder() {
-  const existing = await api(`/folders/${UPLOAD_FOLDER_ID}`, { allow: [403, 404] });
+async function ensureFolder(id, name) {
+  const existing = await api(`/folders/${id}`, { allow: [403, 404] });
   if (existing.status !== 200) {
     await api("/folders", {
       method: "POST",
-      body: { id: UPLOAD_FOLDER_ID, name: "pmc-website uploads", parent: null },
+      body: { id, name, parent: null },
     });
-    console.log("Created the pmc-website upload folder.");
+    console.log(`Created the ${name} folder.`);
   }
 }
 
@@ -722,7 +723,8 @@ await api("/settings", { method: "PATCH", body: { project_name: "pmc-website" } 
 for (const definition of collectionDefinitions) await ensureCollection(definition);
 for (const definition of relationDefinitions) await ensureRelation(definition);
 for (const definition of aliasDefinitions) await ensureAlias(definition);
-await ensureFolder();
+await ensureFolder(UPLOAD_FOLDER_ID, "pmc-website uploads");
+await ensureFolder(WORLD_DOWNLOAD_FOLDER_ID, "Past Minecraft worlds");
 
 const memberPolicy = await ensurePolicy(MEMBER_POLICY_NAME, {
   icon: "api",
@@ -735,4 +737,4 @@ const memberRole = await ensureRole(MEMBER_ROLE_NAME);
 await ensureAccess(memberRole, memberPolicy);
 if (memberEmail && memberPassword) await ensureMember(memberRole);
 
-console.log("Directus schema, access policies, upload folder, and optional local user are ready.");
+console.log("Directus schema, access policies, managed folders, and optional local user are ready.");
