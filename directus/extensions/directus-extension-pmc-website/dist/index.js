@@ -268,6 +268,12 @@ export function discordArticlePayload(article, publicSiteUrl, publicDirectusUrl)
   };
 }
 
+export function shouldNotifyDiscordForArticleApproval(article, notifyOnUpdate) {
+  const isPublishedArticleUpdate = article?.published_version_title != null;
+  if (!isPublishedArticleUpdate) return true;
+  return String(notifyOnUpdate ?? "").trim().toLowerCase() === "true";
+}
+
 async function sendPublishedArticleToDiscord(article, logger) {
   const endpoint = discordWebhookEndpoint(process.env.DISCORD_ARTICLE_WEBHOOK_URL);
   if (!endpoint) return;
@@ -1335,7 +1341,10 @@ export default {
           comment: comment ?? null,
         });
       });
-      if (approved) {
+      if (approved && shouldNotifyDiscordForArticleApproval(
+        article,
+        process.env.DISCORD_ARTICLE_WEBHOOK_NOTIFY_UPDATES,
+      )) {
         const publishedArticle = await database("articles as article")
           .leftJoin("directus_users as author", "article.author", "author.id")
           .leftJoin("profiles as profile", "article.author", "profile.user")
