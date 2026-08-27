@@ -64,8 +64,10 @@ services:
       EXTENSIONS_MUST_LOAD: "true"
       TELEMETRY: "false"
       WEBSOCKETS_ENABLED: "false"
-      FILES_MAX_UPLOAD_SIZE: 8mb
-      FILES_MIME_TYPE_ALLOW_LIST: image/jpeg,image/png,image/webp,image/gif
+      FILES_MAX_UPLOAD_SIZE: ${DIRECTUS_FILES_MAX_UPLOAD_SIZE:-2gb}
+      FILES_MIME_TYPE_ALLOW_LIST: image/jpeg,image/png,image/webp,image/gif,application/zip,application/x-zip-compressed,application/octet-stream,application/vnd.minecraft.world
+      TUS_ENABLED: "true"
+      TUS_CHUNK_SIZE: ${DIRECTUS_TUS_CHUNK_SIZE:-8mb}
       MAX_PAYLOAD_SIZE: 12mb
       REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
       RATE_LIMITER_ENABLED: "true"

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { sanitizeImageUpload } from "./image-processing";
+import { assertImageUpload, sanitizeImageUpload } from "./image-processing";
 
 const originalMaximumBytes = process.env.MAX_IMAGE_UPLOAD_BYTES;
 const originalMaximumPixels = process.env.MAX_IMAGE_INPUT_PIXELS;
@@ -32,6 +32,21 @@ afterEach(() => {
 });
 
 describe("sanitizeImageUpload", () => {
+  it("keeps Minecraft world files out of the Frontend image upload API", () => {
+    const world = uploadedFile(
+      Buffer.from("PK\u0003\u0004world"),
+      "application/octet-stream",
+      "archive.mcworld",
+    );
+
+    try {
+      assertImageUpload(world);
+      expect.unreachable("Minecraft world files must not be accepted as Frontend images");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "INVALID_IMAGE_TYPE", status: 415 });
+    }
+  });
+
   it("auto-orients JPEGs, strips metadata, and replaces the source filename", async () => {
     const source = await sharp({
       create: {
