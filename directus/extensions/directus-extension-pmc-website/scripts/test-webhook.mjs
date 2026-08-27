@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 
 import {
   discordArticlePayload,
+  encodedDownloadFilename,
   newlyReferencedImageIds,
   publicArticleView,
   storedImageIdsInMarkdown,
 } from "../src/index.js";
+
+assert.equal(encodedDownloadFilename("PMC 1.0's world.zip"), "PMC%201.0%27s%20world.zip");
 
 const bodyImageId = "123e4567-e89b-42d3-a456-426614174000";
 assert.deepEqual(

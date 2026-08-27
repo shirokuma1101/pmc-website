@@ -82,6 +82,17 @@ try {
 
   await request("/pmc-website/posts");
   await request("/pmc-website/articles");
+  await request("/pmc-website/worlds", { expected: [401] });
+  const worlds = await request("/pmc-website/worlds", { token: memberToken });
+  if (!worlds.data.content?.markdown || !Array.isArray(worlds.data.files)) {
+    throw new Error("The authenticated world archive response is inconsistent.");
+  }
+  await request("/pmc-website/worlds", {
+    method: "PUT",
+    token: memberToken,
+    expected: [403],
+    body: { content: { markdown: "Unauthorized edit" } },
+  });
 
   await request("/pmc-website/profile", {
     method: "PUT",

@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 
 const UPLOAD_FOLDER_ID = "0ebf4c62-1014-4a72-99db-2b1198c59f1f";
+const WORLD_DOWNLOAD_FOLDER_ID = "a5c3b26e-2b4b-4a2e-9f65-37b925f0cdea";
 const MAXIMUM_IMAGE_BYTES = 8 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_UPLOAD_PATTERN =
@@ -46,6 +47,9 @@ PostMineClanは、メンバーの活動や発見を記録し、好きなこと�
 ### 03 互いの活動を支える
 
 それぞれの興味や表現を尊重し、次の挑戦につながる場所を目指します。`,
+};
+const DEFAULT_WORLDS_CONTENT = {
+  markdown: "過去に活動したMinecraftワールドをダウンロードできます。",
 };
 const ARTICLE_FIELDS = [
   "id",
@@ -181,6 +185,11 @@ function aboutContent(value) {
   }
   strictKeys(value, new Set(["markdown"]));
   return { markdown: requiredText(value.markdown, "markdown", 100_000) };
+}
+
+export function encodedDownloadFilename(value) {
+  return encodeURIComponent(String(value ?? "world-download"))
+    .replace(/['()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 function requiredText(value, field, maximum) {
@@ -681,6 +690,64 @@ export default {
         .onConflict("id")
         .merge(["content", "updated_at"]);
       response.json({ data: { content } });
+    }));
+
+    router.get("/worlds", route(async (request, response) => {
+      currentUser(request);
+      const [page, files] = await Promise.all([
+        database("site_pages").select("content", "updated_at").where({ id: "worlds" }).first(),
+        database("directus_files")
+          .select("id", "filename_download", "description", "uploaded_on")
+          .where({ folder: WORLD_DOWNLOAD_FOLDER_ID })
+          .orderBy("uploaded_on", "desc"),
+      ]);
+      response.json({
+        data: {
+          content: page?.content ?? DEFAULT_WORLDS_CONTENT,
+          updated_at: page?.updated_at ?? null,
+          files,
+        },
+      });
+    }));
+
+    router.put("/worlds", route(async (request, response) => {
+      requireAdmin(request);
+      const body = objectBody(request);
+      strictKeys(body, new Set(["content"]));
+      const content = aboutContent(body.content);
+      await database("site_pages")
+        .insert({ id: "worlds", content: JSON.stringify(content), updated_at: new Date() })
+        .onConflict("id")
+        .merge(["content", "updated_at"]);
+      response.json({ data: { content } });
+    }));
+
+    router.get("/worlds/:id/download", route(async (request, response) => {
+      currentUser(request);
+      const id = routeId(request);
+      const file = await database("directus_files")
+        .select("id", "filename_download")
+        .where({ id, folder: WORLD_DOWNLOAD_FOLDER_ID })
+        .first();
+      if (!file) {
+        throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested world file was not found");
+      }
+      const schema = await getSchema();
+      const assets = new AssetsService({ schema, accountability: null });
+      const asset = await assets.getAsset(id, undefined, undefined, true);
+      const encodedName = encodedDownloadFilename(file.filename_download);
+      response.setHeader("Content-Type", asset.file.type || "application/octet-stream");
+      response.setHeader("Content-Length", asset.stat.size);
+      response.setHeader("Content-Disposition", `attachment; filename="world-download"; filename*=UTF-8''${encodedName}`);
+      response.setHeader("Cache-Control", "private, no-store");
+      response.setHeader("X-Content-Type-Options", "nosniff");
+      const stream = await asset.stream();
+      await new Promise((resolve, reject) => {
+        stream.once("error", reject);
+        response.once("finish", resolve);
+        response.once("close", resolve);
+        stream.pipe(response);
+      });
     }));
 
     router.post("/session/revoke-all", route(async (request, response) => {

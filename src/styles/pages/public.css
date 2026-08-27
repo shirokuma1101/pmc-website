@@ -413,6 +413,80 @@
   gap: 0.75rem;
 }
 
+.worlds-page {
+  width: min(calc(100% - 2.5rem), 960px);
+}
+
+.worlds-page__description {
+  padding: clamp(1.25rem, 4vw, 2rem);
+  margin-bottom: clamp(3rem, 7vw, 5rem);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.world-download-list {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.world-download-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: clamp(1.15rem, 3vw, 1.6rem);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.world-download-card > div {
+  min-width: 0;
+}
+
+.world-download-card h3 {
+  margin: 0 0 0.4rem;
+  overflow-wrap: anywhere;
+  font-size: 1.1rem;
+}
+
+.world-download-card p {
+  margin: 0 0 0.55rem;
+  color: var(--color-ink-soft);
+  white-space: pre-wrap;
+}
+
+.world-download-card .world-download-card__empty {
+  color: var(--color-ink-faint);
+  font-size: 0.82rem;
+}
+
+.world-download-card time {
+  color: var(--color-ink-faint);
+  font-size: 0.75rem;
+}
+
+.world-download-card .button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .world-download-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .world-download-card .button {
+    width: 100%;
+  }
+}
+
 .text-link,
 .back-link {
   display: inline-flex;
