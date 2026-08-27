@@ -20,10 +20,10 @@ const themeInitializer = `(function(){try{var s=localStorage.getItem("pmc-theme"
 export const metadata: Metadata = {
   metadataBase: new URL(getPublicAppUrl()),
   title: {
-    default: "PostMineClan — 好きなものが創れる世界",
+    default: "PostMineClan",
     template: "%s | PostMineClan",
   },
-  description: "小さな活動と、まとまった思考を仲間と残す活動記録サイト。",
+  description: "好きなものが創れる世界: Minecraftコミュニティ",
   applicationName: "PostMineClan",
   openGraph: {
     type: "website",
