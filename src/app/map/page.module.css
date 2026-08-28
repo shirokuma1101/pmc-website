@@ -1,0 +1,31 @@
+.page {
+  width: min(100% - 2rem, var(--content-width));
+  margin: 0 auto;
+  padding: clamp(2rem, 5vw, 4rem) 0;
+}
+
+.heading {
+  display: grid;
+  max-width: 48rem;
+  gap: 0.55rem;
+  margin-bottom: 1.5rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.heading h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5vw, 2.65rem);
+}
+
+.description {
+  margin: 0;
+  color: var(--color-ink-soft);
+}

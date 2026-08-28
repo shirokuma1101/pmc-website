@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 const directusUrl = process.env.DIRECTUS_URL ?? "http://localhost:8055";
 const directus = new URL(directusUrl);
+const minecraftMapProxyOrigin = process.env.MINECRAFT_MAP_PROXY_ORIGIN?.replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -38,6 +39,11 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
+  },
+  async rewrites() {
+    return minecraftMapProxyOrigin
+      ? [{ source: "/minecraft-map/:path*", destination: `${minecraftMapProxyOrigin}/:path*` }]
+      : [];
   },
 };
 

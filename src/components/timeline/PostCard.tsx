@@ -126,7 +126,7 @@ export function PostCard({
   }
 
   return (
-    <article className="post-card" aria-labelledby={`post-author-${post.id}`}>
+    <article id={`post-${post.id}`} className="post-card" aria-labelledby={`post-author-${post.id}`}>
       <div className="post-card__rail" aria-hidden="true">
         <span />
       </div>
