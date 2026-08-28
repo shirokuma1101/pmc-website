@@ -250,9 +250,8 @@ apply_schema_and_bootstrap() {
   "${COMPOSE[@]}" exec -T directus \
     node cli.js schema apply --yes /directus/schema/snapshot.yaml
 
-  log "Restarting Directus"
-  "${COMPOSE[@]}" restart directus
-  "${COMPOSE[@]}" up -d --no-deps --wait --wait-timeout 180 directus
+  log "Recreating Directus with the current Compose configuration"
+  "${COMPOSE[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 180 directus
   [[ "$(service_health directus)" == "healthy" ]] || die "Directus did not become healthy."
 
   log "Applying production roles, policies, and upload folders"
