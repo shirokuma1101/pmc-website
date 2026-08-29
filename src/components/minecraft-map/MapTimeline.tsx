@@ -18,6 +18,8 @@ export function MapTimeline({ snapshots, selectedId, onSelect, onClose }: MapTim
   const selected = snapshots[selectedIndex];
   const latestIndex = Math.max(0, snapshots.length - 1);
   const disabled = snapshots.length < 2;
+  const timelineMax = Math.max(1, latestIndex);
+  const timelineValue = snapshots.length === 1 ? timelineMax : selectedIndex;
   return (
     <section className={styles.mapTimeline} aria-label="地図の履歴">
       <div className={styles.timelineHeading}>
@@ -40,8 +42,8 @@ export function MapTimeline({ snapshots, selectedId, onSelect, onClose }: MapTim
           <input
             type="range"
             min="0"
-            max={latestIndex}
-            value={selectedIndex}
+            max={timelineMax}
+            value={timelineValue}
             disabled={disabled}
             onChange={(event) => onSelect(snapshots[Number(event.target.value)]!.id)}
             aria-label="地図の日時"
