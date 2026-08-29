@@ -9,15 +9,28 @@ services:
     depends_on:
       frontend:
         condition: service_healthy
+      map-static:
+        condition: service_healthy
     ports:
       - "${GATEWAY_BIND_IP:-127.0.0.1}:${GATEWAY_PORT:-8080}:8080"
     volumes:
       - ./docker/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - default
-      - map-delivery
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  map-static:
+    image: nginx:1.29.4-alpine
+    restart: unless-stopped
+    volumes:
+      - ${MINECRAFT_MAP_DATA_PATH:-./minecraft-map/output}:/usr/share/nginx/html:ro
+      - ./docker/nginx/map-static.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/__map_health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -202,8 +215,3 @@ services:
 volumes:
   directus_database:
   directus_uploads:
-
-networks:
-  map-delivery:
-    name: pmc-map-delivery
-    external: true
