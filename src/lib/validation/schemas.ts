@@ -117,6 +117,46 @@ export const aboutContentSchema = z.object({
 
 export const worldsContentSchema = aboutContentSchema;
 
+export const mapMarkerSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(1_000).default(""),
+  world: z.string().trim().min(1).max(100),
+  x: z.number().finite().min(-30_000_000).max(30_000_000),
+  y: z.number().finite().min(-2_048).max(2_048).nullable().optional(),
+  z: z.number().finite().min(-30_000_000).max(30_000_000),
+  icon: z.string().trim().min(1).max(32).default("place"),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).transform((value) => value.toLowerCase()).default("#d15d36"),
+  imageId: z.string().uuid().nullable().optional(),
+  relatedType: z.enum(["post", "article"]).nullable().optional(),
+  relatedId: z.string().uuid().nullable().optional(),
+}).strict();
+
+export const updateMapMarkerSchema = mapMarkerSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  { message: "At least one field is required" },
+);
+
+const mapPathPointSchema = z.object({
+  x: z.number().finite().min(-30_000_000).max(30_000_000),
+  z: z.number().finite().min(-30_000_000).max(30_000_000),
+}).strict();
+
+export const mapPathSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(1_000).default(""),
+  world: z.string().trim().min(1).max(100),
+  kind: z.enum(["road", "railway", "other"]),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).transform((value) => value.toLowerCase()),
+  weight: z.number().int().min(1).max(12),
+  dashed: z.boolean(),
+  points: z.array(mapPathPointSchema).min(2).max(500),
+}).strict();
+
+export const updateMapPathSchema = mapPathSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  { message: "At least one field is required" },
+);
+
 export function slugify(value: string): string {
   const normalized = value
     .normalize("NFKD")

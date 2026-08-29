@@ -4,9 +4,13 @@
 .vscode
 .codex-tmp-*
 .next
+.tmp
 out
 coverage
 node_modules
+minecraft-map/input
+minecraft-map/output
+minecraft-map/work
 directus
 scripts
 .env

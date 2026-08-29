@@ -4,7 +4,7 @@ export const minecraftMapConfig = {
   tileBaseUrl,
   configurationUrl:
     process.env.NEXT_PUBLIC_MINECRAFT_MAP_CONFIG_URL
-    || `${tileBaseUrl.replace(/\/$/, "")}/up/configuration`,
+    || `${tileBaseUrl.replace(/\/$/, "")}/standalone/dynmap_config.json`,
   catalogUrl: `${tileBaseUrl.replace(/\/$/, "")}/catalog.json`,
   defaultWorld: process.env.NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD || "world",
   defaultMap: process.env.NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP || "flat",

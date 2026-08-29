@@ -1,6 +1,27 @@
 name: pmc-website-dev
 
 services:
+  gateway:
+    image: nginx:1.29.4-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_DEV_PORT:-3001}:8080"
+    volumes:
+      - ./docker/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+      - map-delivery
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
   mailpit:
     image: axllent/mailpit:v1.30.7@sha256:d5ecbb067db3705fa953d79e1b7f81ef84038df67aba6c52825d8c02a1ea748a
     restart: unless-stopped
@@ -110,7 +131,53 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_DIRECTUS_URL: http://localhost:${DIRECTUS_DEV_PORT:-8056}
+        NEXT_PUBLIC_APP_URL: http://localhost:${FRONTEND_DEV_PORT:-3001}
+        NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}
+        NEXT_PUBLIC_MINECRAFT_MAP_URL: /minecraft-map
+        NEXT_PUBLIC_MINECRAFT_MAP_CONFIG_URL: /minecraft-map/standalone/dynmap_config.json
+        NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD:-world}
+        NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP:-flat}
+    restart: unless-stopped
+    depends_on:
+      directus:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DIRECTUS_URL: http://directus:8055
+      NEXT_PUBLIC_DIRECTUS_URL: http://localhost:${DIRECTUS_DEV_PORT:-8056}
+      APP_URL: http://localhost:${FRONTEND_DEV_PORT:-3001}
+      NEXT_PUBLIC_APP_URL: http://localhost:${FRONTEND_DEV_PORT:-3001}
+      NEXT_PUBLIC_MINECRAFT_MAP_URL: /minecraft-map
+      NEXT_PUBLIC_MINECRAFT_MAP_CONFIG_URL: /minecraft-map/standalone/dynmap_config.json
+      NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD:-world}
+      NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP:-flat}
+      AUTH_COOKIE_SECURE: "false"
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
+      MAX_IMAGE_UPLOAD_BYTES: ${MAX_IMAGE_UPLOAD_BYTES:-8388608}
+      MAX_IMAGE_INPUT_PIXELS: ${MAX_IMAGE_INPUT_PIXELS:-40000000}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/map').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
 volumes:
   directus_database:
   directus_uploads:
   mailpit_data:
+
+networks:
+  map-delivery:
+    name: pmc-map-delivery
+    external: true
