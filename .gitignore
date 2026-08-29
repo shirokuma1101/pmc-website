@@ -23,8 +23,18 @@ FRONTEND_REQUIREMENTS_DRAFT.md
 /directus/uploads
 /directus/extensions/**/node_modules
 /.local-backups
+/.tmp
 /backups
 /.production-update.lock
+
+# Dynmap generates large input, output, and working trees here. Keep only the mount points.
+/minecraft-map/input/*
+!/minecraft-map/input/.gitkeep
+/minecraft-map/output/*
+!/minecraft-map/output/.gitkeep
+/minecraft-map/work/*
+!/minecraft-map/work/.gitkeep
+/minecraft-map/.env.map
 
 # logs, editors, and local tooling
 *.log
@@ -34,5 +44,7 @@ Thumbs.db
 .vscode
 .vercel
 .cache
+__pycache__/
+*.py[cod]
 .turbo
 .codex-tmp-*

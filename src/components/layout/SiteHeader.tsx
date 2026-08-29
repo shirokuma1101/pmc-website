@@ -22,6 +22,7 @@ export interface SiteHeaderProps {
 const publicNavigation = [
   { href: "/timeline", label: "タイムライン" },
   { href: "/articles", label: "記事" },
+  { href: "/map", label: "マップ" },
   { href: "/about", label: "About Us" },
 ];
 

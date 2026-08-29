@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import { randomUUID } from "node:crypto";
 
 const UPLOAD_FOLDER_ID = "0ebf4c62-1014-4a72-99db-2b1198c59f1f";
 const WORLD_DOWNLOAD_FOLDER_ID = "a5c3b26e-2b4b-4a2e-9f65-37b925f0cdea";
@@ -12,6 +13,269 @@ const DELETABLE_ARTICLE_STATUSES = new Set(["draft", "rejected"]);
 const SUBMITTABLE_ARTICLE_STATUSES = new Set(["draft", "rejected"]);
 const STORED_ASSET_PATTERN = /\/pmc-website\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/gi;
 const MEMBER_ROLE_NAME = "pmc-website Member";
+const MAP_MARKER_FIELDS = [
+  "id", "name", "description", "world", "x", "y", "z", "icon", "color",
+  "image", "related_type", "related_id",
+  "author", "created_at", "updated_at",
+];
+
+let mapMarkerTablePromise;
+let mapPathTablePromise;
+
+function ensureMapMarkerTable(database) {
+  mapMarkerTablePromise ??= database.schema.hasTable("minecraft_map_markers").then(async (exists) => {
+    if (!exists) await database.schema.createTable("minecraft_map_markers", (table) => {
+      table.uuid("id").primary();
+      table.uuid("author").notNullable().references("id").inTable("directus_users").onDelete("CASCADE");
+      table.string("name", 80).notNullable();
+      table.text("description").notNullable().defaultTo("");
+      table.string("world", 100).notNullable();
+      table.double("x").notNullable();
+      table.double("y").nullable();
+      table.double("z").notNullable();
+      table.string("icon", 32).notNullable().defaultTo("place");
+      table.string("color", 7).notNullable().defaultTo("#d15d36");
+      table.uuid("image").nullable().references("id").inTable("directus_files").onDelete("SET NULL");
+      table.string("related_type", 16).nullable();
+      table.uuid("related_id").nullable();
+      table.timestamp("created_at", { useTz: true }).notNullable().defaultTo(database.fn.now());
+      table.timestamp("updated_at", { useTz: true }).nullable();
+      table.index(["world"]);
+      table.index(["author"]);
+    });
+    if (!await database.schema.hasColumn("minecraft_map_markers", "color")) {
+      await database.schema.alterTable("minecraft_map_markers", (table) => {
+        table.string("color", 7).notNullable().defaultTo("#d15d36");
+      });
+    }
+    if (!await database.schema.hasColumn("minecraft_map_markers", "image")) {
+      await database.schema.alterTable("minecraft_map_markers", (table) => {
+        table.uuid("image").nullable().references("id").inTable("directus_files").onDelete("SET NULL");
+        table.string("related_type", 16).nullable();
+        table.uuid("related_id").nullable();
+      });
+    }
+  }).catch((error) => {
+    mapMarkerTablePromise = undefined;
+    throw error;
+  });
+  return mapMarkerTablePromise;
+}
+
+function markerInput(request, { partial = false } = {}) {
+  const body = objectBody(request);
+  strictKeys(body, new Set([
+    "name", "description", "world", "x", "y", "z", "icon", "color",
+    "image", "related_type", "related_id",
+  ]));
+  const input = {};
+  const textField = (key, maximum, required = false) => {
+    if (body[key] !== undefined) input[key] = requiredText(body[key], key, maximum);
+    else if (!partial && required) throw new EndpointError(400, "INVALID_PAYLOAD", `${key} is required`);
+  };
+  textField("name", 80, true);
+  textField("world", 100, true);
+  if (body.description !== undefined) input.description = optionalText(body.description, "description", 1_000) ?? "";
+  else if (!partial) input.description = "";
+  if (body.icon !== undefined) input.icon = requiredText(body.icon, "icon", 32);
+  else if (!partial) input.icon = "place";
+  if (body.color !== undefined) {
+    const color = requiredText(body.color, "color", 7).toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(color)) {
+      throw new EndpointError(400, "INVALID_PAYLOAD", "color must be a hexadecimal color");
+    }
+    input.color = color;
+  } else if (!partial) input.color = "#d15d36";
+  for (const key of ["image", "related_id"]) {
+    if (body[key] === null) input[key] = null;
+    else if (body[key] !== undefined) {
+      const value = String(body[key]);
+      if (!UUID_PATTERN.test(value)) throw new EndpointError(400, "INVALID_PAYLOAD", `${key} is invalid`);
+      input[key] = value;
+    } else if (!partial) input[key] = null;
+  }
+  if (body.related_type === null || body.related_type === "") input.related_type = null;
+  else if (body.related_type !== undefined) {
+    if (body.related_type !== "post" && body.related_type !== "article") {
+      throw new EndpointError(400, "INVALID_PAYLOAD", "related_type is invalid");
+    }
+    input.related_type = body.related_type;
+  } else if (!partial) input.related_type = null;
+  for (const key of ["x", "z"]) {
+    if (body[key] === undefined && !partial) throw new EndpointError(400, "INVALID_PAYLOAD", `${key} is required`);
+    if (body[key] !== undefined) {
+      const value = Number(body[key]);
+      if (!Number.isFinite(value) || Math.abs(value) > 30_000_000) {
+        throw new EndpointError(400, "INVALID_PAYLOAD", `${key} is invalid`);
+      }
+      input[key] = value;
+    }
+  }
+  if (body.y !== undefined) {
+    if (body.y === null) input.y = null;
+    else {
+      const value = Number(body.y);
+      if (!Number.isFinite(value) || value < -2048 || value > 2048) {
+        throw new EndpointError(400, "INVALID_PAYLOAD", "y is invalid");
+      }
+      input.y = value;
+    }
+  } else if (!partial) input.y = null;
+  if (partial && Object.keys(input).length === 0) {
+    throw new EndpointError(400, "INVALID_PAYLOAD", "At least one field is required");
+  }
+  return input;
+}
+
+async function assertMarkerMediaReference(database, user, input) {
+  if (!input.image) {
+    if (input.related_type || input.related_id) {
+      throw new EndpointError(400, "INVALID_PAYLOAD", "Related content requires an image");
+    }
+    return;
+  }
+  const file = await database("directus_files").select("id", "uploaded_by", "type").where({ id: input.image }).first();
+  if (!file || !String(file.type || "").startsWith("image/")) {
+    throw new EndpointError(400, "INVALID_IMAGE", "The selected image is invalid");
+  }
+  if (!input.related_type && String(file.uploaded_by) !== user) {
+    throw new EndpointError(403, "IMAGE_NOT_OWNED", "The selected image is not yours");
+  }
+  if (Boolean(input.related_type) !== Boolean(input.related_id)) {
+    throw new EndpointError(400, "INVALID_PAYLOAD", "Related content is incomplete");
+  }
+  if (input.related_type === "post") {
+    const relation = await database("posts as post")
+      .innerJoin("posts_files as files", "post.id", "files.posts_id")
+      .where({ "post.id": input.related_id, "post.author": user, "files.directus_files_id": input.image }).first();
+    if (!relation) throw new EndpointError(403, "INVALID_MEDIA_LINK", "The image does not belong to your post");
+  }
+  if (input.related_type === "article") {
+    const article = await database("articles").select("thumbnail", "body")
+      .where({ id: input.related_id, author: user, status: "published" }).first();
+    const bodyHasImage = String(article?.body || "").includes(`/pmc-website/assets/${input.image}`);
+    if (!article || (String(article.thumbnail || "") !== input.image && !bodyHasImage)) {
+      throw new EndpointError(403, "INVALID_MEDIA_LINK", "The image does not belong to your published article");
+    }
+  }
+}
+
+function publicMarker(row) {
+  return {
+    ...Object.fromEntries(MAP_MARKER_FIELDS.map((field) => [field, row[field]])),
+    author: { id: row.author, display_name: row.display_name || "Member" },
+    related_title: row.related_type === "article" ? row.related_article_title : row.related_post_content,
+    related_href: row.related_type === "article" && row.related_article_slug
+      ? `/articles/${row.related_article_slug}`
+      : row.related_type === "post" ? `/timeline#post-${row.related_id}` : null,
+  };
+}
+
+function markerQuery(database) {
+  return database("minecraft_map_markers as marker")
+    .leftJoin("profiles as profile", "marker.author", "profile.user")
+    .leftJoin("posts as related_post", function joinPost() {
+      this.on("marker.related_id", "=", "related_post.id").andOnVal("marker.related_type", "=", "post");
+    })
+    .leftJoin("articles as related_article", function joinArticle() {
+      this.on("marker.related_id", "=", "related_article.id").andOnVal("marker.related_type", "=", "article");
+    })
+    .select(
+      "marker.*", "profile.display_name", "related_post.content as related_post_content",
+      "related_article.title as related_article_title", "related_article.slug as related_article_slug",
+    );
+}
+
+function ensureMapPathTable(database) {
+  mapPathTablePromise ??= database.schema.hasTable("minecraft_map_paths").then(async (exists) => {
+    if (!exists) await database.schema.createTable("minecraft_map_paths", (table) => {
+      table.uuid("id").primary();
+      table.uuid("author").notNullable().references("id").inTable("directus_users").onDelete("CASCADE");
+      table.string("name", 80).notNullable();
+      table.text("description").notNullable().defaultTo("");
+      table.string("world", 100).notNullable();
+      table.string("kind", 16).notNullable();
+      table.string("color", 7).notNullable();
+      table.integer("weight").notNullable().defaultTo(4);
+      table.boolean("dashed").notNullable().defaultTo(false);
+      table.jsonb("points").notNullable();
+      table.timestamp("created_at", { useTz: true }).notNullable().defaultTo(database.fn.now());
+      table.timestamp("updated_at", { useTz: true }).nullable();
+      table.index(["world"]);
+      table.index(["author"]);
+    });
+  }).catch((error) => {
+    mapPathTablePromise = undefined;
+    throw error;
+  });
+  return mapPathTablePromise;
+}
+
+function pathInput(request, { partial = false } = {}) {
+  const body = objectBody(request);
+  strictKeys(body, new Set(["name", "description", "world", "kind", "color", "weight", "dashed", "points"]));
+  const input = {};
+  for (const [key, maximum] of [["name", 80], ["world", 100]]) {
+    if (body[key] !== undefined) input[key] = requiredText(body[key], key, maximum);
+    else if (!partial) throw new EndpointError(400, "INVALID_PAYLOAD", `${key} is required`);
+  }
+  if (body.description !== undefined) input.description = optionalText(body.description, "description", 1_000) ?? "";
+  else if (!partial) input.description = "";
+  if (body.kind !== undefined) {
+    if (!["road", "railway", "other"].includes(body.kind)) throw new EndpointError(400, "INVALID_PAYLOAD", "kind is invalid");
+    input.kind = body.kind;
+  } else if (!partial) throw new EndpointError(400, "INVALID_PAYLOAD", "kind is required");
+  if (body.color !== undefined) {
+    const color = requiredText(body.color, "color", 7).toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(color)) throw new EndpointError(400, "INVALID_PAYLOAD", "color is invalid");
+    input.color = color;
+  } else if (!partial) throw new EndpointError(400, "INVALID_PAYLOAD", "color is required");
+  if (body.weight !== undefined) {
+    const weight = Number(body.weight);
+    if (!Number.isInteger(weight) || weight < 1 || weight > 12) throw new EndpointError(400, "INVALID_PAYLOAD", "weight is invalid");
+    input.weight = weight;
+  } else if (!partial) input.weight = 4;
+  if (body.dashed !== undefined) {
+    if (typeof body.dashed !== "boolean") throw new EndpointError(400, "INVALID_PAYLOAD", "dashed is invalid");
+    input.dashed = body.dashed;
+  } else if (!partial) input.dashed = false;
+  if (body.points !== undefined) {
+    if (!Array.isArray(body.points) || body.points.length < 2 || body.points.length > 500) {
+      throw new EndpointError(400, "INVALID_PAYLOAD", "points must contain 2 to 500 points");
+    }
+    const points = body.points.map((point) => {
+      if (!point || typeof point !== "object" || Array.isArray(point) || Object.keys(point).some((key) => key !== "x" && key !== "z")) {
+        throw new EndpointError(400, "INVALID_PAYLOAD", "point is invalid");
+      }
+      const x = Number(point.x);
+      const z = Number(point.z);
+      if (!Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > 30_000_000 || Math.abs(z) > 30_000_000) {
+        throw new EndpointError(400, "INVALID_PAYLOAD", "point is invalid");
+      }
+      return { x, z };
+    });
+    // Knex treats JavaScript arrays as PostgreSQL array literals. Serialize explicitly for jsonb.
+    input.points = JSON.stringify(points);
+  } else if (!partial) throw new EndpointError(400, "INVALID_PAYLOAD", "points is required");
+  if (partial && Object.keys(input).length === 0) throw new EndpointError(400, "INVALID_PAYLOAD", "At least one field is required");
+  return input;
+}
+
+function publicPath(row) {
+  const points = typeof row.points === "string" ? JSON.parse(row.points) : row.points;
+  return {
+    id: row.id, name: row.name, description: row.description, world: row.world,
+    kind: row.kind, color: row.color, weight: row.weight, dashed: row.dashed, points,
+    author: { id: row.author, display_name: row.display_name || "Member" },
+    created_at: row.created_at, updated_at: row.updated_at,
+  };
+}
+
+function pathQuery(database) {
+  return database("minecraft_map_paths as path")
+    .leftJoin("profiles as profile", "path.author", "profile.user")
+    .select("path.*", "profile.display_name");
+}
 
 export function storedImageIdsInMarkdown(markdown) {
   const ids = new Set();
@@ -808,6 +1072,133 @@ export default {
       const posts = new ItemsService("posts", { schema, accountability: null });
       const data = await posts.readOne(id, { fields: POST_FIELDS });
       response.json({ data: (await withLikeState(database, [data], "post_likes", "post", request.accountability?.user))[0] });
+    }));
+
+    router.get("/map-markers", route(async (request, response) => {
+      await ensureMapMarkerTable(database);
+      const world = optionalText(request.query?.world, "world", 100);
+      const query = markerQuery(database).orderBy("marker.created_at", "asc");
+      if (world) query.where("marker.world", world);
+      response.json({ data: (await query).map(publicMarker) });
+    }));
+
+    router.get("/map-marker-media-options", route(async (request, response) => {
+      const user = currentUser(request);
+      const posts = await database("posts as post")
+        .innerJoin("posts_files as files", "post.id", "files.posts_id")
+        .select("post.id", "post.content", "files.directus_files_id as image_id", "files.sort")
+        .where("post.author", user).orderBy("post.created_at", "desc").limit(200);
+      const articles = await database("articles")
+        .select("id", "title", "slug", "thumbnail", "body")
+        .where({ author: user, status: "published" }).orderBy("published_at", "desc").limit(50);
+      const options = posts.map((post) => ({
+        key: `post:${post.id}:${post.image_id}`,
+        image_id: post.image_id,
+        related_type: "post",
+        related_id: post.id,
+        label: `投稿: ${String(post.content).slice(0, 45)}${String(post.content).length > 45 ? "…" : ""}`,
+        href: `/timeline#post-${post.id}`,
+      }));
+      for (const article of articles) {
+        const ids = new Set(article.thumbnail ? [String(article.thumbnail)] : []);
+        for (const match of String(article.body || "").matchAll(STORED_ASSET_PATTERN)) ids.add(match[1].toLowerCase());
+        let index = 0;
+        for (const imageId of ids) {
+          index += 1;
+          options.push({
+            key: `article:${article.id}:${imageId}`,
+            image_id: imageId,
+            related_type: "article",
+            related_id: article.id,
+            label: `記事: ${article.title}（画像${index}）`,
+            href: `/articles/${article.slug}`,
+          });
+        }
+      }
+      response.json({ data: options });
+    }));
+
+    router.post("/map-markers", route(async (request, response) => {
+      const author = currentUser(request);
+      await ensureMapMarkerTable(database);
+      const input = markerInput(request);
+      await assertMarkerMediaReference(database, author, input);
+      const marker = { id: randomUUID(), author, ...input };
+      await database("minecraft_map_markers").insert(marker);
+      const row = await markerQuery(database).where("marker.id", marker.id).first();
+      response.status(201).json({ data: publicMarker(row) });
+    }));
+
+    router.patch("/map-markers/:id", route(async (request, response) => {
+      const user = currentUser(request);
+      await ensureMapMarkerTable(database);
+      const id = routeId(request);
+      const record = await database("minecraft_map_markers").select("author").where({ id }).first();
+      if (!record) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested marker was not found");
+      if (request.accountability?.admin !== true && String(record.author) !== user) {
+        throw new EndpointError(403, "FORBIDDEN", "You cannot edit this marker");
+      }
+      const input = markerInput(request, { partial: true });
+      const existing = await database("minecraft_map_markers").select("image", "related_type", "related_id").where({ id }).first();
+      await assertMarkerMediaReference(database, String(record.author), { ...existing, ...input });
+      await database("minecraft_map_markers").where({ id }).update({ ...input, updated_at: new Date() });
+      const row = await markerQuery(database).where("marker.id", id).first();
+      response.json({ data: publicMarker(row) });
+    }));
+
+    router.delete("/map-markers/:id", route(async (request, response) => {
+      const user = currentUser(request);
+      await ensureMapMarkerTable(database);
+      const id = routeId(request);
+      const record = await database("minecraft_map_markers").select("author").where({ id }).first();
+      if (!record) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested marker was not found");
+      if (request.accountability?.admin !== true && String(record.author) !== user) {
+        throw new EndpointError(403, "FORBIDDEN", "You cannot delete this marker");
+      }
+      await database("minecraft_map_markers").where({ id }).delete();
+      response.status(204).send();
+    }));
+
+    router.get("/map-paths", route(async (request, response) => {
+      await ensureMapPathTable(database);
+      const world = optionalText(request.query?.world, "world", 100);
+      const query = pathQuery(database).orderBy("path.created_at", "asc");
+      if (world) query.where("path.world", world);
+      response.json({ data: (await query).map(publicPath) });
+    }));
+
+    router.post("/map-paths", route(async (request, response) => {
+      const author = currentUser(request);
+      await ensureMapPathTable(database);
+      const path = { id: randomUUID(), author, ...pathInput(request) };
+      await database("minecraft_map_paths").insert(path);
+      response.status(201).json({ data: publicPath(await pathQuery(database).where("path.id", path.id).first()) });
+    }));
+
+    router.patch("/map-paths/:id", route(async (request, response) => {
+      const user = currentUser(request);
+      await ensureMapPathTable(database);
+      const id = routeId(request);
+      const record = await database("minecraft_map_paths").select("author").where({ id }).first();
+      if (!record) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested path was not found");
+      if (request.accountability?.admin !== true && String(record.author) !== user) {
+        throw new EndpointError(403, "FORBIDDEN", "You cannot edit this path");
+      }
+      await database("minecraft_map_paths").where({ id }).update({ ...pathInput(request, { partial: true }), updated_at: new Date() });
+      response.json({ data: publicPath(await pathQuery(database).where("path.id", id).first()) });
+    }));
+
+    router.delete("/map-paths/:id", route(async (request, response) => {
+      const user = currentUser(request);
+      await ensureMapPathTable(database);
+      const id = routeId(request);
+      const record = await database("minecraft_map_paths").select("author").where({ id }).first();
+      if (!record) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested path was not found");
+      if (request.accountability?.admin !== true && String(record.author) !== user) {
+        throw new EndpointError(403, "FORBIDDEN", "You cannot delete this path");
+      }
+      await database("minecraft_map_paths").where({ id }).delete();
+      response.status(204).send();
     }));
 
     router.get("/profiles", route(async (request, response) => {

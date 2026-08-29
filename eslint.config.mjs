@@ -12,5 +12,14 @@ export default defineConfig([
       "@next/next/no-img-element": "off",
     },
   },
-  globalIgnores([".next/**", "node_modules/**", "directus/**", "coverage/**"]),
+  globalIgnores([
+    ".next/**",
+    ".tmp/**",
+    "node_modules/**",
+    "directus/**",
+    "coverage/**",
+    "minecraft-map/input/**",
+    "minecraft-map/output/**",
+    "minecraft-map/work/**",
+  ]),
 ]);

@@ -1,0 +1,58 @@
+name: pmc-map-generator
+
+services:
+  map-static:
+    image: nginx:1.29.4-alpine
+    restart: unless-stopped
+    volumes:
+      - ./output:/usr/share/nginx/html:ro
+      - ../docker/nginx/map-static.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - map-delivery
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/__map_health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  map-generator:
+    user: "${MAP_GENERATOR_UID:-10001}:${MAP_GENERATOR_GID:-10001}"
+    build:
+      context: ./generator
+      dockerfile: Dockerfile
+    environment:
+      MAP_ARCHIVE: ${MAP_ARCHIVE:-}
+      MAP_WORLD_NAME: ${MAP_WORLD_NAME:-world}
+      MAP_WORLD_ID: ${MAP_WORLD_ID:-world}
+      MAP_WORLD_LABEL: ${MAP_WORLD_LABEL:-Minecraft World}
+      MAP_SNAPSHOT_ID: ${MAP_SNAPSHOT_ID:-}
+      MAP_SNAPSHOT_LABEL: ${MAP_SNAPSHOT_LABEL:-}
+      MAP_SNAPSHOT_CREATED_AT: ${MAP_SNAPSHOT_CREATED_AT:-}
+      MAP_PUBLIC_BASE_URL: ${MAP_PUBLIC_BASE_URL:-/minecraft-map}
+      MAP_OUTPUT_FORMAT: ${MAP_OUTPUT_FORMAT:-JAVA_1_21_4}
+      MAP_RENDER_MAPS: ${MAP_RENDER_MAPS:-flat,surface}
+      MAP_RENDER_MODE: ${MAP_RENDER_MODE:-full}
+      MAP_RENDER_RADIUS: ${MAP_RENDER_RADIUS:-512}
+      MAP_RENDER_CENTER_X: ${MAP_RENDER_CENTER_X:-0}
+      MAP_RENDER_CENTER_Z: ${MAP_RENDER_CENTER_Z:-0}
+      MAP_RENDER_TIMEOUT_SECONDS: ${MAP_RENDER_TIMEOUT_SECONDS:-43200}
+      CHUNKER_HEAP: ${CHUNKER_HEAP:-8G}
+      PAPER_HEAP: ${PAPER_HEAP:-6G}
+    volumes:
+      - type: bind
+        source: ${MAP_ARCHIVE_DIRECTORY:-./input}
+        target: /input
+        read_only: true
+      - ./work:/work
+      - ./output:/output
+    restart: "no"
+    init: true
+    mem_limit: ${MAP_MEMORY_LIMIT:-12g}
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  map-delivery:
+    name: pmc-map-delivery

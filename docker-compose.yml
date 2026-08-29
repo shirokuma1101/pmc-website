@@ -3,6 +3,27 @@ name: pmc-website
 x-directus-image: &directus-image directus/directus:12.3.0@sha256:568861dc03396477d0829897936731d861a3aa8ca68516a1422d68b4d3752621
 
 services:
+  gateway:
+    image: nginx:1.29.4-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+    ports:
+      - "${GATEWAY_BIND_IP:-127.0.0.1}:${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ./docker/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+      - map-delivery
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
   database:
     image: postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
     restart: unless-stopped
@@ -101,6 +122,10 @@ services:
         NEXT_PUBLIC_DIRECTUS_URL: ${NEXT_PUBLIC_DIRECTUS_URL:?Set NEXT_PUBLIC_DIRECTUS_URL in .env}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
         NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}
+        NEXT_PUBLIC_MINECRAFT_MAP_URL: ${NEXT_PUBLIC_MINECRAFT_MAP_URL:-/minecraft-map}
+        NEXT_PUBLIC_MINECRAFT_MAP_CONFIG_URL: ${NEXT_PUBLIC_MINECRAFT_MAP_CONFIG_URL:-/minecraft-map/standalone/dynmap_config.json}
+        NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD:-world}
+        NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP:-flat}
     restart: unless-stopped
     depends_on:
       directus:
@@ -112,6 +137,10 @@ services:
       APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
       NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: ${NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:-}
+      NEXT_PUBLIC_MINECRAFT_MAP_URL: ${NEXT_PUBLIC_MINECRAFT_MAP_URL:-/minecraft-map}
+      NEXT_PUBLIC_MINECRAFT_MAP_CONFIG_URL: ${NEXT_PUBLIC_MINECRAFT_MAP_CONFIG_URL:-/minecraft-map/standalone/dynmap_config.json}
+      NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_WORLD:-world}
+      NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP: ${NEXT_PUBLIC_MINECRAFT_DEFAULT_MAP:-flat}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
       AUTH_RATE_LIMIT_TRUST_PROXY: ${AUTH_RATE_LIMIT_TRUST_PROXY:-false}
       REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
@@ -140,7 +169,7 @@ services:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     depends_on:
-      frontend:
+      gateway:
         condition: service_healthy
       directus:
         condition: service_healthy
@@ -173,3 +202,8 @@ services:
 volumes:
   directus_database:
   directus_uploads:
+
+networks:
+  map-delivery:
+    name: pmc-map-delivery
+    external: true
