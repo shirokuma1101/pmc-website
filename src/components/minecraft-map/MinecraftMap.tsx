@@ -932,7 +932,8 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
             <label>説明<textarea maxLength={1000} rows={3} value={markerDraft.description} onChange={(event) => setMarkerDraft({ ...markerDraft, description: event.target.value })} /></label>
             <fieldset className={styles.imageFields}>
               <legend>カード画像</legend>
-              {(markerImageFile || markerDraft.imageUrl) ? <img src={markerImageFile ? URL.createObjectURL(markerImageFile) : markerDraft.imageUrl} alt="選択中の画像" /> : null}
+              {markerDraft.imageUrl ? <img src={markerDraft.imageUrl} alt="選択中の画像" /> : null}
+              {markerImageFile ? <p>選択中: {markerImageFile.name}</p> : null}
               <label>投稿・記事から選択
                 <select value={markerDraft.relatedType && markerDraft.relatedId && markerDraft.imageId ? `${markerDraft.relatedType}:${markerDraft.relatedId}:${markerDraft.imageId}` : ""} onChange={(event) => {
                   const option = mediaOptions.find((candidate) => candidate.key === event.target.value);
