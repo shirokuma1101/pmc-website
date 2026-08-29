@@ -17,7 +17,14 @@ $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $archiveRoot = (Resolve-Path -LiteralPath $ArchiveDirectory).Path
 $composeFile = Join-Path $PSScriptRoot "docker-compose.map.yml"
+$envFile = Join-Path $PSScriptRoot ".env.map"
 $catalogPath = Join-Path $PSScriptRoot "output\catalog.json"
+$composeArguments = @()
+if (Test-Path -LiteralPath $envFile) {
+  $composeArguments += @("--env-file", $envFile)
+  Write-Host "[map-history] Use environment file: $envFile"
+}
+$composeArguments += @("-f", $composeFile)
 $archives = @(Get-ChildItem -LiteralPath $archiveRoot -File -Filter "*.tar.gz" | Sort-Object LastWriteTime, Name)
 
 if ($archives.Count -eq 0) {
@@ -53,18 +60,21 @@ try {
     }
 
     Write-Host "[map-history] Generate $WorldId / $snapshotLabel from $($archive.Name)"
-    & docker compose -f $composeFile run --rm `
-      -e "MAP_ARCHIVE=$($archive.Name)" `
-      -e "MAP_WORLD_ID=$WorldId" `
-      -e "MAP_WORLD_LABEL=$WorldLabel" `
-      -e "MAP_SNAPSHOT_ID=$snapshotId" `
-      -e "MAP_SNAPSHOT_LABEL=$snapshotLabel" `
-      -e "MAP_SNAPSHOT_CREATED_AT=$snapshotCreatedAt" `
-      -e "MAP_RENDER_MODE=$RenderMode" `
-      -e "MAP_RENDER_RADIUS=$Radius" `
-      -e "MAP_RENDER_CENTER_X=$CenterX" `
-      -e "MAP_RENDER_CENTER_Z=$CenterZ" `
-      map-generator
+    $runArguments = $composeArguments + @(
+      "run", "--rm",
+      "-e", "MAP_ARCHIVE=$($archive.Name)",
+      "-e", "MAP_WORLD_ID=$WorldId",
+      "-e", "MAP_WORLD_LABEL=$WorldLabel",
+      "-e", "MAP_SNAPSHOT_ID=$snapshotId",
+      "-e", "MAP_SNAPSHOT_LABEL=$snapshotLabel",
+      "-e", "MAP_SNAPSHOT_CREATED_AT=$snapshotCreatedAt",
+      "-e", "MAP_RENDER_MODE=$RenderMode",
+      "-e", "MAP_RENDER_RADIUS=$Radius",
+      "-e", "MAP_RENDER_CENTER_X=$CenterX",
+      "-e", "MAP_RENDER_CENTER_Z=$CenterZ",
+      "map-generator"
+    )
+    & docker compose @runArguments
     if ($LASTEXITCODE -ne 0) {
       if (-not $ContinueOnError) {
         throw "Map generation failed for $($archive.FullName)"
