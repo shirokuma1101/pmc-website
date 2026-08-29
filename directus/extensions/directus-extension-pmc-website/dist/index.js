@@ -152,10 +152,10 @@ async function assertMarkerMediaReference(database, user, input) {
   }
   if (input.related_type === "article") {
     const article = await database("articles").select("thumbnail", "body")
-      .where({ id: input.related_id, author: user, status: "published" }).first();
+      .where({ id: input.related_id, status: "published" }).first();
     const bodyHasImage = String(article?.body || "").includes(`/pmc-website/assets/${input.image}`);
     if (!article || (String(article.thumbnail || "") !== input.image && !bodyHasImage)) {
-      throw new EndpointError(403, "INVALID_MEDIA_LINK", "The image does not belong to your published article");
+      throw new EndpointError(403, "INVALID_MEDIA_LINK", "The image does not belong to the published article");
     }
   }
 }
@@ -1090,7 +1090,7 @@ export default {
         .where("post.author", user).orderBy("post.created_at", "desc").limit(200);
       const articles = await database("articles")
         .select("id", "title", "slug", "thumbnail", "body")
-        .where({ author: user, status: "published" }).orderBy("published_at", "desc").limit(50);
+        .where({ status: "published" }).orderBy("published_at", "desc");
       const options = posts.map((post) => ({
         key: `post:${post.id}:${post.image_id}`,
         image_id: post.image_id,
