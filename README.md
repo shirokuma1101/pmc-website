@@ -205,6 +205,109 @@ MAP_RENDER_THREADS=2
 値には1以上の整数を指定します。大きくするほどCPUとメモリの使用量が増えるため、
 物理コア数を超えない範囲でホストの負荷を確認しながら調整してください。
 
+#### Ubuntuで毎日自動生成する
+
+長時間実行、再起動後の実行、ログ確認をsystemdで管理します。最初に3ワールドを
+順番に処理するスクリプトを`/usr/local/bin/pmc-map-update`へ配置します。
+
+```bash
+#!/usr/bin/env bash
+set -u
+
+project_root=/opt/stacks/pmc-website
+failed=0
+
+cd "$project_root" || exit 1
+
+run_world() {
+  world_id="$1"
+  world_label="$2"
+  archive_directory="$3"
+
+  echo "[pmc-map-update] Start: $world_label"
+  /usr/bin/bash minecraft-map/generate-history.sh \
+    --archive-directory "$archive_directory" \
+    --world-id "$world_id" \
+    --world-label "$world_label" || failed=1
+}
+
+run_world 6c1044f4 'PMC6.0' /mnt/pelican_backups/6c1044f4-*
+run_world ad9581c5 'PMC2.0' /mnt/pelican_backups/ad9581c5-*
+run_world c5227293 'PMC' /mnt/pelican_backups/c5227293-*
+
+exit "$failed"
+```
+
+実行権限を設定し、一度手動で確認します。出力済みのスナップショットは
+`generate-history.sh`によってスキップされます。
+
+```bash
+sudo chmod 755 /usr/local/bin/pmc-map-update
+sudo /usr/local/bin/pmc-map-update
+```
+
+次のserviceを`/etc/systemd/system/pmc-map-update.service`へ配置します。
+
+```ini
+[Unit]
+Description=Generate PMC Dynmap history
+Requires=docker.service
+Wants=network-online.target
+After=network-online.target docker.service remote-fs.target
+RequiresMountsFor=/mnt/pelican_backups
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/stacks/pmc-website
+ExecStartPre=/usr/bin/mountpoint -q /mnt/pelican_backups
+ExecStart=/usr/bin/flock -n /run/lock/pmc-map-update.lock /usr/local/bin/pmc-map-update
+TimeoutStartSec=infinity
+Nice=10
+```
+
+`RequiresMountsFor`と`mountpoint`により、NFSが利用できない状態で処理を開始することを
+防ぎます。`flock`は前回の処理が継続中の場合に重複起動を防止します。
+
+次のtimerを`/etc/systemd/system/pmc-map-update.timer`へ配置します。この例では毎日
+午前3時に実行します。
+
+```ini
+[Unit]
+Description=Run PMC map generation daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=pmc-map-update.service
+
+[Install]
+WantedBy=timers.target
+```
+
+設定を反映してtimerを有効化します。`Persistent=true`のため、実行時刻にホストが
+停止していた場合は次回起動後に一度実行されます。
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now pmc-map-update.timer
+systemctl list-timers pmc-map-update.timer
+```
+
+手動実行、状態確認、ログ追跡には次のコマンドを使用します。
+
+```bash
+sudo systemctl start pmc-map-update.service
+systemctl status pmc-map-update.service
+sudo journalctl -u pmc-map-update.service -f
+```
+
+実行中の処理を停止する場合と、定期実行を無効化する場合は次のとおりです。
+
+```bash
+sudo systemctl stop pmc-map-update.service
+sudo systemctl disable --now pmc-map-update.timer
+```
+
 Article公開時のDiscord通知を有効にする場合は、本番`.env`へ
 `DISCORD_ARTICLE_WEBHOOK_URL`を設定します。Webhook URLはチャンネルへ
 投稿できる秘密情報のため、Frontend環境、Browser、GitHub、ログへ保存しないでください。未設定時は
