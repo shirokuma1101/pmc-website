@@ -5,6 +5,7 @@ interface MapTimelineProps {
   snapshots: MinecraftMapSnapshot[];
   selectedId: string | null;
   onSelect: (snapshotId: string) => void;
+  onClose: () => void;
 }
 
 function snapshotLabel(snapshot: MinecraftMapSnapshot) {
@@ -12,7 +13,7 @@ function snapshotLabel(snapshot: MinecraftMapSnapshot) {
   return new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(snapshot.createdAt));
 }
 
-export function MapTimeline({ snapshots, selectedId, onSelect }: MapTimelineProps) {
+export function MapTimeline({ snapshots, selectedId, onSelect, onClose }: MapTimelineProps) {
   const selectedIndex = Math.max(0, snapshots.findIndex((snapshot) => snapshot.id === selectedId));
   const selected = snapshots[selectedIndex];
   const latestIndex = Math.max(0, snapshots.length - 1);
@@ -24,10 +25,13 @@ export function MapTimeline({ snapshots, selectedId, onSelect }: MapTimelineProp
           <p className={styles.timelineEyebrow}>Map history</p>
           <h2>地図のタイムライン</h2>
         </div>
-        <output className={styles.timelineCurrent} aria-live="polite">
-          <span>{selectedIndex === latestIndex ? "現在" : "過去"}</span>
-          {selected ? snapshotLabel(selected) : "最新の地図"}
-        </output>
+        <div className={styles.timelineHeaderActions}>
+          <output className={styles.timelineCurrent} aria-live="polite">
+            <span>{selectedIndex === latestIndex ? "現在" : "過去"}</span>
+            {selected ? snapshotLabel(selected) : "最新の地図"}
+          </output>
+          <button className={styles.timelineClose} type="button" onClick={onClose} aria-label="タイムラインを閉じる">×</button>
+        </div>
       </div>
 
       <div className={styles.timelineControls}>
