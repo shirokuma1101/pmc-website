@@ -28,25 +28,46 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
 地図生成はWebサイト用のComposeとは分離されており、ゲームサーバーを起動しません。アーカイブ内の `server.properties` から `level-name` を読み取り、対応する `worlds/<level-name>` を自動検出します。
 
-1. Bedrock Dedicated Server全体を含む `.tar.gz` を `minecraft-map/input` に1つ配置します。
-2. 初回のみ生成イメージを作ります。npmを使わない場合は、下段のDocker Composeコマンドを直接実行できます。
+1. 初回のみ設定ファイルを作成します。
+
+   ```sh
+   cp minecraft-map/.env.map.example minecraft-map/.env.map
+   ```
+
+   `.env.map`はGit管理外です。サーバーのメモリ量やバックアップ配置に合わせて編集します。
+
+   ```env
+   MAP_ARCHIVE_DIRECTORY=./input
+   CHUNKER_HEAP=4G
+   PAPER_HEAP=4G
+   MAP_MEMORY_LIMIT=8g
+   ```
+
+   `Killed`または終了コード137でChunkerが終了する場合は、ホストの空きメモリを確認し、まず`CHUNKER_HEAP`を3～4GBへ下げてください。`MAP_MEMORY_LIMIT`はJavaヒープ以外のメモリを含め、`CHUNKER_HEAP`より十分大きく設定します。
+
+2. Bedrock Dedicated Server全体を含む `.tar.gz` を `minecraft-map/input` に1つ配置します。
+3. 初回のみ生成イメージを作ります。npmを使わない場合は、下段のDocker Composeコマンドを直接実行できます。
 
    ```powershell
    npm run map:build
    ```
 
    ```sh
-   docker compose -f minecraft-map/docker-compose.map.yml build map-generator
+   docker compose --env-file minecraft-map/.env.map \
+     -f minecraft-map/docker-compose.map.yml \
+     build map-generator
    ```
 
-3. 変換とレンダーを実行します。
+4. 変換とレンダーを実行します。
 
    ```powershell
    npm run map:generate
    ```
 
    ```sh
-   docker compose -f minecraft-map/docker-compose.map.yml run --rm map-generator
+   docker compose --env-file minecraft-map/.env.map \
+     -f minecraft-map/docker-compose.map.yml \
+     run --rm map-generator
    ```
 
 生成物は `minecraft-map/output/worlds/<ワールドID>/snapshots/<撮影日時>` に追加されます。平面表示は `flat`、3D表示は `surface` として生成され、洞窟表示は除外されます。既存の履歴は上書きされず、`catalog.json`の最新スナップショットだけが更新されます。
@@ -57,7 +78,7 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
 ### Ubuntuで履歴を一括生成する
 
-UbuntuではPowerShell版ではなく、`generate-history.sh`を使用します。バックアップの更新日時は既定で`Asia/Tokyo`としてIDと表示日時へ変換されます。
+UbuntuではPowerShell版ではなく、`generate-history.sh`を使用します。バックアップの更新日時は既定で`Asia/Tokyo`としてIDと表示日時へ変換されます。`minecraft-map/.env.map`が存在する場合は、自動的にDocker Composeの環境ファイルとして読み込みます。事前の`source`は不要です。
 
 ```bash
 bash minecraft-map/generate-history.sh \
@@ -77,7 +98,7 @@ bash minecraft-map/generate-history.sh \
 
 サーバーの時刻をUTCなど別のタイムゾーンとして解釈する場合は、`--timezone UTC`のように指定できます。途中から再実行すると完成済みのスナップショットは自動的にスキップされます。
 
-Windows/PowerShell版で不整合なバックアップをスキップして残りを処理する場合は、`-ContinueOnError`を追加します。失敗したファイルは最後に一覧表示され、終了コードは失敗として返ります。
+Windows/PowerShell版も`minecraft-map/.env.map`を自動的に読み込みます。不整合なバックアップをスキップして残りを処理する場合は、`-ContinueOnError`を追加します。失敗したファイルは最後に一覧表示され、終了コードは失敗として返ります。
 
 ## 本番
 

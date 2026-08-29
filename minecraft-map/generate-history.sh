@@ -49,7 +49,13 @@ done
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 archive_root="$(cd -- "$archive_directory" && pwd)"
 compose_file="$script_directory/docker-compose.map.yml"
+env_file="$script_directory/.env.map"
 output_root="$script_directory/output"
+compose_args=(-f "$compose_file")
+if [[ -f "$env_file" ]]; then
+  compose_args=(--env-file "$env_file" "${compose_args[@]}")
+  printf '[map-history] Use environment file: %s\n' "$env_file"
+fi
 mapfile -t archives < <(find "$archive_root" -maxdepth 1 -type f -name '*.tar.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2-)
 [[ ${#archives[@]} -gt 0 ]] || { printf 'No .tar.gz archives found in %s\n' "$archive_root" >&2; exit 1; }
 
@@ -69,7 +75,7 @@ for archive in "${archives[@]}"; do
   MAP_GENERATOR_UID="$(id -u)" \
   MAP_GENERATOR_GID="$(id -g)" \
   MAP_ARCHIVE_DIRECTORY="$archive_root" \
-  docker compose -f "$compose_file" run --rm \
+  docker compose "${compose_args[@]}" run --rm \
     -e "MAP_ARCHIVE=$(basename "$archive")" \
     -e "MAP_WORLD_ID=$world_id" \
     -e "MAP_WORLD_LABEL=$world_label" \
