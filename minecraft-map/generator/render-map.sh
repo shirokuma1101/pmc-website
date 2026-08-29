@@ -4,6 +4,11 @@ set -Eeuo pipefail
 log() { printf '[map-generator] %s\n' "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
 
+render_threads="${MAP_RENDER_THREADS:-}"
+if [[ -n "$render_threads" ]]; then
+  [[ "$render_threads" =~ ^[1-9][0-9]*$ ]] || fail "MAP_RENDER_THREADS must be a positive integer."
+fi
+
 archive="${MAP_ARCHIVE:-}"
 if [[ -n "$archive" ]]; then
   [[ "$archive" == /* ]] || archive="/input/$archive"
@@ -113,6 +118,15 @@ dynmap_config="$renderer/plugins/dynmap/configuration.txt"
 sed -i 's/^disable-webserver:.*/disable-webserver: true/' "$dynmap_config"
 sed -i 's/^deftemplatesuffix:.*/deftemplatesuffix: hires/' "$dynmap_config"
 sed -i 's/class: org\.dynmap\.InternalClientUpdateComponent/class: org.dynmap.JsonFileClientUpdateComponent/' "$dynmap_config"
+
+if [[ -n "$render_threads" ]]; then
+  if grep -Eq '^[[:space:]]*#?[[:space:]]*parallelrendercnt:' "$dynmap_config"; then
+    sed -i -E "s/^[[:space:]]*#?[[:space:]]*parallelrendercnt:.*/parallelrendercnt: $render_threads/" "$dynmap_config"
+  else
+    printf '\nparallelrendercnt: %s\n' "$render_threads" >> "$dynmap_config"
+  fi
+  log "Using $render_threads Dynmap full-render threads"
+fi
 
 log "Starting render server"
 : > "$renderer/generator.log"

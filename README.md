@@ -188,6 +188,23 @@ reverse proxyからの接続だけを許可します。PostgreSQLはホストへ
 - deployment host上の`.env`
 - Gitで管理するschema snapshotとDirectus Extension
 
+### Minecraftマップ生成の調整
+
+マップ生成用の設定は`minecraft-map/.env.map.example`を
+`minecraft-map/.env.map`へコピーして管理します。`generate-history.sh`と
+`generate-history.ps1`は、このファイルが存在すると自動的に読み込みます。
+
+Dynmapの`fullrender`または`radiusrender`で使用する並列レンダースレッド数は、
+`MAP_RENDER_THREADS`で指定できます。空欄の場合はDynmapの既定動作を維持します。
+例えば2 vCPUの専用レンダー環境では、次の設定から試してください。
+
+```ini
+MAP_RENDER_THREADS=2
+```
+
+値には1以上の整数を指定します。大きくするほどCPUとメモリの使用量が増えるため、
+物理コア数を超えない範囲でホストの負荷を確認しながら調整してください。
+
 Article公開時のDiscord通知を有効にする場合は、本番`.env`へ
 `DISCORD_ARTICLE_WEBHOOK_URL`を設定します。Webhook URLはチャンネルへ
 投稿できる秘密情報のため、Frontend環境、Browser、GitHub、ログへ保存しないでください。未設定時は
