@@ -151,6 +151,8 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
   const [savingMarker, setSavingMarker] = useState(false);
   const [markerLayerVersion, setMarkerLayerVersion] = useState(0);
   const [markersVisible, setMarkersVisible] = useState(true);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [authorFilter, setAuthorFilter] = useState("all");
   const [iconFilter, setIconFilter] = useState("all");
   const [mediaOptions, setMediaOptions] = useState<MarkerMediaOption[]>([]);
@@ -787,8 +789,35 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
 
   return (
     <section className={styles.shell} aria-label="Minecraftワールドマップ">
-      <div className={styles.toolbar}>
-        <div className={styles.selectors}>
+      <div className={`${styles.mapFrame} ${timelineOpen ? styles.timelineVisible : ""}`}>
+        <div ref={mapElementRef} className={styles.map} />
+        <aside className={styles.toolbar} aria-label="地図の表示設定">
+          <div className={styles.panelHeading}>
+            <div>
+              <p className={styles.panelEyebrow}>Minecraft World Map</p>
+              <h1>ワールドマップ</h1>
+            </div>
+            <button
+              className={styles.panelToggle}
+              type="button"
+              aria-expanded={controlsOpen}
+              aria-controls="minecraft-map-controls"
+              onClick={() => setControlsOpen((open) => !open)}
+            >
+              {controlsOpen ? "閉じる" : "地図設定"}
+            </button>
+          </div>
+          <div className={styles.panelStatus}>
+            <p className={styles.coordinates} aria-live="polite">
+              X {coordinates.x.toLocaleString()} / Z {coordinates.z.toLocaleString()}
+            </p>
+            <p className={styles.hint}>
+              ドラッグで移動、ホイールまたはボタンで拡大縮小できます。{pathDraft ? "地図をクリックして頂点を追加し、番号をドラッグして位置を調整します。" : currentUser ? "右クリックまたは長押しで公開マーカーを追加できます。" : "マーカーと道路・線路は全員に公開され、ログインすると追加できます。"}
+            </p>
+          </div>
+          {controlsOpen ? (
+            <div id="minecraft-map-controls" className={styles.panelContent}>
+              <div className={styles.selectors}>
           <label className={styles.field}>
             ワールドマップ
             <select
@@ -841,8 +870,8 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
               {PATH_KINDS.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}
             </select>
           </label>
-        </div>
-        <div className={styles.toolbarMeta}>
+              </div>
+              <div className={styles.toolbarMeta}>
           <label className={styles.visibilityToggle}>
             <input
               type="checkbox"
@@ -867,9 +896,6 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
           </label>
           <p className={styles.markerCount}>{visibleMarkers.length} / {markers.length} 件表示</p>
           <p className={styles.markerCount}>{visiblePaths.length} / {paths.length} 路線表示</p>
-          <p className={styles.coordinates} aria-live="polite">
-            X {coordinates.x.toLocaleString()} / Z {coordinates.z.toLocaleString()}
-          </p>
           {(authorFilter !== "all" || iconFilter !== "all" || pathAuthorFilter !== "all" || pathKindFilter !== "all") ? (
             <button className={styles.clearFilters} type="button" onClick={() => { setAuthorFilter("all"); setIconFilter("all"); setPathAuthorFilter("all"); setPathKindFilter("all"); }}>
               絞り込みを解除
@@ -880,11 +906,10 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
               {pathDraft ? "描画を終了" : "＋ 道路・線路を描く"}
             </button>
           ) : null}
-        </div>
-      </div>
-
-      <div className={styles.mapFrame}>
-        <div ref={mapElementRef} className={styles.map} />
+              </div>
+            </div>
+          ) : null}
+        </aside>
         {!configuration && !error ? <p className={styles.status}>地図を読み込んでいます…</p> : null}
         {error ? <p className={styles.status}>{error}</p> : null}
         {selectedMarker ? (
@@ -997,24 +1022,30 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
             <button className={styles.saveButton} disabled={savingPath || pathDraft.points.length < 2}>{savingPath ? "保存中…" : "道路・線路を保存"}</button>
           </form>
         ) : null}
+        {markerMessage ? <p className={styles.markerMessage}>{markerMessage} <button type="button" onClick={() => setMarkerMessage(null)}>閉じる</button></p> : null}
+        {pathMessage ? <p className={styles.markerMessage}>{pathMessage} <button type="button" onClick={() => setPathMessage(null)}>閉じる</button></p> : null}
+        <div className={styles.timelineOverlay}>
+          {timelineOpen ? (
+            <MapTimeline
+              snapshots={snapshots}
+              selectedId={snapshotId}
+              onClose={() => setTimelineOpen(false)}
+              onSelect={(nextSnapshotId) => {
+                setSnapshotId(nextSnapshotId);
+                setConfiguration(null);
+                const url = new URL(window.location.href);
+                url.searchParams.set("world", logicalWorldId);
+                url.searchParams.set("snapshot", nextSnapshotId);
+                window.history.replaceState(null, "", url);
+              }}
+            />
+          ) : (
+            <button className={styles.timelineOpen} type="button" aria-expanded="false" onClick={() => setTimelineOpen(true)}>
+              ◷ 地図のタイムライン
+            </button>
+          )}
+        </div>
       </div>
-      {markerMessage ? <p className={styles.markerMessage}>{markerMessage} <button type="button" onClick={() => setMarkerMessage(null)}>閉じる</button></p> : null}
-      {pathMessage ? <p className={styles.markerMessage}>{pathMessage} <button type="button" onClick={() => setPathMessage(null)}>閉じる</button></p> : null}
-      <p className={styles.hint}>
-        ドラッグで移動、ホイールまたはボタンで拡大縮小できます。{pathDraft ? "地図をクリックして頂点を追加し、番号をドラッグして位置を調整します。" : currentUser ? "右クリックまたは長押しで公開マーカーを追加できます。" : "マーカーと道路・線路は全員に公開され、ログインすると追加できます。"}
-      </p>
-      <MapTimeline
-        snapshots={snapshots}
-        selectedId={snapshotId}
-        onSelect={(nextSnapshotId) => {
-          setSnapshotId(nextSnapshotId);
-          setConfiguration(null);
-          const url = new URL(window.location.href);
-          url.searchParams.set("world", logicalWorldId);
-          url.searchParams.set("snapshot", nextSnapshotId);
-          window.history.replaceState(null, "", url);
-        }}
-      />
     </section>
   );
 }
