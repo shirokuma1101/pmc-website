@@ -23,6 +23,7 @@ const publicNavigation = [
   { href: "/timeline", label: "タイムライン" },
   { href: "/articles", label: "記事" },
   { href: "/map", label: "マップ" },
+  { href: "/organization", label: "メンバー" },
   { href: "/about", label: "About Us" },
 ];
 
@@ -147,6 +148,7 @@ export function SiteHeader({
                           <Link href="/admin/reviews" onClick={() => setMenuOpen(false)}>レビュー</Link>
                           <Link href="/admin/registrations" onClick={() => setMenuOpen(false)}>アカウント承認</Link>
                           <Link href="/admin/worlds" onClick={() => setMenuOpen(false)}>過去ワールド説明文</Link>
+                          <Link href="/organization?edit=1" onClick={() => setMenuOpen(false)}>メンバー管理</Link>
                         </div>
                       </details>
                     </>
