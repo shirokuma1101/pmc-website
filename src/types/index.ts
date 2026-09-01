@@ -25,6 +25,47 @@ export interface Profile {
   updatedAt?: string;
 }
 
+export type OrganizationRole = "master" | "administrator" | "server_owner" | "team_member" | "trainee";
+export type OrganizationGroupColor = "blue" | "teal" | "gold" | "violet" | "rose" | "slate" | "green" | "cyan" | "indigo" | "orange" | "plum";
+export type SupporterTier = "supporter" | "basic" | "standard" | "premium";
+
+export interface OrganizationMember {
+  profileId: string;
+  userId?: string;
+  displayName: string;
+  avatarUrl?: string;
+  bio: string;
+  xboxGamertag?: string;
+  role: OrganizationRole;
+  roleLabel: string;
+  team: string;
+  parentId?: string;
+  groupId?: string;
+  highlighted?: boolean;
+  supporterTier?: SupporterTier;
+}
+
+export interface OrganizationGroup {
+  id: string;
+  label: string;
+  caption: string;
+  color?: OrganizationGroupColor;
+}
+
+export interface OrganizationSection {
+  id: string;
+  title: string;
+  description: string;
+  groups: OrganizationGroup[];
+}
+
+export interface OrganizationAccountOption {
+  id: string;
+  displayName: string;
+  email: string;
+  organizationMemberId?: string;
+}
+
 export interface Post {
   id: string;
   content: string;

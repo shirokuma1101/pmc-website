@@ -44,6 +44,9 @@ export interface DirectusProfileRaw {
   bio?: string | null;
   xbox_gamertag?: string | null;
   avatar?: string | DirectusFileRaw | null;
+  organization_role?: "master" | "administrator" | "server_owner" | "team_member" | "trainee" | null;
+  organization_team?: string | null;
+  organization_parent?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 }

@@ -2063,7 +2063,7 @@ fields:
       note: null
       options: null
       readonly: false
-      required: true
+      required: false
       searchable: true
       sort: 2
       special:
@@ -2080,7 +2080,7 @@ fields:
       max_length: null
       numeric_precision: null
       numeric_scale: null
-      is_nullable: false
+      is_nullable: true
       is_unique: true
       is_indexed: false
       is_primary_key: false
@@ -2250,6 +2250,143 @@ fields:
       has_auto_increment: false
       foreign_key_table: directus_files
       foreign_key_column: id
+  - collection: profiles
+    field: organization_role
+    type: string
+    meta:
+      collection: profiles
+      conditions: null
+      display: labels
+      display_options: null
+      field: organization_role
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: Public organization chart role; editable by administrators only through the website API
+      options:
+        choices:
+          - text: マスター
+            value: master
+          - text: 管理者
+            value: administrator
+          - text: 鯖主
+            value: server_owner
+          - text: チームメンバー
+            value: team_member
+          - text: みならい
+            value: trainee
+      readonly: false
+      required: true
+      searchable: true
+      sort: 7
+      special: null
+      translations: null
+      validation:
+        _in:
+          - master
+          - administrator
+          - server_owner
+          - team_member
+          - trainee
+      validation_message: null
+      width: half
+    schema:
+      name: organization_role
+      table: profiles
+      data_type: character varying
+      default_value: trainee
+      max_length: 32
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: profiles
+    field: organization_team
+    type: string
+    meta:
+      collection: profiles
+      conditions: null
+      display: null
+      display_options: null
+      field: organization_team
+      group: null
+      hidden: false
+      interface: input
+      note: Public team name
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 8
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: organization_team
+      table: profiles
+      data_type: character varying
+      default_value: null
+      max_length: 80
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: profiles
+    field: organization_parent
+    type: uuid
+    meta:
+      collection: profiles
+      conditions: null
+      display: null
+      display_options: null
+      field: organization_parent
+      group: null
+      hidden: true
+      interface: input
+      note: Parent profile id in the organization chart
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 9
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: organization_parent
+      table: profiles
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: true
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
   - collection: profiles
     field: created_at
     type: timestamp
@@ -2557,7 +2694,7 @@ relations:
       one_allowed_collections: null
       one_collection: articles
       one_collection_field: null
-      one_deselect_action: delete
+      one_deselect_action: nullify
       one_field: reviews
       sort_field: null
     schema:
@@ -2567,7 +2704,7 @@ relations:
       foreign_key_column: id
       constraint_name: article_reviews_article_foreign
       on_update: NO ACTION
-      on_delete: CASCADE
+      on_delete: SET NULL
   - collection: article_reviews
     field: reviewer
     related_collection: directus_users

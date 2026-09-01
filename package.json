@@ -20,6 +20,7 @@
     "cms:bootstrap": "node --env-file=.env.local directus/bootstrap.mjs",
     "cms:init": "npm run cms:extension:build && npm run cms:up && npm run cms:schema:apply && npm run cms:restart && npm run cms:bootstrap",
     "cms:smoke": "node --env-file=.env.local scripts/smoke-directus.mjs",
+    "cms:organization:seed": "node scripts/seed-organization-samples.mjs",
     "docker:up": "docker compose -f docker-compose.dev.yml --env-file .env.local up -d --build --wait",
     "docker:down": "docker compose -f docker-compose.dev.yml --env-file .env.local down",
     "docker:logs": "docker compose -f docker-compose.dev.yml --env-file .env.local logs -f gateway frontend map-static directus",
