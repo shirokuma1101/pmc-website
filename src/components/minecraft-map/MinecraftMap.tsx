@@ -812,7 +812,7 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
               X {coordinates.x.toLocaleString()} / Z {coordinates.z.toLocaleString()}
             </p>
             <p className={styles.hint}>
-              ドラッグで移動、ホイールまたはボタンで拡大縮小できます。{pathDraft ? "地図をクリックして頂点を追加し、番号をドラッグして位置を調整します。" : currentUser ? "右クリックまたは長押しで公開マーカーを追加できます。" : "マーカーと道路・線路は全員に公開され、ログインすると追加できます。"}
+              ドラッグで移動、ホイールまたはボタンで拡大縮小できます。{pathDraft ? "地図をクリックして頂点を追加し、番号をドラッグして位置を調整します。" : currentUser ? "右クリックまたは長押しでマーカーを追加できます。" : "マーカーなどはログインすると追加できます。"}
             </p>
           </div>
           {controlsOpen ? (
