@@ -158,7 +158,7 @@ const collectionDefinitions = [
     },
     fields: [
       primaryUuid(),
-      { ...manyToOne("user", { required: true }), schema: { is_nullable: false, is_unique: true } },
+      { ...manyToOne("user"), schema: { is_nullable: true, is_unique: true } },
       {
         field: "display_name",
         type: "string",
@@ -395,13 +395,13 @@ const relationDefinitions = [
     collection: "profiles",
     field: "user",
     related_collection: "directus_users",
-    schema: { on_delete: "CASCADE" },
+    schema: { on_delete: "SET NULL" },
     meta: {
       many_collection: "profiles",
       many_field: "user",
       one_collection: "directus_users",
       one_field: "profile",
-      one_deselect_action: "delete",
+      one_deselect_action: "nullify",
     },
   },
   {

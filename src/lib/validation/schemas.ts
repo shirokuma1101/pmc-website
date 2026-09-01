@@ -117,6 +117,19 @@ export const aboutContentSchema = z.object({
 
 export const worldsContentSchema = aboutContentSchema;
 
+export const organizationMemberSchema = z.object({
+  displayName: z.string().trim().min(1).max(80),
+  bio: z.string().trim().max(2_000).default(""),
+  xboxGamertag: z.string().trim().max(50).default(""),
+  userId: z.string().uuid().nullable().default(null),
+  role: z.enum(["master", "administrator", "server_owner", "team_member", "trainee"]),
+  team: z.string().trim().max(80).default(""),
+  parentId: z.string().uuid().nullable().default(null),
+  groupId: z.string().uuid().nullable().default(null),
+}).strict();
+
+export const organizationMemberCreateSchema = organizationMemberSchema;
+
 export const mapMarkerSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(1_000).default(""),

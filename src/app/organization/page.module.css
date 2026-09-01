@@ -1,0 +1,7 @@
+.editableHeading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .75rem 2rem; }
+.editableHeading > p { grid-column: 1 / -1; }
+
+@media (max-width: 600px) {
+  .editableHeading { grid-template-columns: 1fr; align-items: stretch; }
+  .editableHeading > p { grid-column: auto; }
+}

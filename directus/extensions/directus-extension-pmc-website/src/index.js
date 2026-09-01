@@ -381,6 +381,7 @@ const PROFILE_FIELDS = [
   "avatar.type",
   "user.id",
 ];
+const ORGANIZATION_ROLES = new Set(["master", "administrator", "server_owner", "team_member", "trainee"]);
 
 class EndpointError extends Error {
   constructor(status, code, message) {
@@ -477,6 +478,215 @@ function optionalText(value, field, maximum, { trim = true } = {}) {
     throw new EndpointError(400, "INVALID_PAYLOAD", `${field} is too long`);
   }
   return text;
+}
+
+function organizationInput(request, { identity = false } = {}) {
+  const body = objectBody(request);
+  const keys = new Set(["role", "team", "parent_id", "xbox_gamertag", "group_id"]);
+  if (identity) for (const key of ["display_name", "bio", "user_id"]) keys.add(key);
+  strictKeys(body, keys);
+  if (!ORGANIZATION_ROLES.has(body.role)) {
+    throw new EndpointError(400, "INVALID_PAYLOAD", "role is invalid");
+  }
+  const parent = body.parent_id == null || body.parent_id === "" ? null : uuid(body.parent_id, "parent_id");
+  const input = {
+    organization_role: body.role,
+    organization_team: optionalText(body.team ?? "", "team", 80),
+    organization_parent: parent,
+    xbox_gamertag: optionalText(body.xbox_gamertag ?? "", "xbox_gamertag", 50) ?? "",
+    organization_group: body.group_id == null || body.group_id === "" ? null : uuid(body.group_id, "group_id"),
+  };
+  if (identity) {
+    if (body.display_name !== undefined) input.display_name = requiredText(body.display_name, "display_name", 80);
+    if (body.bio !== undefined) input.bio = optionalText(body.bio, "bio", 2_000) ?? "";
+    if (body.user_id === null || body.user_id === "") input.user = null;
+    else if (body.user_id !== undefined) input.user = uuid(body.user_id, "user_id");
+  }
+  return input;
+}
+
+let organizationMembersTablePromise;
+function ensureOrganizationMembersTable(database) {
+  organizationMembersTablePromise ??= database.schema.hasTable("organization_members").then(async (exists) => {
+    if (!exists) {
+      await database.schema.createTable("organization_members", (table) => {
+        table.uuid("id").primary();
+        table.uuid("user").unique().nullable().references("id").inTable("directus_users").onDelete("SET NULL");
+        table.string("display_name", 80).notNullable();
+        table.text("bio").nullable();
+        table.uuid("avatar").nullable().references("id").inTable("directus_files").onDelete("SET NULL");
+        table.string("organization_role", 32).notNullable().defaultTo("trainee").index();
+        table.string("organization_team", 80).nullable();
+        table.uuid("organization_parent").nullable().index();
+        table.string("xbox_gamertag", 50).nullable();
+        table.timestamp("created_at").notNullable().defaultTo(database.fn.now());
+        table.timestamp("updated_at").nullable();
+      });
+      const legacyMembers = await database("profiles").whereNotNull("organization_role").select(
+        "id", "user", "display_name", "bio", "avatar", "organization_role", "organization_team",
+        "organization_parent", "xbox_gamertag", "created_at", "updated_at",
+      );
+      for (const member of legacyMembers) {
+        await database("organization_members").insert({
+          ...member,
+        }).onConflict("id").ignore();
+      }
+    }
+    if (!await database.schema.hasColumn("organization_members", "organization_group")) {
+      await database.schema.alterTable("organization_members", (table) => table.uuid("organization_group").nullable().index());
+    }
+    if (!await database.schema.hasColumn("organization_members", "xbox_gamertag")) {
+      await database.schema.alterTable("organization_members", (table) => table.string("xbox_gamertag", 50).nullable());
+      await database.raw('UPDATE organization_members AS member SET xbox_gamertag = profile.xbox_gamertag FROM profiles AS profile WHERE profile.id = member.id AND profile.xbox_gamertag IS NOT NULL');
+    }
+    if (await database.schema.hasColumn("organization_members", "social_links")) {
+      await database.schema.alterTable("organization_members", (table) => table.dropColumn("social_links"));
+    }
+    for (const field of ["favorite_block", "favorite_mob"]) {
+      if (await database.schema.hasColumn("organization_members", field)) {
+        await database.schema.alterTable("organization_members", (table) => table.dropColumn(field));
+      }
+    }
+  });
+  return organizationMembersTablePromise;
+}
+
+let organizationLayoutTablePromise;
+const ORGANIZATION_GROUP_COLORS = new Set(["blue", "teal", "gold", "violet", "rose", "slate", "green", "cyan", "indigo", "orange", "plum"]);
+function ensureOrganizationLayoutTable(database) {
+  organizationLayoutTablePromise ??= (async () => {
+    await ensureOrganizationMembersTable(database);
+    if (!await database.schema.hasTable("organization_layout")) {
+      await database.schema.createTable("organization_layout", (table) => {
+        table.string("id", 32).primary();
+        table.jsonb("sections").notNullable();
+        table.timestamp("updated_at").nullable();
+      });
+    }
+    let record = await database("organization_layout").where({ id: "default" }).first();
+    if (!record) {
+      const group = (label, caption, color) => ({ id: crypto.randomUUID(), label, caption, color });
+      const master = group("マスター", "全体方針", "gold");
+      const administrator = group("管理者", "企画・サポート", "violet");
+      const owner = group("鯖主", "技術・サーバー管理", "teal");
+      const trainee = group("みならい", "活動準備中", "rose");
+      const teams = await database("organization_members").distinct("organization_team as name").where({ organization_role: "team_member" }).whereNotNull("organization_team").whereNot("organization_team", "");
+      const teamGroups = teams.map((team) => group(team.name, "活動チーム", "blue"));
+      const sections = [
+        { id: crypto.randomUUID(), title: "運営・担当", description: "方針、運営、技術を担う役割", groups: [master, administrator, owner] },
+        { id: crypto.randomUUID(), title: "チーム", description: "活動分野ごとの所属", groups: teamGroups },
+        { id: crypto.randomUUID(), title: "みならい", description: "活動を始めるメンバー", groups: [trainee] },
+      ];
+      await database("organization_layout").insert({ id: "default", sections: JSON.stringify(sections) });
+      for (const [role, groupId] of Object.entries({ master: master.id, administrator: administrator.id, server_owner: owner.id, trainee: trainee.id })) {
+        await database("organization_members").where({ organization_role: role }).update({ organization_group: groupId });
+      }
+      for (const teamGroup of teamGroups) await database("organization_members").where({ organization_role: "team_member", organization_team: teamGroup.label }).update({ organization_group: teamGroup.id });
+      record = { sections };
+    }
+    return Array.isArray(record.sections) ? record.sections : JSON.parse(record.sections);
+  })();
+  return organizationLayoutTablePromise;
+}
+
+let profileEntitlementsTablePromise;
+const SUPPORTER_TIER_PRIORITY = new Map([
+  ["supporter", 1],
+  ["basic", 2],
+  ["standard", 3],
+  ["premium", 4],
+]);
+
+function effectiveSupporterTier(entitlements, now = new Date()) {
+  let effective;
+  for (const entitlement of entitlements) {
+    if (entitlement.valid_until && new Date(entitlement.valid_until) <= now) continue;
+    const tier = SUPPORTER_TIER_PRIORITY.has(entitlement.variant) ? entitlement.variant : "supporter";
+    if (!effective || SUPPORTER_TIER_PRIORITY.get(tier) > SUPPORTER_TIER_PRIORITY.get(effective)) effective = tier;
+  }
+  return effective;
+}
+
+function ensureProfileEntitlementsTable(database) {
+  profileEntitlementsTablePromise ??= (async () => {
+    await ensureOrganizationMembersTable(database);
+    if (!await database.schema.hasTable("profile_entitlements")) {
+      await database.schema.createTable("profile_entitlements", (table) => {
+        table.uuid("id").primary();
+        table.uuid("member").notNullable().references("id").inTable("organization_members").onDelete("CASCADE").index();
+        table.string("feature", 64).notNullable().index();
+        table.string("source", 32).notNullable().index();
+        table.string("variant", 32).nullable().index();
+        table.string("status", 24).notNullable().defaultTo("active").index();
+        table.timestamp("valid_until", { useTz: true }).nullable().index();
+        table.string("external_reference", 255).nullable();
+        table.timestamp("created_at").notNullable().defaultTo(database.fn.now());
+        table.timestamp("updated_at").nullable();
+        table.unique(["member", "feature", "source"]);
+      });
+    }
+    if (!await database.schema.hasColumn("profile_entitlements", "variant")) {
+      await database.schema.alterTable("profile_entitlements", (table) => {
+        table.string("variant", 32).nullable().index();
+      });
+    }
+  })();
+  return profileEntitlementsTablePromise;
+}
+
+function organizationLayoutInput(request) {
+  const body = objectBody(request);
+  strictKeys(body, new Set(["sections"]));
+  if (!Array.isArray(body.sections) || body.sections.length > 20) throw new EndpointError(400, "INVALID_PAYLOAD", "sections is invalid");
+  const ids = new Set();
+  return body.sections.map((section) => {
+    if (!section || typeof section !== "object" || Array.isArray(section)) throw new EndpointError(400, "INVALID_PAYLOAD", "section is invalid");
+    strictKeys(section, new Set(["id", "title", "description", "groups"]));
+    const id = uuid(section.id, "section.id");
+    if (ids.has(id)) throw new EndpointError(400, "INVALID_PAYLOAD", "duplicate id");
+    ids.add(id);
+    if (!Array.isArray(section.groups) || section.groups.length > 50) throw new EndpointError(400, "INVALID_PAYLOAD", "groups is invalid");
+    const groups = section.groups.map((group) => {
+      if (!group || typeof group !== "object" || Array.isArray(group)) throw new EndpointError(400, "INVALID_PAYLOAD", "group is invalid");
+      strictKeys(group, new Set(["id", "label", "caption", "color"]));
+      const groupId = uuid(group.id, "group.id");
+      if (ids.has(groupId)) throw new EndpointError(400, "INVALID_PAYLOAD", "duplicate id");
+      ids.add(groupId);
+      const color = group.color == null ? undefined : optionalText(group.color, "group.color", 16);
+      if (color && !ORGANIZATION_GROUP_COLORS.has(color)) throw new EndpointError(400, "INVALID_PAYLOAD", "group.color is invalid");
+      return { id: groupId, label: requiredText(group.label, "group.label", 80), caption: optionalText(group.caption ?? "", "group.caption", 80), ...(color ? { color } : {}) };
+    });
+    return { id, title: requiredText(section.title, "section.title", 80), description: optionalText(section.description ?? "", "section.description", 200), groups };
+  });
+}
+
+let organizationTeamsTablePromise;
+function ensureOrganizationTeamsTable(database) {
+  organizationTeamsTablePromise ??= database.schema.hasTable("organization_teams").then(async (exists) => {
+    await ensureOrganizationMembersTable(database);
+    if (!exists) {
+      await database.schema.createTable("organization_teams", (table) => {
+        table.string("name", 80).primary();
+        table.integer("sort").notNullable().defaultTo(0);
+        table.timestamp("created_at").notNullable().defaultTo(database.fn.now());
+      });
+    }
+    const existingTeams = await database("organization_members")
+      .distinct("organization_team as name")
+      .where({ organization_role: "team_member" })
+      .whereNotNull("organization_team")
+      .whereNot("organization_team", "");
+    for (const team of existingTeams) {
+      await database("organization_teams").insert({ name: team.name }).onConflict("name").ignore();
+    }
+  });
+  return organizationTeamsTablePromise;
+}
+
+function teamName(request) {
+  const body = objectBody(request);
+  strictKeys(body, new Set(["name"]));
+  return requiredText(body.name, "name", 80);
 }
 
 function plainTextExcerpt(markdown, maximum = 360) {
@@ -1201,6 +1411,213 @@ export default {
       response.status(204).send();
     }));
 
+    router.get("/organization", route(async (_request, response) => {
+      await Promise.all([ensureOrganizationLayoutTable(database), ensureProfileEntitlementsTable(database)]);
+      const rows = await database("organization_members as member")
+        .leftJoin("directus_users as users", "users.id", "member.user")
+        .leftJoin("profiles as profile", "profile.user", "member.user")
+        .where((query) => query.whereNull("member.user").orWhere("users.status", "active"))
+        .select(
+          "member.id as profile_id", "member.user as user_id", "member.display_name", "member.bio",
+          "profile.display_name as account_display_name", "profile.bio as account_bio", "profile.avatar as account_avatar", "profile.xbox_gamertag as account_xbox_gamertag",
+          "member.avatar", "member.organization_role", "member.organization_team",
+          "member.organization_parent", "member.xbox_gamertag", "member.organization_group",
+        )
+        .orderBy("member.display_name", "asc");
+      const entitlements = await database("profile_entitlements").select("member", "variant", "valid_until").where({ feature: "profile_highlight", status: "active" });
+      const entitlementsByMember = new Map();
+      for (const entitlement of entitlements) {
+        const member = String(entitlement.member);
+        entitlementsByMember.set(member, [...(entitlementsByMember.get(member) ?? []), entitlement]);
+      }
+      response.json({ data: rows.map((row) => ({
+        profile_id: row.profile_id,
+        user_id: row.user_id,
+        display_name: row.user_id ? row.account_display_name || row.display_name : row.display_name,
+        bio: row.user_id ? row.account_bio ?? "" : row.bio ?? "",
+        xbox_gamertag: row.user_id ? row.account_xbox_gamertag ?? "" : row.xbox_gamertag ?? "",
+        avatar: row.user_id ? row.account_avatar ?? null : row.avatar ?? null,
+        role: row.organization_role,
+        team: row.organization_team ?? "",
+        parent_id: row.organization_parent ?? null,
+        group_id: row.organization_group ?? null,
+        highlighted: Boolean(effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? [])),
+        supporterTier: effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? []) ?? null,
+      })) });
+    }));
+
+    router.get("/organization/layout", route(async (_request, response) => {
+      response.json({ data: await ensureOrganizationLayoutTable(database) });
+    }));
+
+    router.put("/organization/layout", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationLayoutTable(database);
+      const sections = organizationLayoutInput(request);
+      const groupIds = sections.flatMap((section) => section.groups.map((group) => group.id));
+      await database.transaction(async (transaction) => {
+        await transaction("organization_layout").where({ id: "default" }).update({ sections: JSON.stringify(sections), updated_at: new Date() });
+        if (groupIds.length) await transaction("organization_members").whereNotNull("organization_group").whereNotIn("organization_group", groupIds).update({ organization_group: null, updated_at: new Date() });
+        else await transaction("organization_members").whereNotNull("organization_group").update({ organization_group: null, updated_at: new Date() });
+      });
+      organizationLayoutTablePromise = Promise.resolve(sections);
+      response.json({ data: sections });
+    }));
+
+    router.get("/organization/accounts", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationMembersTable(database);
+      const accounts = await database("directus_users as users")
+        .leftJoin("profiles as profile", "profile.user", "users.id")
+        .leftJoin("organization_members as member", "member.user", "users.id")
+        .where("users.status", "active")
+        .select("users.id", "users.email", "profile.display_name", "member.id as organization_member_id")
+        .orderBy("profile.display_name", "asc");
+      response.json({ data: accounts.map((account) => ({
+        id: account.id,
+        email: account.email,
+        display_name: account.display_name || account.email,
+        organization_member_id: account.organization_member_id ?? null,
+      })) });
+    }));
+
+    router.post("/organization", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationMembersTable(database);
+      const input = organizationInput(request, { identity: true });
+      if (!input.display_name) throw new EndpointError(400, "INVALID_PAYLOAD", "display_name is required");
+      if (input.user) {
+        const account = await database("directus_users").where({ id: input.user, status: "active" }).first();
+        if (!account) throw new EndpointError(400, "INVALID_PAYLOAD", "user_id is invalid");
+        if (await database("organization_members").where({ user: input.user }).first()) {
+          throw new EndpointError(409, "RECORD_EXISTS", "The account is already linked to an organization member");
+        }
+        const profile = await database("profiles").select("display_name", "avatar", "bio", "xbox_gamertag").where({ user: input.user }).first();
+        if (typeof profile?.display_name === "string" && profile.display_name.trim()) input.display_name = profile.display_name;
+        input.avatar = profile?.avatar ?? null;
+        input.bio = typeof profile?.bio === "string" ? profile.bio : "";
+        input.xbox_gamertag = typeof profile?.xbox_gamertag === "string" ? profile.xbox_gamertag : "";
+      }
+      const id = crypto.randomUUID();
+      await database("organization_members").insert({ id, ...input, created_at: new Date() });
+      response.status(201).json({ data: { id, display_name: input.display_name, bio: input.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? "", avatar: input.avatar ?? null } });
+    }));
+
+    router.get("/organization/teams", route(async (_request, response) => {
+      await ensureOrganizationTeamsTable(database);
+      const teams = await database("organization_teams").select("name").orderBy("sort", "asc").orderBy("created_at", "asc");
+      response.json({ data: teams.map((team) => team.name) });
+    }));
+
+    router.post("/organization/teams", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationTeamsTable(database);
+      const name = teamName(request);
+      const exists = await database("organization_teams").where({ name }).first();
+      if (exists) throw new EndpointError(409, "RECORD_EXISTS", "The team already exists");
+      await database("organization_teams").insert({ name });
+      response.status(201).json({ data: { name } });
+    }));
+
+    router.put("/organization/teams/:name", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationTeamsTable(database);
+      const currentName = decodeURIComponent(request.params.name);
+      const name = teamName(request);
+      const exists = await database("organization_teams").where({ name: currentName }).first();
+      if (!exists) throw new EndpointError(404, "RECORD_NOT_FOUND", "The team was not found");
+      if (name !== currentName && await database("organization_teams").where({ name }).first()) {
+        throw new EndpointError(409, "RECORD_EXISTS", "The team already exists");
+      }
+      await database.transaction(async (transaction) => {
+        await transaction("organization_teams").where({ name: currentName }).update({ name });
+        await transaction("organization_members").where({ organization_role: "team_member", organization_team: currentName }).update({ organization_team: name, updated_at: new Date() });
+      });
+      response.json({ data: { name } });
+    }));
+
+    router.delete("/organization/teams/:name", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationTeamsTable(database);
+      const name = decodeURIComponent(request.params.name);
+      const exists = await database("organization_teams").where({ name }).first();
+      if (!exists) throw new EndpointError(404, "RECORD_NOT_FOUND", "The team was not found");
+      await database.transaction(async (transaction) => {
+        await transaction("organization_members").where({ organization_role: "team_member", organization_team: name }).update({ organization_team: "", updated_at: new Date() });
+        await transaction("organization_teams").where({ name }).delete();
+      });
+      response.status(204).send();
+    }));
+
+    router.put("/organization/:id", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationMembersTable(database);
+      const id = routeId(request);
+      const exists = await database("organization_members").select("id", "user", "display_name", "bio", "xbox_gamertag", "avatar").where({ id }).first();
+      if (!exists) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
+      const input = organizationInput(request, { identity: true });
+      if (input.user) {
+        const account = await database("directus_users").where({ id: input.user, status: "active" }).first();
+        if (!account) throw new EndpointError(400, "INVALID_PAYLOAD", "user_id is invalid");
+        const linked = await database("organization_members").where({ user: input.user }).whereNot({ id }).first();
+        if (linked) throw new EndpointError(409, "RECORD_EXISTS", "The account is already linked to another organization member");
+        const profile = await database("profiles").select("display_name", "avatar", "bio", "xbox_gamertag").where({ user: input.user }).first();
+        if (typeof profile?.display_name === "string" && profile.display_name.trim()) input.display_name = profile.display_name;
+        input.avatar = profile?.avatar ?? null;
+        input.bio = typeof profile?.bio === "string" ? profile.bio : "";
+        input.xbox_gamertag = typeof profile?.xbox_gamertag === "string" ? profile.xbox_gamertag : "";
+      }
+      await database("organization_members").where({ id }).update({ ...input, updated_at: new Date() });
+      response.json({ data: { id, display_name: input.display_name ?? exists.display_name, bio: input.bio ?? exists.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? exists.xbox_gamertag ?? "", avatar: Object.prototype.hasOwnProperty.call(input, "avatar") ? input.avatar : exists.avatar ?? null } });
+    }));
+
+    router.put("/organization/:id/highlight", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureProfileEntitlementsTable(database);
+      const id = routeId(request);
+      if (!await database("organization_members").select("id").where({ id }).first()) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
+      const body = objectBody(request);
+      strictKeys(body, new Set(["enabled"]));
+      if (typeof body.enabled !== "boolean") throw new EndpointError(400, "INVALID_PAYLOAD", "enabled must be a boolean");
+      const record = { status: body.enabled ? "active" : "revoked", variant: body.enabled ? "supporter" : null, valid_until: null, updated_at: new Date() };
+      const existing = await database("profile_entitlements").where({ member: id, feature: "profile_highlight", source: "manual" }).first();
+      if (existing) await database("profile_entitlements").where({ id: existing.id }).update(record);
+      else await database("profile_entitlements").insert({ id: crypto.randomUUID(), member: id, feature: "profile_highlight", source: "manual", ...record, created_at: new Date() });
+      response.json({ data: { enabled: body.enabled } });
+    }));
+
+    router.put("/organization/:id/supporter", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureProfileEntitlementsTable(database);
+      const id = routeId(request);
+      if (!await database("organization_members").select("id").where({ id }).first()) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
+      const body = objectBody(request);
+      strictKeys(body, new Set(["tier"]));
+      if (body.tier !== null && !SUPPORTER_TIER_PRIORITY.has(body.tier)) throw new EndpointError(400, "INVALID_PAYLOAD", "tier is invalid");
+      const record = { status: body.tier ? "active" : "revoked", variant: body.tier, valid_until: null, updated_at: new Date() };
+      const existing = await database("profile_entitlements").where({ member: id, feature: "profile_highlight", source: "manual" }).first();
+      if (existing) await database("profile_entitlements").where({ id: existing.id }).update(record);
+      else await database("profile_entitlements").insert({ id: crypto.randomUUID(), member: id, feature: "profile_highlight", source: "manual", ...record, created_at: new Date() });
+      const active = await database("profile_entitlements").select("variant", "valid_until").where({ member: id, feature: "profile_highlight", status: "active" });
+      const supporterTier = effectiveSupporterTier(active);
+      response.json({ data: { supporterTier: supporterTier ?? null, highlighted: Boolean(supporterTier) } });
+    }));
+
+    router.delete("/organization/:id", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationMembersTable(database);
+      const id = routeId(request);
+      const exists = await database("organization_members").select("id").where({ id }).first();
+      if (!exists) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
+      await database.transaction(async (transaction) => {
+        await transaction("organization_members")
+          .where({ organization_parent: id })
+          .update({ organization_parent: null, updated_at: new Date() });
+        await transaction("organization_members").where({ id }).delete();
+      });
+      response.status(204).send();
+    }));
+
     router.get("/profiles", route(async (request, response) => {
       if (request.query.user_id === undefined) {
         throw new EndpointError(400, "INVALID_QUERY", "user_id is required");
@@ -1514,16 +1931,15 @@ export default {
       const userId = currentUser(request);
       const input = profileInput(request);
       if (input.avatar) await assertOwnedUploads(database, [input.avatar], userId);
-      const schema = await getSchema();
-      const profiles = new ItemsService("profiles", {
-        schema,
-        accountability: elevatedAccountability(request),
-      });
       const existing = await database("profiles").select("id").where({ user: userId }).first();
       const data = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
-      const id = existing
-        ? await profiles.updateOne(existing.id, data)
-        : await profiles.createOne({ ...data, user: userId });
+      const now = new Date();
+      const id = existing?.id ?? randomUUID();
+      if (existing) {
+        await database("profiles").where({ id }).update({ ...data, updated_at: now });
+      } else {
+        await database("profiles").insert({ id, ...data, user: userId, created_at: now, updated_at: now });
+      }
       response.json({ data: { id } });
     }));
 
