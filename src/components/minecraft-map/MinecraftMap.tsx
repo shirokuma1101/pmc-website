@@ -2,7 +2,7 @@
 
 import "leaflet/dist/leaflet.css";
 
-import type { LatLng, LayerGroup, LeafletMouseEvent, Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
+import type { LatLng, LayerGroup, LeafletMouseEvent, Map as LeafletMap, Marker as LeafletMarker, TileLayer } from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { minecraftMapConfig } from "@/config/minecraft-map";
 import {
@@ -127,14 +127,42 @@ function markerSymbol(icon: string) {
   return MARKER_ICONS.find((candidate) => candidate.value === icon)?.symbol ?? "●";
 }
 
+function createDynmapTileLayer(
+  L: typeof import("leaflet"),
+  tileBaseUrl: string,
+  worldName: string,
+  map: DynmapMapDefinition,
+): TileLayer {
+  const tileLayer = L.tileLayer("", {
+    tileSize: 128 << (map.tilescale ?? 0),
+    minZoom: 0,
+    maxZoom: map.mapzoomin + map.mapzoomout,
+    maxNativeZoom: map.mapzoomout,
+    zoomReverse: true,
+    noWrap: true,
+    attribution: "Minecraft map rendered by Dynmap",
+    errorTileUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
+  });
+  tileLayer.getTileUrl = (tileCoordinates) => dynmapTileUrl(
+    tileBaseUrl,
+    worldName,
+    dynmapTilePath(tileCoordinates, map),
+  );
+  return tileLayer;
+}
+
 export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null }) {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<LeafletMap | null>(null);
+  const tileLayerRef = useRef<TileLayer | null>(null);
   const markerLayerRef = useRef<LayerGroup | null>(null);
   const draftMarkerRef = useRef<LeafletMarker | null>(null);
   const pathLayerRef = useRef<LayerGroup | null>(null);
   const draftPathLayerRef = useRef<LayerGroup | null>(null);
   const currentLocationRef = useRef<MinecraftLocation>({ x: 0, y: 64, z: 0 });
+  const snapshotIdRef = useRef<string | null>(null);
+  const activeTileBaseUrlRef = useRef(minecraftMapConfig.tileBaseUrl);
+  const configuredLogicalWorldRef = useRef<string | null>(null);
   const [configuration, setConfiguration] = useState<DynmapConfiguration | null>(null);
   const [catalog, setCatalog] = useState<MinecraftMapCatalog | null | undefined>(undefined);
   const [logicalWorldId, setLogicalWorldId] = useState(minecraftMapConfig.defaultWorld);
@@ -175,6 +203,14 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
   useEffect(() => {
     pathDraftRef.current = pathDraft;
   }, [pathDraft]);
+
+  useEffect(() => {
+    snapshotIdRef.current = snapshotId;
+  }, [snapshotId]);
+
+  useEffect(() => {
+    activeTileBaseUrlRef.current = activeTileBaseUrl;
+  }, [activeTileBaseUrl]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -293,10 +329,13 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
         const requestedMap = search.get("map") || minecraftMapConfig.defaultMap;
         const selectedMap = selectableMap(world, requestedMap);
         if (!selectedMap) throw new Error("利用できる地図レイヤーがありません。");
-        setWorldName(world.name);
-        setMapName(selectedMap.name);
+        if (configuredLogicalWorldRef.current !== logicalWorldId) {
+          configuredLogicalWorldRef.current = logicalWorldId;
+          setWorldName(world.name);
+          setMapName(selectedMap.name);
+          setConfiguration(data);
+        }
         setActiveTileBaseUrl(tileBaseUrl);
-        setConfiguration(data);
         setError(null);
       } catch (cause) {
         if (!controller.signal.aborted) {
@@ -319,6 +358,7 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
     const activeMap = selectedMap;
     let disposed = false;
     let createdMap: LeafletMap | null = null;
+    let createdTileLayer: TileLayer | null = null;
 
     void import("leaflet").then(({ default: L }) => {
       if (disposed || !mapElementRef.current) return;
@@ -339,22 +379,10 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
       });
       leafletMap.attributionControl.setPrefix(false);
 
-      const tileLayer = L.tileLayer("", {
-        tileSize: 128 << (activeMap.tilescale ?? 0),
-        minZoom: 0,
-        maxZoom,
-        maxNativeZoom: activeMap.mapzoomout,
-        zoomReverse: true,
-        noWrap: true,
-        attribution: "Minecraft map rendered by Dynmap",
-        errorTileUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
-      });
-      tileLayer.getTileUrl = (tileCoordinates) => dynmapTileUrl(
-        activeTileBaseUrl,
-        activeWorld.name,
-        dynmapTilePath(tileCoordinates, activeMap),
-      );
+      const tileLayer = createDynmapTileLayer(L, activeTileBaseUrlRef.current, activeWorld.name, activeMap);
       tileLayer.addTo(leafletMap);
+      tileLayerRef.current = tileLayer;
+      createdTileLayer = tileLayer;
       pathLayerRef.current = L.layerGroup().addTo(leafletMap);
       draftPathLayerRef.current = L.layerGroup().addTo(leafletMap);
       markerLayerRef.current = L.layerGroup().addTo(leafletMap);
@@ -376,7 +404,7 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
         if (updateUrl) {
           const url = new URL(window.location.href);
           url.searchParams.set("world", logicalWorldId);
-          if (snapshotId) url.searchParams.set("snapshot", snapshotId);
+          if (snapshotIdRef.current) url.searchParams.set("snapshot", snapshotIdRef.current);
           else url.searchParams.delete("snapshot");
           url.searchParams.set("map", activeMap.name);
           url.searchParams.set("x", String(Math.round(location.x)));
@@ -426,9 +454,50 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
       pathLayerRef.current = null;
       draftPathLayerRef.current = null;
       draftMarkerRef.current = null;
-      if (leafletMapRef.current === createdMap) leafletMapRef.current = null;
+      if (leafletMapRef.current === createdMap) {
+        leafletMapRef.current = null;
+        tileLayerRef.current = null;
+      } else if (tileLayerRef.current === createdTileLayer) {
+        tileLayerRef.current = null;
+      }
     };
-  }, [activeTileBaseUrl, configuration, worldName, mapName, currentUser, logicalWorldId, snapshotId]);
+  }, [configuration, worldName, mapName, currentUser, logicalWorldId]);
+
+  useEffect(() => {
+    const leafletMap = leafletMapRef.current;
+    if (!leafletMap || !configuration) return;
+    const world = findWorld(configuration, worldName);
+    const selectedMap = world ? findMap(world, mapName) : undefined;
+    if (!world || !selectedMap) return;
+    let disposed = false;
+    let nextLayer: TileLayer | null = null;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+    void import("leaflet").then(({ default: L }) => {
+      if (disposed || !leafletMapRef.current) return;
+      const previousLayer = tileLayerRef.current;
+      nextLayer = createDynmapTileLayer(L, activeTileBaseUrl, world.name, selectedMap);
+      nextLayer.setOpacity(0);
+
+      const revealLayer = () => {
+        if (disposed || !nextLayer || !leafletMapRef.current) return;
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        nextLayer.setOpacity(1);
+        if (previousLayer && previousLayer !== nextLayer) previousLayer.remove();
+        tileLayerRef.current = nextLayer;
+      };
+
+      nextLayer.once("load", revealLayer);
+      nextLayer.addTo(leafletMap);
+      fallbackTimer = setTimeout(revealLayer, 5000);
+    });
+
+    return () => {
+      disposed = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      if (nextLayer && tileLayerRef.current !== nextLayer) nextLayer.remove();
+    };
+  }, [activeTileBaseUrl, configuration, mapName, worldName]);
 
   useEffect(() => {
     if (!configuration || !pathLayerRef.current) return;
@@ -1032,7 +1101,6 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
               onClose={() => setTimelineOpen(false)}
               onSelect={(nextSnapshotId) => {
                 setSnapshotId(nextSnapshotId);
-                setConfiguration(null);
                 const url = new URL(window.location.href);
                 url.searchParams.set("world", logicalWorldId);
                 url.searchParams.set("snapshot", nextSnapshotId);
