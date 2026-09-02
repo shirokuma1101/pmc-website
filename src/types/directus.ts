@@ -44,6 +44,8 @@ export interface DirectusProfileRaw {
   bio?: string | null;
   xbox_gamertag?: string | null;
   avatar?: string | DirectusFileRaw | null;
+  minecraft_skin?: string | DirectusFileRaw | null;
+  minecraft_skin_model?: "classic" | "slim" | null;
   organization_role?: "master" | "administrator" | "server_owner" | "team_member" | "trainee" | null;
   organization_team?: string | null;
   organization_parent?: string | null;

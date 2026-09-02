@@ -178,6 +178,7 @@
 }
 
 @media (max-width: 760px) {
+  .minecraft-skin-section { grid-template-columns: 1fr; justify-items: center; padding: 1.25rem; }
   .container,
   .site-header__inner,
   .site-footer__inner,

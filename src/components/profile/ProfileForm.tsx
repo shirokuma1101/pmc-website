@@ -29,6 +29,7 @@ export function ProfileForm({
 }: ProfileFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const skinInputRef = useRef<HTMLInputElement>(null);
   const avatarObjectUrlRef = useRef<string | null>(null);
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? "");
@@ -36,6 +37,10 @@ export function ProfileForm({
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatarUrl ?? null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [minecraftSkin, setMinecraftSkin] = useState<File | null>(null);
+  const [minecraftSkinName, setMinecraftSkinName] = useState(profile.minecraftSkinUrl ? "登録済み" : "未設定");
+  const [minecraftSkinModel, setMinecraftSkinModel] = useState(profile.minecraftSkinModel ?? "classic");
+  const [removeMinecraftSkin, setRemoveMinecraftSkin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -79,6 +84,27 @@ export function ProfileForm({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  function handleMinecraftSkin(event: ChangeEvent<HTMLInputElement>) {
+    const selected = event.target.files?.[0] ?? null;
+    setError(null);
+    if (!selected) return;
+    if (selected.type !== "image/png") {
+      setError("MinecraftスキンはPNG形式を選んでください。");
+      event.target.value = "";
+      return;
+    }
+    setMinecraftSkin(selected);
+    setMinecraftSkinName(selected.name);
+    setRemoveMinecraftSkin(false);
+  }
+
+  function clearMinecraftSkin() {
+    setMinecraftSkin(null);
+    setMinecraftSkinName("未設定");
+    setRemoveMinecraftSkin(true);
+    if (skinInputRef.current) skinInputRef.current.value = "";
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -99,6 +125,9 @@ export function ProfileForm({
       formData.append("xboxGamertag", xboxGamertag.trim());
       if (avatar) formData.append("avatar", avatar);
       if (removeAvatar) formData.append("removeAvatar", "true");
+      formData.append("minecraftSkinModel", minecraftSkinModel);
+      if (minecraftSkin) formData.append("minecraftSkin", minecraftSkin);
+      if (removeMinecraftSkin) formData.append("removeMinecraftSkin", "true");
 
       const response = await fetch(endpoint, {
         method: "PATCH",
@@ -163,6 +192,18 @@ export function ProfileForm({
         disabled={submitting}
         onChange={(event) => { setDisplayName(event.target.value); setFieldError(null); }}
       />
+
+      <fieldset className="profile-form__skin-field">
+        <legend>Minecraftスキン</legend>
+        <p className="field__hint">64×64または64×32のPNG。Capeには対応していません。</p>
+        <div className="profile-form__skin-row">
+          <label className="file-button" htmlFor="profile-minecraft-skin">PNGを選択</label>
+          <span>{minecraftSkinName}</span>
+          {minecraftSkinName !== "未設定" ? <button className="text-button text-danger" type="button" onClick={clearMinecraftSkin}>スキンを削除</button> : null}
+        </div>
+        <input ref={skinInputRef} className="sr-only" id="profile-minecraft-skin" type="file" accept="image/png" onChange={handleMinecraftSkin} />
+        <label className="field"><span className="field__label">腕のモデル</span><select value={minecraftSkinModel} onChange={(event) => setMinecraftSkinModel(event.target.value as "classic" | "slim")} disabled={submitting}><option value="classic">Classic</option><option value="slim">Slim</option></select></label>
+      </fieldset>
       <Textarea
         label="自己紹介"
         name="bio"

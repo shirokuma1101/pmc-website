@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { ApiRouteError, dataResponse, withRouteErrors } from "@/lib/api/route";
 import { formFiles, formString, isMultipart, readObjectBody } from "@/lib/api/forms";
 import { getSession, requireSession } from "@/lib/auth/session";
-import { assertStoredImages, uploadImage } from "@/lib/directus/files";
+import { assertStoredImages, uploadImage, uploadMinecraftSkin } from "@/lib/directus/files";
 import {
   getProfile,
   getProfileByUserId,
@@ -43,10 +43,12 @@ async function upsert(request: Request): Promise<Response> {
     const session = await requireSession();
     let input: Record<string, unknown>;
     let avatar: File | undefined;
+    let minecraftSkin: File | undefined;
 
     if (isMultipart(request)) {
       const form = await request.formData();
       avatar = formFiles(form, "avatar")[0];
+      minecraftSkin = formFiles(form, "minecraftSkin")[0];
       input = {
         displayName: formString(form, "displayName") ?? "",
         bio: formString(form, "bio") ?? "",
@@ -54,6 +56,9 @@ async function upsert(request: Request): Promise<Response> {
         ...(form.has("avatarId") ? { avatarId: formString(form, "avatarId") || null } : {}),
         ...(formString(form, "removeAvatar") === "true" ? { avatarId: null } : {}),
         ...(avatar ? { avatarId: crypto.randomUUID() } : {}),
+        ...(form.has("minecraftSkinModel") ? { minecraftSkinModel: formString(form, "minecraftSkinModel") } : {}),
+        ...(formString(form, "removeMinecraftSkin") === "true" ? { minecraftSkinId: null } : {}),
+        ...(minecraftSkin ? { minecraftSkinId: crypto.randomUUID() } : {}),
       };
     } else {
       input = await readObjectBody(request);
@@ -70,6 +75,9 @@ async function upsert(request: Request): Promise<Response> {
     const avatarId = avatar
       ? await uploadImage(avatar, session.accessToken)
       : validated.avatarId;
+    const minecraftSkinId = minecraftSkin
+      ? await uploadMinecraftSkin(minecraftSkin, session.accessToken)
+      : validated.minecraftSkinId;
     if (avatarId && avatar) {
       await assertStoredImages([avatarId], session.user.id, session.accessToken);
     }
@@ -78,6 +86,8 @@ async function upsert(request: Request): Promise<Response> {
       bio: validated.bio,
       xboxGamertag: validated.xboxGamertag,
       ...(avatarId !== undefined ? { avatarId } : {}),
+      ...(minecraftSkinId !== undefined ? { minecraftSkinId } : {}),
+      ...(validated.minecraftSkinModel !== undefined ? { minecraftSkinModel: validated.minecraftSkinModel } : {}),
     }, session.accessToken);
     return dataResponse(profile);
   });

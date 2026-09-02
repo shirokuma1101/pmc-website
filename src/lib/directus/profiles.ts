@@ -33,6 +33,8 @@ export interface SaveProfileInput {
   bio: string;
   xboxGamertag: string;
   avatarId?: string | null;
+  minecraftSkinId?: string | null;
+  minecraftSkinModel?: "classic" | "slim";
 }
 
 function profilePayload(input: Partial<SaveProfileInput>): Record<string, unknown> {
@@ -41,6 +43,8 @@ function profilePayload(input: Partial<SaveProfileInput>): Record<string, unknow
     ...(input.bio !== undefined ? { bio: input.bio } : {}),
     ...(input.xboxGamertag !== undefined ? { xbox_gamertag: input.xboxGamertag } : {}),
     ...(input.avatarId !== undefined ? { avatar: input.avatarId } : {}),
+    ...(input.minecraftSkinId !== undefined ? { minecraft_skin: input.minecraftSkinId } : {}),
+    ...(input.minecraftSkinModel !== undefined ? { minecraft_skin_model: input.minecraftSkinModel } : {}),
   };
 }
 

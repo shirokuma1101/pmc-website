@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { Avatar, EmptyState } from "@/components/ui";
+import { MinecraftSkinViewer } from "@/components/profile";
 import { supporterTierLabel, supporterTierPriority } from "@/lib/organization/supporter";
 import type { OrganizationGroupColor, OrganizationMember, OrganizationSection, SupporterTier } from "@/types";
 
@@ -104,6 +105,7 @@ export function OrganizationDirectory({ members, sections }: { members: Organiza
           <header className={styles.modalHeader}><Avatar user={selected} size="lg" /><div><p>{groupNames.get(selected.groupId ?? "") ?? "未分類"}</p><h2 id="member-detail-title">{selected.displayName}</h2>{memberSupporterTier(selected) ? <b className={styles.modalBadge} data-supporter-tier={memberSupporterTier(selected)}>{supporterTierLabel(memberSupporterTier(selected))}</b> : null}</div></header>
           <p className={styles.modalBio}>{selected.bio || "紹介文はまだありません。"}</p>
           {selected.xboxGamertag ? <p className={styles.modalGamertag}><span>Xbox</span>{selected.xboxGamertag}</p> : null}
+          {selected.minecraftSkinUrl ? <div className={styles.modalSkin}><MinecraftSkinViewer skinUrl={selected.minecraftSkinUrl} model={selected.minecraftSkinModel} label={selected.displayName} /><small>ドラッグで回転・ホイールやピンチで拡大縮小</small></div> : null}
           {selected.userId ? <Link className={styles.modalProfileLink} href={`/members/${selected.userId}`}>プロフィールページを見る <span aria-hidden="true">→</span></Link> : <span className={styles.accountless}>プロフィールページはありません</span>}
         </section>
       </div> : null}

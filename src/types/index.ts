@@ -20,10 +20,14 @@ export interface Profile {
   bio: string;
   xboxGamertag?: string;
   avatarUrl?: string;
+  minecraftSkinUrl?: string;
+  minecraftSkinModel?: MinecraftSkinModel;
   user?: UserSummary;
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type MinecraftSkinModel = "classic" | "slim";
 
 export type OrganizationRole = "master" | "administrator" | "server_owner" | "team_member" | "trainee";
 export type OrganizationGroupColor = "blue" | "teal" | "gold" | "violet" | "rose" | "slate" | "green" | "cyan" | "indigo" | "orange" | "plum" | "red" | "olive" | "sky" | "brown" | "magenta";
@@ -34,6 +38,8 @@ export interface OrganizationMember {
   userId?: string;
   displayName: string;
   avatarUrl?: string;
+  minecraftSkinUrl?: string;
+  minecraftSkinModel?: MinecraftSkinModel;
   bio: string;
   xboxGamertag?: string;
   role: OrganizationRole;

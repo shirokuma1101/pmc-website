@@ -23,6 +23,27 @@ export interface SanitizedImage {
   mimeType: SupportedMimeType;
 }
 
+export async function sanitizeMinecraftSkin(file: File): Promise<SanitizedImage> {
+  if (file.type.toLowerCase() !== "image/png" || file.size <= 0 || file.size > maximumImageBytes()) {
+    throw new ApiRouteError("Minecraft skin must be a PNG image within the size limit", 415, "INVALID_SKIN");
+  }
+  const input = Buffer.from(await file.arrayBuffer());
+  try {
+    const image = sharp(input, { failOn: "error", limitInputPixels: maximumInputPixels(), sequentialRead: true });
+    const metadata = await image.metadata();
+    if (metadata.format !== "png" || metadata.width !== 64 || (metadata.height !== 64 && metadata.height !== 32) || (metadata.pages ?? 1) !== 1) {
+      throw new ApiRouteError("Minecraft skin must be a valid 64×64 or 64×32 PNG image", 400, "INVALID_SKIN_DIMENSIONS");
+    }
+    const output = await image.png({ compressionLevel: 9 }).toBuffer();
+    const bytes = new Uint8Array(output.length);
+    bytes.set(output);
+    return { bytes: bytes.buffer, filename: `pmc-website-${randomUUID()}.png`, mimeType: "image/png" };
+  } catch (error) {
+    if (error instanceof ApiRouteError) throw error;
+    throw new ApiRouteError("The Minecraft skin could not be decoded", 415, "INVALID_SKIN_CONTENT");
+  }
+}
+
 function positiveIntegerFromEnvironment(name: string, fallback: number): number {
   const value = Number(process.env[name] ?? fallback);
   return Number.isSafeInteger(value) && value > 0 ? value : fallback;

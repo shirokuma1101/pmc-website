@@ -6,7 +6,7 @@ import {
   DIRECTUS_UPLOAD_FILENAME_PATTERN,
   DIRECTUS_UPLOAD_FOLDER_ID,
 } from "./constants";
-import { assertImageUpload, sanitizeImageUpload } from "./image-processing";
+import { assertImageUpload, sanitizeImageUpload, sanitizeMinecraftSkin } from "./image-processing";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -27,6 +27,15 @@ export async function uploadImage(file: File, accessToken: string): Promise<stri
         data: Buffer.from(sanitized.bytes).toString("base64"),
       },
     },
+  );
+  return response.data.id;
+}
+
+export async function uploadMinecraftSkin(file: File, accessToken: string): Promise<string> {
+  const sanitized = await sanitizeMinecraftSkin(file);
+  const response = await directusRequest<DirectusItemResponse<DirectusFileRaw>>(
+    `${DIRECTUS_APP_ENDPOINT}/files`,
+    { method: "POST", accessToken, body: { filename: sanitized.filename, type: sanitized.mimeType, data: Buffer.from(sanitized.bytes).toString("base64") } },
   );
   return response.data.id;
 }

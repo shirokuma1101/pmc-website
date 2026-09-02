@@ -125,6 +125,9 @@
   .groupLane { grid-template-columns: 155px minmax(0, 1fr); }
 }
 
+.modalSkin { display: grid; justify-items: center; padding: 0.75rem; background: var(--color-canvas-deep); border: 1px solid var(--color-line); }
+.modalSkin small { color: var(--color-ink-soft); text-align: center; }
+
 @media (max-width: 600px) {
   .tabs { grid-template-columns: 1fr; }
   .tabs button { padding: .6rem .7rem; }

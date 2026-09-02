@@ -94,6 +94,7 @@ export function OrganizationEditor({
   const [selectedId, setSelectedId] = useState(initialMembers[0]?.profileId ?? "");
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [skinUploading, setSkinUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [supporterDraft, setSupporterDraft] = useState<SupporterTier | "none">(memberSupporterTier(initialMembers[0]) ?? "none");
   const [supporterSaving, setSupporterSaving] = useState(false);
@@ -178,6 +179,39 @@ export function OrganizationEditor({
     } finally {
       setAvatarUploading(false);
     }
+  }
+
+  async function changeMinecraftSkin(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!selected || selected.userId || !file) return;
+    setSkinUploading(true);
+    setMessage(null);
+    try {
+      const form = new FormData();
+      form.append("minecraftSkin", file);
+      form.append("model", selected.minecraftSkinModel ?? "classic");
+      const response = await fetch(`/api/admin/organization/${selected.profileId}/minecraft-skin`, { method: "PUT", credentials: "include", body: form });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Minecraftスキンの更新に失敗しました。"));
+      updateSelected({ minecraftSkinUrl: URL.createObjectURL(file) });
+      setMessage({ tone: "success", text: "Minecraftスキンを更新しました。" });
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Minecraftスキンの更新に失敗しました。" });
+    } finally { setSkinUploading(false); }
+  }
+
+  async function removeMinecraftSkin() {
+    if (!selected || selected.userId) return;
+    setSkinUploading(true);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/admin/organization/${selected.profileId}/minecraft-skin`, { method: "DELETE", credentials: "include" });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "Minecraftスキンの削除に失敗しました。"));
+      updateSelected({ minecraftSkinUrl: undefined, minecraftSkinModel: "classic" });
+      setMessage({ tone: "success", text: "Minecraftスキンを削除しました。" });
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Minecraftスキンの削除に失敗しました。" });
+    } finally { setSkinUploading(false); }
   }
 
   async function addMember(event: FormEvent) {
@@ -455,6 +489,7 @@ export function OrganizationEditor({
           <div className={styles.identity}><div className={styles.avatarEditor}><Avatar user={selected} size="lg" />{!selected.userId ? <label className={styles.avatarAction}>{avatarUploading ? "更新中…" : "アイコンを変更"}<input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarUploading} onChange={(event) => void changeAvatar(event)} /></label> : null}</div><div><span>選択中</span><h2>{selected.displayName}</h2><small>{groupNames.get(selected.groupId ?? "") ?? "未分類"}</small></div></div>
           <form onSubmit={submit}>
             <fieldset><legend>公開プロフィール</legend><label>表示名{selected.userId ? <small className={styles.linkedFieldNote}>アカウントプロフィールの表示名とアイコンが使用されます。</small> : null}<input required value={selected.displayName} maxLength={80} disabled={Boolean(selected.userId)} onChange={(event) => updateSelected({ displayName: event.target.value })} /></label><label>アカウント（任意）<select value={selected.userId ?? ""} onChange={(event) => updateSelected({ userId: event.target.value || undefined })}><option value="">紐づけない</option>{accountOptions.map((account) => <option disabled={Boolean(account.organizationMemberId && account.organizationMemberId !== selected.profileId)} key={account.id} value={account.id}>{accountLabel(account)}{account.organizationMemberId && account.organizationMemberId !== selected.profileId ? "・紐づけ済み" : ""}</option>)}</select></label><label>紹介文{selected.userId ? <small className={styles.linkedFieldNote}>アカウントプロフィールの紹介文が表示されます。変更はプロフィール設定から行ってください。</small> : null}<textarea value={selected.bio} rows={4} maxLength={2_000} disabled={Boolean(selected.userId)} onChange={(event) => updateSelected({ bio: event.target.value })} /></label><label>Xbox ゲーマータグ{selected.userId ? <small className={styles.linkedFieldNote}>アカウントプロフィールのゲーマータグが表示されます。変更はプロフィール設定から行ってください。</small> : null}<input value={selected.xboxGamertag ?? ""} maxLength={50} disabled={Boolean(selected.userId)} onChange={(event) => updateSelected({ xboxGamertag: event.target.value })} /></label></fieldset>
+            <fieldset><legend>Minecraftスキン</legend>{selected.userId ? <small className={styles.linkedFieldNote}>紐づけ済みメンバーのスキンは本人のプロフィール設定から変更します。</small> : <><label>腕のモデル<select value={selected.minecraftSkinModel ?? "classic"} onChange={(event) => updateSelected({ minecraftSkinModel: event.target.value as "classic" | "slim" })}><option value="classic">Classic</option><option value="slim">Slim</option></select></label><label className={styles.avatarAction}>{skinUploading ? "更新中…" : "PNGスキンを選択"}<input className="sr-only" type="file" accept="image/png" disabled={skinUploading} onChange={(event) => void changeMinecraftSkin(event)} /></label>{selected.minecraftSkinUrl ? <button className="text-button text-danger" type="button" disabled={skinUploading} onClick={() => void removeMinecraftSkin()}>スキンを削除</button> : null}<small className={styles.linkedFieldNote}>64×64または64×32のPNGに対応しています。</small></>}</fieldset>
             <fieldset><legend>役割・所属</legend><label>表示グループ<select value={selected.groupId ?? ""} onChange={(event) => updateSelected({ groupId: event.target.value || undefined, team: groupNames.get(event.target.value) ?? "" })}><option value="">未分類</option>{sections.map((section) => <optgroup key={section.id} label={section.title}>{section.groups.map((group) => <option key={group.id} value={group.id}>{group.label}</option>)}</optgroup>)}</select></label></fieldset>
             <Button type="submit" loading={saving} fullWidth>変更を保存</Button>
           </form>

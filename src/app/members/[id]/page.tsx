@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArticleGrid } from "@/components/article";
 import { PostCard } from "@/components/timeline";
+import { MinecraftSkinViewer } from "@/components/profile";
 import { Avatar, EmptyState } from "@/components/ui";
 import { getPublishedArticles } from "@/lib/directus/articles";
 import { getPosts } from "@/lib/directus/posts";
@@ -35,6 +36,13 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
           {profile.xboxGamertag ? <p className="profile-hero__gamertag"><span>Xbox</span>{profile.xboxGamertag}</p> : null}
         </div>
       </header>
+
+      {profile.minecraftSkinUrl ? (
+        <section className="minecraft-skin-section" aria-labelledby="minecraft-skin-title">
+          <div><p className="eyebrow">Minecraft Skin</p><h2 id="minecraft-skin-title">Minecraftでの姿</h2><p>ドラッグで回転、ホイールやピンチで拡大縮小できます。</p></div>
+          <MinecraftSkinViewer skinUrl={profile.minecraftSkinUrl} model={profile.minecraftSkinModel} label={profile.displayName} />
+        </section>
+      ) : null}
 
       <section className="member-section" aria-labelledby="member-articles-title">
         <div className="section-heading"><div><p className="eyebrow">Articles</p><h2 id="member-articles-title">公開記事</h2></div></div>

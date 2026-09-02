@@ -482,7 +482,7 @@ function optionalText(value, field, maximum, { trim = true } = {}) {
 
 function organizationInput(request, { identity = false } = {}) {
   const body = objectBody(request);
-  const keys = new Set(["role", "team", "parent_id", "xbox_gamertag", "avatar", "group_id"]);
+  const keys = new Set(["role", "team", "parent_id", "xbox_gamertag", "avatar", "minecraft_skin", "minecraft_skin_model", "group_id"]);
   if (identity) for (const key of ["display_name", "bio", "user_id"]) keys.add(key);
   strictKeys(body, keys);
   if (!ORGANIZATION_ROLES.has(body.role)) {
@@ -495,6 +495,8 @@ function organizationInput(request, { identity = false } = {}) {
     organization_parent: parent,
     xbox_gamertag: optionalText(body.xbox_gamertag ?? "", "xbox_gamertag", 50) ?? "",
     ...(body.avatar !== undefined ? { avatar: body.avatar === null ? null : uuid(body.avatar, "avatar") } : {}),
+    ...(body.minecraft_skin !== undefined ? { minecraft_skin: body.minecraft_skin === null ? null : uuid(body.minecraft_skin, "minecraft_skin") } : {}),
+    ...(body.minecraft_skin_model !== undefined ? { minecraft_skin_model: skinModel(body.minecraft_skin_model) } : {}),
     organization_group: body.group_id == null || body.group_id === "" ? null : uuid(body.group_id, "group_id"),
   };
   if (identity) {
@@ -516,6 +518,8 @@ function ensureOrganizationMembersTable(database) {
         table.string("display_name", 80).notNullable();
         table.text("bio").nullable();
         table.uuid("avatar").nullable().references("id").inTable("directus_files").onDelete("SET NULL");
+        table.uuid("minecraft_skin").nullable().references("id").inTable("directus_files").onDelete("SET NULL");
+        table.string("minecraft_skin_model", 16).notNullable().defaultTo("classic");
         table.string("organization_role", 32).notNullable().defaultTo("trainee").index();
         table.string("organization_team", 80).nullable();
         table.uuid("organization_parent").nullable().index();
@@ -540,6 +544,12 @@ function ensureOrganizationMembersTable(database) {
       await database.schema.alterTable("organization_members", (table) => table.string("xbox_gamertag", 50).nullable());
       await database.raw('UPDATE organization_members AS member SET xbox_gamertag = profile.xbox_gamertag FROM profiles AS profile WHERE profile.id = member.id AND profile.xbox_gamertag IS NOT NULL');
     }
+    if (!await database.schema.hasColumn("organization_members", "minecraft_skin")) {
+      await database.schema.alterTable("organization_members", (table) => table.uuid("minecraft_skin").nullable().references("id").inTable("directus_files").onDelete("SET NULL"));
+    }
+    if (!await database.schema.hasColumn("organization_members", "minecraft_skin_model")) {
+      await database.schema.alterTable("organization_members", (table) => table.string("minecraft_skin_model", 16).notNullable().defaultTo("classic"));
+    }
     if (await database.schema.hasColumn("organization_members", "social_links")) {
       await database.schema.alterTable("organization_members", (table) => table.dropColumn("social_links"));
     }
@@ -550,6 +560,26 @@ function ensureOrganizationMembersTable(database) {
     }
   });
   return organizationMembersTablePromise;
+}
+
+let profileSkinColumnsPromise;
+function ensureProfileSkinColumns(database) {
+  profileSkinColumnsPromise ??= (async () => {
+    if (!await database.schema.hasColumn("profiles", "minecraft_skin")) {
+      await database.schema.alterTable("profiles", (table) => table.uuid("minecraft_skin").nullable().references("id").inTable("directus_files").onDelete("SET NULL"));
+    }
+    if (!await database.schema.hasColumn("profiles", "minecraft_skin_model")) {
+      await database.schema.alterTable("profiles", (table) => table.string("minecraft_skin_model", 16).notNullable().defaultTo("classic"));
+    }
+  })();
+  return profileSkinColumnsPromise;
+}
+
+async function attachProfileSkin(database, profile) {
+  if (!profile) return profile;
+  await ensureProfileSkinColumns(database);
+  const skin = await database("profiles").select("minecraft_skin", "minecraft_skin_model").where({ id: profile.id }).first();
+  return { ...profile, minecraft_skin: skin?.minecraft_skin ?? null, minecraft_skin_model: skin?.minecraft_skin_model ?? "classic" };
 }
 
 let organizationLayoutTablePromise;
@@ -1005,13 +1035,20 @@ function articleInput(request, { partial = false } = {}) {
 
 function profileInput(request) {
   const body = objectBody(request);
-  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar"]));
+  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar", "minecraft_skin", "minecraft_skin_model"]));
   return {
     display_name: requiredText(body.display_name, "display_name", 80),
     bio: optionalText(body.bio, "bio", 1_000) ?? "",
     xbox_gamertag: optionalText(body.xbox_gamertag, "xbox_gamertag", 50) ?? "",
     avatar: body.avatar === undefined ? undefined : uuid(body.avatar, "avatar", { nullable: true }),
+    minecraft_skin: body.minecraft_skin === undefined ? undefined : uuid(body.minecraft_skin, "minecraft_skin", { nullable: true }),
+    minecraft_skin_model: body.minecraft_skin_model === undefined ? undefined : skinModel(body.minecraft_skin_model),
   };
+}
+
+function skinModel(value) {
+  if (value !== "classic" && value !== "slim") throw new EndpointError(400, "INVALID_PAYLOAD", "minecraft_skin_model is invalid");
+  return value;
 }
 
 function registrationInput(request) {
@@ -1418,15 +1455,15 @@ export default {
     }));
 
     router.get("/organization", route(async (_request, response) => {
-      await Promise.all([ensureOrganizationLayoutTable(database), ensureProfileEntitlementsTable(database)]);
+      await Promise.all([ensureOrganizationLayoutTable(database), ensureProfileEntitlementsTable(database), ensureProfileSkinColumns(database)]);
       const rows = await database("organization_members as member")
         .leftJoin("directus_users as users", "users.id", "member.user")
         .leftJoin("profiles as profile", "profile.user", "member.user")
         .where((query) => query.whereNull("member.user").orWhere("users.status", "active"))
         .select(
           "member.id as profile_id", "member.user as user_id", "member.display_name", "member.bio",
-          "profile.display_name as account_display_name", "profile.bio as account_bio", "profile.avatar as account_avatar", "profile.xbox_gamertag as account_xbox_gamertag",
-          "member.avatar", "member.organization_role", "member.organization_team",
+          "profile.display_name as account_display_name", "profile.bio as account_bio", "profile.avatar as account_avatar", "profile.xbox_gamertag as account_xbox_gamertag", "profile.minecraft_skin as account_minecraft_skin", "profile.minecraft_skin_model as account_minecraft_skin_model",
+          "member.avatar", "member.minecraft_skin", "member.minecraft_skin_model", "member.organization_role", "member.organization_team",
           "member.organization_parent", "member.xbox_gamertag", "member.organization_group",
         )
         .orderBy("member.display_name", "asc");
@@ -1443,6 +1480,8 @@ export default {
         bio: row.user_id ? row.account_bio ?? "" : row.bio ?? "",
         xbox_gamertag: row.user_id ? row.account_xbox_gamertag ?? "" : row.xbox_gamertag ?? "",
         avatar: row.user_id ? row.account_avatar ?? null : row.avatar ?? null,
+        minecraft_skin: row.user_id ? row.account_minecraft_skin ?? null : row.minecraft_skin ?? null,
+        minecraft_skin_model: row.user_id ? row.account_minecraft_skin_model ?? "classic" : row.minecraft_skin_model ?? "classic",
         role: row.organization_role,
         team: row.organization_team ?? "",
         parent_id: row.organization_parent ?? null,
@@ -1492,6 +1531,7 @@ export default {
       await ensureOrganizationMembersTable(database);
       const input = organizationInput(request, { identity: true });
       if (input.avatar) await assertOwnedUploads(database, [input.avatar], currentUser(request));
+      if (input.minecraft_skin) await assertOwnedUploads(database, [input.minecraft_skin], currentUser(request));
       if (!input.display_name) throw new EndpointError(400, "INVALID_PAYLOAD", "display_name is required");
       if (input.user) {
         const account = await database("directus_users").where({ id: input.user, status: "active" }).first();
@@ -1507,7 +1547,7 @@ export default {
       }
       const id = crypto.randomUUID();
       await database("organization_members").insert({ id, ...input, created_at: new Date() });
-      response.status(201).json({ data: { id, display_name: input.display_name, bio: input.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? "", avatar: input.avatar ?? null } });
+      response.status(201).json({ data: { id, display_name: input.display_name, bio: input.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? "", avatar: input.avatar ?? null, minecraft_skin: input.minecraft_skin ?? null, minecraft_skin_model: input.minecraft_skin_model ?? "classic" } });
     }));
 
     router.get("/organization/teams", route(async (_request, response) => {
@@ -1560,10 +1600,14 @@ export default {
       requireAdmin(request);
       await ensureOrganizationMembersTable(database);
       const id = routeId(request);
-      const exists = await database("organization_members").select("id", "user", "display_name", "bio", "xbox_gamertag", "avatar").where({ id }).first();
+      const exists = await database("organization_members").select("id", "user", "display_name", "bio", "xbox_gamertag", "avatar", "minecraft_skin", "minecraft_skin_model").where({ id }).first();
       if (!exists) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
       const input = organizationInput(request, { identity: true });
       if (input.avatar) await assertOwnedUploads(database, [input.avatar], currentUser(request));
+      if ((input.minecraft_skin !== undefined || input.minecraft_skin_model !== undefined) && exists.user) {
+        throw new EndpointError(403, "LINKED_SKIN_OWNED_BY_USER", "Linked member skins can only be edited by the account owner");
+      }
+      if (input.minecraft_skin) await assertOwnedUploads(database, [input.minecraft_skin], currentUser(request));
       if (input.user) {
         const account = await database("directus_users").where({ id: input.user, status: "active" }).first();
         if (!account) throw new EndpointError(400, "INVALID_PAYLOAD", "user_id is invalid");
@@ -1576,7 +1620,7 @@ export default {
         input.xbox_gamertag = typeof profile?.xbox_gamertag === "string" ? profile.xbox_gamertag : "";
       }
       await database("organization_members").where({ id }).update({ ...input, updated_at: new Date() });
-      response.json({ data: { id, display_name: input.display_name ?? exists.display_name, bio: input.bio ?? exists.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? exists.xbox_gamertag ?? "", avatar: Object.prototype.hasOwnProperty.call(input, "avatar") ? input.avatar : exists.avatar ?? null } });
+      response.json({ data: { id, display_name: input.display_name ?? exists.display_name, bio: input.bio ?? exists.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? exists.xbox_gamertag ?? "", avatar: Object.prototype.hasOwnProperty.call(input, "avatar") ? input.avatar : exists.avatar ?? null, minecraft_skin: Object.prototype.hasOwnProperty.call(input, "minecraft_skin") ? input.minecraft_skin : exists.minecraft_skin ?? null, minecraft_skin_model: input.minecraft_skin_model ?? exists.minecraft_skin_model ?? "classic" } });
     }));
 
     router.put("/organization/:id/highlight", route(async (request, response) => {
@@ -1592,6 +1636,22 @@ export default {
       if (existing) await database("profile_entitlements").where({ id: existing.id }).update(record);
       else await database("profile_entitlements").insert({ id: crypto.randomUUID(), member: id, feature: "profile_highlight", source: "manual", ...record, created_at: new Date() });
       response.json({ data: { enabled: body.enabled } });
+    }));
+
+    router.put("/organization/:id/minecraft-skin", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureOrganizationMembersTable(database);
+      const id = routeId(request);
+      const member = await database("organization_members").select("id", "user").where({ id }).first();
+      if (!member) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
+      if (member.user) throw new EndpointError(403, "LINKED_SKIN_OWNED_BY_USER", "Linked member skins can only be edited by the account owner");
+      const body = objectBody(request);
+      strictKeys(body, new Set(["skin", "model"]));
+      const skin = body.skin === null ? null : uuid(body.skin, "skin");
+      const model = skinModel(body.model);
+      if (skin) await assertOwnedUploads(database, [skin], currentUser(request));
+      await database("organization_members").where({ id }).update({ minecraft_skin: skin, minecraft_skin_model: model, updated_at: new Date() });
+      response.json({ data: { skin, model } });
     }));
 
     router.put("/organization/:id/supporter", route(async (request, response) => {
@@ -1638,7 +1698,7 @@ export default {
         filter: { user: { _eq: user } },
         limit: 1,
       });
-      response.json({ data });
+      response.json({ data: await Promise.all(data.map((profile) => attachProfileSkin(database, profile))) });
     }));
 
     router.get("/activity-ranking", route(async (_request, response) => {
@@ -1687,7 +1747,7 @@ export default {
       if (!exists) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
       const schema = await getSchema();
       const profiles = new ItemsService("profiles", { schema, accountability: null });
-      response.json({ data: await profiles.readOne(id, { fields: PROFILE_FIELDS }) });
+      response.json({ data: await attachProfileSkin(database, await profiles.readOne(id, { fields: PROFILE_FIELDS })) });
     }));
 
     router.post("/files", route(async (request, response) => {
@@ -1937,8 +1997,10 @@ export default {
 
     router.put("/profile", route(async (request, response) => {
       const userId = currentUser(request);
+      await ensureProfileSkinColumns(database);
       const input = profileInput(request);
       if (input.avatar) await assertOwnedUploads(database, [input.avatar], userId);
+      if (input.minecraft_skin) await assertOwnedUploads(database, [input.minecraft_skin], userId);
       const existing = await database("profiles").select("id").where({ user: userId }).first();
       const data = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
       const now = new Date();
