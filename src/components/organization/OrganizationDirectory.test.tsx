@@ -50,6 +50,7 @@ describe("OrganizationDirectory", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("街づくりを担当しています。");
     expect(dialog).toHaveTextContent("LinkedXbox");
+    expect(dialog).toHaveTextContent("プロフィールページはありません");
     expect(within(dialog).getAllByText("建築チーム", { exact: true })).toHaveLength(1);
     expect(screen.queryByText("SNS")).not.toBeInTheDocument();
     expect(screen.queryByText("好きなブロック")).not.toBeInTheDocument();
