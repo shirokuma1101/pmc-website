@@ -2660,6 +2660,95 @@ relations:
       column: article
       foreign_key_table: articles
       foreign_key_column: id
+  - collection: profiles
+    field: minecraft_skin
+    type: uuid
+    meta:
+      collection: profiles
+      conditions: null
+      display: null
+      display_options: null
+      field: minecraft_skin
+      group: null
+      hidden: false
+      interface: select-dropdown-m2o
+      note: Minecraft skin PNG (64x64 or 64x32)
+      options: null
+      readonly: false
+      required: false
+      searchable: false
+      sort: 7
+      special:
+        - m2o
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: minecraft_skin
+      table: profiles
+      data_type: uuid
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: directus_files
+      foreign_key_column: id
+  - collection: profiles
+    field: minecraft_skin_model
+    type: string
+    meta:
+      collection: profiles
+      conditions: null
+      display: labels
+      display_options: null
+      field: minecraft_skin_model
+      group: null
+      hidden: false
+      interface: select-dropdown
+      note: Minecraft skin arm model
+      options:
+        choices:
+          - text: Classic
+            value: classic
+          - text: Slim
+            value: slim
+      readonly: false
+      required: true
+      searchable: false
+      sort: 8
+      special: null
+      translations: null
+      validation:
+        _in:
+          - classic
+          - slim
+      validation_message: null
+      width: half
+    schema:
+      name: minecraft_skin_model
+      table: profiles
+      data_type: character varying
+      default_value: classic
+      max_length: 16
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
       constraint_name: article_likes_article_foreign
       on_update: NO ACTION
       on_delete: CASCADE
@@ -2934,5 +3023,26 @@ relations:
       foreign_key_table: directus_files
       foreign_key_column: id
       constraint_name: profiles_avatar_foreign
+      on_update: NO ACTION
+      on_delete: SET NULL
+  - collection: profiles
+    field: minecraft_skin
+    related_collection: directus_files
+    meta:
+      junction_field: null
+      many_collection: profiles
+      many_field: minecraft_skin
+      one_allowed_collections: null
+      one_collection: directus_files
+      one_collection_field: null
+      one_deselect_action: nullify
+      one_field: null
+      sort_field: null
+    schema:
+      table: profiles
+      column: minecraft_skin
+      foreign_key_table: directus_files
+      foreign_key_column: id
+      constraint_name: profiles_minecraft_skin_foreign
       on_update: NO ACTION
       on_delete: SET NULL

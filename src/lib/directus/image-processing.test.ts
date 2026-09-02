@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { assertImageUpload, sanitizeImageUpload } from "./image-processing";
+import { assertImageUpload, sanitizeImageUpload, sanitizeMinecraftSkin } from "./image-processing";
 
 const originalMaximumBytes = process.env.MAX_IMAGE_UPLOAD_BYTES;
 const originalMaximumPixels = process.env.MAX_IMAGE_INPUT_PIXELS;
@@ -147,5 +147,22 @@ describe("sanitizeImageUpload", () => {
       code: "IMAGE_DIMENSIONS_TOO_LARGE",
       status: 413,
     });
+  });
+});
+
+describe("sanitizeMinecraftSkin", () => {
+  it.each([64, 32])("accepts a real 64×%i PNG", async (height) => {
+    const source = await sharp({ create: { width: 64, height, channels: 4, background: { r: 20, g: 60, b: 100, alpha: 1 } } }).png().toBuffer();
+    const result = await sanitizeMinecraftSkin(uploadedFile(source, "image/png", "skin.png"));
+    await expect(sharp(Buffer.from(result.bytes)).metadata()).resolves.toMatchObject({ format: "png", width: 64, height });
+  });
+
+  it("rejects PNG files with unsupported dimensions", async () => {
+    const source = await sharp({ create: { width: 128, height: 128, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();
+    await expect(sanitizeMinecraftSkin(uploadedFile(source, "image/png", "skin.png"))).rejects.toMatchObject({ code: "INVALID_SKIN_DIMENSIONS", status: 400 });
+  });
+
+  it("rejects a non-PNG declaration before saving", async () => {
+    await expect(sanitizeMinecraftSkin(uploadedFile(Buffer.from("not a skin"), "image/jpeg", "skin.png"))).rejects.toMatchObject({ code: "INVALID_SKIN", status: 415 });
   });
 });

@@ -55,6 +55,7 @@ export function mapSessionUser(user: DirectusUserRaw): SessionUser {
 
 export function mapProfile(raw: DirectusProfileRaw): Profile {
   const avatar = fileId(raw.avatar);
+  const minecraftSkin = fileId(raw.minecraft_skin);
   const user = raw.user ? mapUserSummary(raw.user) : undefined;
   return {
     id: raw.id,
@@ -62,6 +63,8 @@ export function mapProfile(raw: DirectusProfileRaw): Profile {
     bio: raw.bio ?? "",
     ...(raw.xbox_gamertag?.trim() ? { xboxGamertag: raw.xbox_gamertag.trim() } : {}),
     ...(avatar ? { avatarUrl: directusAssetUrl(avatar) } : {}),
+    ...(minecraftSkin ? { minecraftSkinUrl: directusAssetUrl(minecraftSkin) } : {}),
+    ...(raw.minecraft_skin_model ? { minecraftSkinModel: raw.minecraft_skin_model } : {}),
     ...(user ? { user } : {}),
     ...(raw.created_at ? { createdAt: raw.created_at } : {}),
     ...(raw.updated_at ? { updatedAt: raw.updated_at } : {}),

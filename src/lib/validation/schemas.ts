@@ -94,6 +94,8 @@ export const profileSchema = z.object({
   bio: z.string().trim().max(1_000).default(""),
   xboxGamertag: z.string().trim().max(50).default(""),
   avatarId: z.string().uuid().nullable().optional(),
+  minecraftSkinId: z.string().uuid().nullable().optional(),
+  minecraftSkinModel: z.enum(["classic", "slim"]).optional(),
 }).strict();
 
 export const reviewSchema = z.object({
@@ -122,6 +124,8 @@ export const organizationMemberSchema = z.object({
   bio: z.string().trim().max(2_000).default(""),
   xboxGamertag: z.string().trim().max(50).default(""),
   avatarId: z.string().uuid().nullable().optional(),
+  minecraftSkinId: z.string().uuid().nullable().optional(),
+  minecraftSkinModel: z.enum(["classic", "slim"]).optional(),
   userId: z.string().uuid().nullable().default(null),
   role: z.enum(["master", "administrator", "server_owner", "team_member", "trainee"]),
   team: z.string().trim().max(80).default(""),

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { directusAssetUrl } from "@/lib/config";
-import type { OrganizationAccountOption, OrganizationMember, OrganizationRole, OrganizationSection, SupporterTier } from "@/types";
+import type { MinecraftSkinModel, OrganizationAccountOption, OrganizationMember, OrganizationRole, OrganizationSection, SupporterTier } from "@/types";
 import { DIRECTUS_APP_ENDPOINT } from "./constants";
 import { directusRequest } from "./client";
 
@@ -12,6 +12,8 @@ interface OrganizationRaw {
   bio?: string | null;
   xbox_gamertag?: string | null;
   avatar?: string | null;
+  minecraft_skin?: string | null;
+  minecraft_skin_model?: MinecraftSkinModel | null;
   role: OrganizationRole;
   team?: string | null;
   parent_id?: string | null;
@@ -35,6 +37,8 @@ export async function getOrganization(): Promise<OrganizationMember[]> {
     ...(raw.user_id ? { userId: raw.user_id } : {}),
     displayName: raw.display_name,
     ...(raw.avatar ? { avatarUrl: directusAssetUrl(raw.avatar) } : {}),
+    ...(raw.minecraft_skin ? { minecraftSkinUrl: directusAssetUrl(raw.minecraft_skin) } : {}),
+    ...(raw.minecraft_skin_model ? { minecraftSkinModel: raw.minecraft_skin_model } : {}),
     bio: raw.bio ?? "",
     ...(raw.xbox_gamertag?.trim() ? { xboxGamertag: raw.xbox_gamertag.trim() } : {}),
     role: raw.role,
@@ -99,6 +103,8 @@ export interface OrganizationUpdate {
   bio: string;
   xboxGamertag: string;
   avatarId?: string | null;
+  minecraftSkinId?: string | null;
+  minecraftSkinModel?: MinecraftSkinModel;
   userId: string | null;
   role: OrganizationRole;
   team: string;
@@ -112,6 +118,8 @@ interface OrganizationIdentityRaw {
   bio?: string;
   xbox_gamertag?: string;
   avatar?: string | null;
+  minecraft_skin?: string | null;
+  minecraft_skin_model?: MinecraftSkinModel;
 }
 
 export interface OrganizationIdentity {
@@ -120,6 +128,8 @@ export interface OrganizationIdentity {
   bio: string;
   xboxGamertag: string;
   avatarUrl?: string;
+  minecraftSkinUrl?: string;
+  minecraftSkinModel?: MinecraftSkinModel;
 }
 
 function organizationIdentity(raw: OrganizationIdentityRaw, fallback: OrganizationUpdate): OrganizationIdentity {
@@ -129,6 +139,8 @@ function organizationIdentity(raw: OrganizationIdentityRaw, fallback: Organizati
     bio: raw.bio ?? fallback.bio,
     xboxGamertag: raw.xbox_gamertag ?? fallback.xboxGamertag,
     ...(raw.avatar ? { avatarUrl: directusAssetUrl(raw.avatar) } : {}),
+    ...(raw.minecraft_skin ? { minecraftSkinUrl: directusAssetUrl(raw.minecraft_skin) } : {}),
+    ...(raw.minecraft_skin_model ? { minecraftSkinModel: raw.minecraft_skin_model } : {}),
   };
 }
 
@@ -147,6 +159,8 @@ function organizationBody(input: OrganizationUpdate) {
     bio: input.bio,
     xbox_gamertag: input.xboxGamertag,
     ...(input.avatarId !== undefined ? { avatar: input.avatarId } : {}),
+    ...(input.minecraftSkinId !== undefined ? { minecraft_skin: input.minecraftSkinId } : {}),
+    ...(input.minecraftSkinModel !== undefined ? { minecraft_skin_model: input.minecraftSkinModel } : {}),
     user_id: input.userId,
     role: input.role,
     team: input.team,
@@ -168,6 +182,12 @@ export async function deleteOrganizationMember(profileId: string, accessToken: s
   await directusRequest(`${DIRECTUS_APP_ENDPOINT}/organization/${encodeURIComponent(profileId)}`, {
     method: "DELETE",
     accessToken,
+  });
+}
+
+export async function updateOrganizationMinecraftSkin(profileId: string, skinId: string | null, model: MinecraftSkinModel, accessToken: string): Promise<void> {
+  await directusRequest(`${DIRECTUS_APP_ENDPOINT}/organization/${encodeURIComponent(profileId)}/minecraft-skin`, {
+    method: "PUT", accessToken, body: { skin: skinId, model },
   });
 }
 

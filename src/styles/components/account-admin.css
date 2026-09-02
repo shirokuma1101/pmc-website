@@ -226,6 +226,10 @@
   justify-content: flex-end;
 }
 
+.profile-form__skin-field { display: grid; gap: 0.75rem; margin: 0; padding: 1rem; border: 1px solid var(--color-line); }
+.profile-form__skin-field legend { padding: 0 0.4rem; font-weight: 700; }
+.profile-form__skin-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+
 .profile-security-link {
   display: flex;
   min-height: 64px;
