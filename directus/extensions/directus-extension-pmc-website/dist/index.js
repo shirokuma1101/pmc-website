@@ -553,7 +553,7 @@ function ensureOrganizationMembersTable(database) {
 }
 
 let organizationLayoutTablePromise;
-const ORGANIZATION_GROUP_COLORS = new Set(["blue", "teal", "gold", "violet", "rose", "slate", "green", "cyan", "indigo", "orange", "plum"]);
+const ORGANIZATION_GROUP_COLORS = new Set(["blue", "teal", "gold", "violet", "rose", "slate", "green", "cyan", "indigo", "orange", "plum", "red", "olive", "sky", "brown", "magenta"]);
 function ensureOrganizationLayoutTable(database) {
   organizationLayoutTablePromise ??= (async () => {
     await ensureOrganizationMembersTable(database);

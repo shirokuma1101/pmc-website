@@ -58,6 +58,11 @@
 .profileCard[data-color="indigo"], .groupLane[data-color="indigo"], .groupMember[data-color="indigo"] { --role-color: #4f5fa8; }
 .profileCard[data-color="orange"], .groupLane[data-color="orange"], .groupMember[data-color="orange"] { --role-color: #b26832; }
 .profileCard[data-color="plum"], .groupLane[data-color="plum"], .groupMember[data-color="plum"] { --role-color: #86557e; }
+.profileCard[data-color="red"], .groupLane[data-color="red"], .groupMember[data-color="red"] { --role-color: #a34545; }
+.profileCard[data-color="olive"], .groupLane[data-color="olive"], .groupMember[data-color="olive"] { --role-color: #6f7837; }
+.profileCard[data-color="sky"], .groupLane[data-color="sky"], .groupMember[data-color="sky"] { --role-color: #34799d; }
+.profileCard[data-color="brown"], .groupLane[data-color="brown"], .groupMember[data-color="brown"] { --role-color: #795b48; }
+.profileCard[data-color="magenta"], .groupLane[data-color="magenta"], .groupMember[data-color="magenta"] { --role-color: #9a477d; }
 
 .groupIntro { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.15rem; border-block: 1px solid var(--color-border); background: linear-gradient(100deg, color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)), var(--color-surface)); }
 .groupIntro p, .groupIntro h2 { margin: 0; }
@@ -108,6 +113,11 @@
 .colorPalette label[data-color="indigo"] { --swatch-color: #4f5fa8; }
 .colorPalette label[data-color="orange"] { --swatch-color: #b26832; }
 .colorPalette label[data-color="plum"] { --swatch-color: #86557e; }
+.colorPalette label[data-color="red"] { --swatch-color: #a34545; }
+.colorPalette label[data-color="olive"] { --swatch-color: #6f7837; }
+.colorPalette label[data-color="sky"] { --swatch-color: #34799d; }
+.colorPalette label[data-color="brown"] { --swatch-color: #795b48; }
+.colorPalette label[data-color="magenta"] { --swatch-color: #9a477d; }
 .laneEditor { border-bottom: 1px solid var(--color-border); }
 .laneEditor > .groupLane { border-bottom: 0; }
 .laneEditor > .layoutActions { justify-content: flex-end; margin: 0; padding: .35rem .7rem; background: color-mix(in srgb, var(--color-background) 55%, var(--color-surface)); }

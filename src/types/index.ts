@@ -26,7 +26,7 @@ export interface Profile {
 }
 
 export type OrganizationRole = "master" | "administrator" | "server_owner" | "team_member" | "trainee";
-export type OrganizationGroupColor = "blue" | "teal" | "gold" | "violet" | "rose" | "slate" | "green" | "cyan" | "indigo" | "orange" | "plum";
+export type OrganizationGroupColor = "blue" | "teal" | "gold" | "violet" | "rose" | "slate" | "green" | "cyan" | "indigo" | "orange" | "plum" | "red" | "olive" | "sky" | "brown" | "magenta";
 export type SupporterTier = "supporter" | "basic" | "standard" | "premium";
 
 export interface OrganizationMember {
