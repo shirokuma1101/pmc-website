@@ -98,6 +98,7 @@ export interface OrganizationUpdate {
   displayName: string;
   bio: string;
   xboxGamertag: string;
+  avatarId?: string | null;
   userId: string | null;
   role: OrganizationRole;
   team: string;
@@ -145,6 +146,7 @@ function organizationBody(input: OrganizationUpdate) {
     display_name: input.displayName,
     bio: input.bio,
     xbox_gamertag: input.xboxGamertag,
+    ...(input.avatarId !== undefined ? { avatar: input.avatarId } : {}),
     user_id: input.userId,
     role: input.role,
     team: input.team,

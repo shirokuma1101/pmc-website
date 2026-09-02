@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { OrganizationMember, OrganizationSection } from "@/types";
@@ -30,7 +30,7 @@ const members: OrganizationMember[] = [
   },
 ];
 const sections: OrganizationSection[] = [
-  { id: "55555555-5555-4555-8555-555555555555", title: "運営・担当", description: "運営", groups: [{ id: "44444444-4444-4444-8444-444444444444", label: "管理者", caption: "企画", color: "violet" }] },
+  { id: "55555555-5555-4555-8555-555555555555", title: "運営管理", description: "運営", groups: [{ id: "44444444-4444-4444-8444-444444444444", label: "管理者", caption: "企画", color: "violet" }] },
   { id: "66666666-6666-4666-8666-666666666666", title: "チーム", description: "活動", groups: [{ id: "33333333-3333-4333-8333-333333333333", label: "建築チーム", caption: "活動チーム", color: "blue" }] },
 ];
 
@@ -47,8 +47,10 @@ describe("OrganizationDirectory", () => {
     expect(screen.getByRole("button", { name: /運営メンバー/ })).toHaveAttribute("data-supporter-tier", "premium");
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /建築メンバー/ }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("街づくりを担当しています。");
-    expect(screen.getByRole("dialog")).toHaveTextContent("LinkedXbox");
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("街づくりを担当しています。");
+    expect(dialog).toHaveTextContent("LinkedXbox");
+    expect(within(dialog).getAllByText("建築チーム", { exact: true })).toHaveLength(1);
     expect(screen.queryByText("SNS")).not.toBeInTheDocument();
     expect(screen.queryByText("好きなブロック")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "詳細を閉じる" }));
@@ -74,7 +76,7 @@ describe("OrganizationDirectory", () => {
     render(<OrganizationDirectory members={members} sections={sections} />);
     fireEvent.click(screen.getByRole("tab", { name: /役割・所属/ }));
     expect(screen.queryByRole("heading", { name: "役割・所属をひと目で" })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "運営・担当" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "運営管理" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "チーム" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "建築チーム" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "建築チーム" }).closest("section")).toHaveAttribute("data-color", "blue");
