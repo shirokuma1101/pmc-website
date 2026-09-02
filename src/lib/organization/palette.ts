@@ -13,6 +13,11 @@ export const ORGANIZATION_GROUP_PALETTE: ReadonlyArray<{
   { key: "indigo", label: "インディゴ" },
   { key: "orange", label: "オレンジ" },
   { key: "plum", label: "プラム" },
+  { key: "red", label: "レッド" },
+  { key: "olive", label: "オリーブ" },
+  { key: "sky", label: "スカイ" },
+  { key: "brown", label: "ブラウン" },
+  { key: "magenta", label: "マゼンタ" },
 ];
 
-export const ORGANIZATION_GROUP_COLOR_KEYS = ["blue", "teal", "gold", "violet", "rose", "slate", "green", "cyan", "indigo", "orange", "plum"] as const;
+export const ORGANIZATION_GROUP_COLOR_KEYS = ["blue", "teal", "gold", "violet", "rose", "slate", "green", "cyan", "indigo", "orange", "plum", "red", "olive", "sky", "brown", "magenta"] as const;

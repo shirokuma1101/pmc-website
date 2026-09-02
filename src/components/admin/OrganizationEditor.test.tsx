@@ -167,13 +167,13 @@ describe("OrganizationEditor", () => {
     expect(screen.queryByRole("radio", { name: "ティール" })).not.toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "ゴールド" })).not.toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "スレート" })).not.toBeInTheDocument();
-    expect(within(screen.getByRole("group", { name: "グループカラー" })).getAllByRole("radio")).toHaveLength(7);
-    fireEvent.click(screen.getByRole("radio", { name: "プラム" }));
+    expect(within(screen.getByRole("group", { name: "グループカラー" })).getAllByRole("radio")).toHaveLength(12);
+    fireEvent.click(screen.getByRole("radio", { name: "マゼンタ" }));
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       "/api/admin/organization/layout",
-      expect.objectContaining({ body: expect.stringContaining('"color":"plum"') }),
+      expect.objectContaining({ body: expect.stringContaining('"color":"magenta"') }),
     ));
   });
 

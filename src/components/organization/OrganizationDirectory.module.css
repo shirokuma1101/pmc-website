@@ -94,6 +94,11 @@
 .profileCard[data-color="indigo"], .groupMember[data-color="indigo"], .groupLane[data-color="indigo"] { --role-color: #4f5fa8; }
 .profileCard[data-color="orange"], .groupMember[data-color="orange"], .groupLane[data-color="orange"] { --role-color: #b26832; }
 .profileCard[data-color="plum"], .groupMember[data-color="plum"], .groupLane[data-color="plum"] { --role-color: #86557e; }
+.profileCard[data-color="red"], .groupMember[data-color="red"], .groupLane[data-color="red"] { --role-color: #a34545; }
+.profileCard[data-color="olive"], .groupMember[data-color="olive"], .groupLane[data-color="olive"] { --role-color: #6f7837; }
+.profileCard[data-color="sky"], .groupMember[data-color="sky"], .groupLane[data-color="sky"] { --role-color: #34799d; }
+.profileCard[data-color="brown"], .groupMember[data-color="brown"], .groupLane[data-color="brown"] { --role-color: #795b48; }
+.profileCard[data-color="magenta"], .groupMember[data-color="magenta"], .groupLane[data-color="magenta"] { --role-color: #9a477d; }
 .profileCard[data-supporter-tier="basic"], .groupMember[data-supporter-tier="basic"], .modalBadge[data-supporter-tier="basic"] { --supporter-color: #287b78; }
 .profileCard[data-supporter-tier="standard"], .groupMember[data-supporter-tier="standard"], .modalBadge[data-supporter-tier="standard"] { --supporter-color: #64748b; }
 .profileCard[data-supporter-tier="premium"], .groupMember[data-supporter-tier="premium"], .modalBadge[data-supporter-tier="premium"] { --supporter-color: #a87320; }
