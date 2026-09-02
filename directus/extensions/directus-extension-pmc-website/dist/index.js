@@ -482,7 +482,7 @@ function optionalText(value, field, maximum, { trim = true } = {}) {
 
 function organizationInput(request, { identity = false } = {}) {
   const body = objectBody(request);
-  const keys = new Set(["role", "team", "parent_id", "xbox_gamertag", "group_id"]);
+  const keys = new Set(["role", "team", "parent_id", "xbox_gamertag", "avatar", "group_id"]);
   if (identity) for (const key of ["display_name", "bio", "user_id"]) keys.add(key);
   strictKeys(body, keys);
   if (!ORGANIZATION_ROLES.has(body.role)) {
@@ -494,6 +494,7 @@ function organizationInput(request, { identity = false } = {}) {
     organization_team: optionalText(body.team ?? "", "team", 80),
     organization_parent: parent,
     xbox_gamertag: optionalText(body.xbox_gamertag ?? "", "xbox_gamertag", 50) ?? "",
+    ...(body.avatar !== undefined ? { avatar: body.avatar === null ? null : uuid(body.avatar, "avatar") } : {}),
     organization_group: body.group_id == null || body.group_id === "" ? null : uuid(body.group_id, "group_id"),
   };
   if (identity) {
@@ -573,7 +574,7 @@ function ensureOrganizationLayoutTable(database) {
       const teams = await database("organization_members").distinct("organization_team as name").where({ organization_role: "team_member" }).whereNotNull("organization_team").whereNot("organization_team", "");
       const teamGroups = teams.map((team) => group(team.name, "活動チーム", "blue"));
       const sections = [
-        { id: crypto.randomUUID(), title: "運営・担当", description: "方針、運営、技術を担う役割", groups: [master, administrator, owner] },
+        { id: crypto.randomUUID(), title: "運営管理", description: "方針、運営、技術を担う役割", groups: [master, administrator, owner] },
         { id: crypto.randomUUID(), title: "チーム", description: "活動分野ごとの所属", groups: teamGroups },
         { id: crypto.randomUUID(), title: "みならい", description: "活動を始めるメンバー", groups: [trainee] },
       ];
@@ -584,7 +585,12 @@ function ensureOrganizationLayoutTable(database) {
       for (const teamGroup of teamGroups) await database("organization_members").where({ organization_role: "team_member", organization_team: teamGroup.label }).update({ organization_group: teamGroup.id });
       record = { sections };
     }
-    return Array.isArray(record.sections) ? record.sections : JSON.parse(record.sections);
+    const storedSections = Array.isArray(record.sections) ? record.sections : JSON.parse(record.sections);
+    const sections = storedSections.map((section) => section.title === "運営・担当" ? { ...section, title: "運営管理" } : section);
+    if (sections.some((section, index) => section.title !== storedSections[index]?.title)) {
+      await database("organization_layout").where({ id: "default" }).update({ sections: JSON.stringify(sections), updated_at: new Date() });
+    }
+    return sections;
   })();
   return organizationLayoutTablePromise;
 }
@@ -1485,6 +1491,7 @@ export default {
       requireAdmin(request);
       await ensureOrganizationMembersTable(database);
       const input = organizationInput(request, { identity: true });
+      if (input.avatar) await assertOwnedUploads(database, [input.avatar], currentUser(request));
       if (!input.display_name) throw new EndpointError(400, "INVALID_PAYLOAD", "display_name is required");
       if (input.user) {
         const account = await database("directus_users").where({ id: input.user, status: "active" }).first();
@@ -1556,6 +1563,7 @@ export default {
       const exists = await database("organization_members").select("id", "user", "display_name", "bio", "xbox_gamertag", "avatar").where({ id }).first();
       if (!exists) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested profile was not found");
       const input = organizationInput(request, { identity: true });
+      if (input.avatar) await assertOwnedUploads(database, [input.avatar], currentUser(request));
       if (input.user) {
         const account = await database("directus_users").where({ id: input.user, status: "active" }).first();
         if (!account) throw new EndpointError(400, "INVALID_PAYLOAD", "user_id is invalid");

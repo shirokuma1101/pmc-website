@@ -136,6 +136,9 @@
 .inspector { position: sticky; top: 1rem; display: grid; min-width: 0; gap: 1rem; padding: 1rem; border: 1px solid var(--color-border); border-radius: 1rem; background: var(--color-surface); box-shadow: 0 4px 18px rgb(0 0 0 / 6%); }
 .identity { display: flex; align-items: center; gap: .75rem; padding-bottom: .9rem; border-bottom: 1px solid var(--color-border); }
 .identity > div { min-width: 0; }
+.avatarEditor { display: grid; flex: 0 0 auto; justify-items: center; gap: .4rem; }
+.avatarAction { cursor: pointer; color: var(--color-primary); font-size: .62rem; font-weight: 800; text-align: center; }
+.avatarAction:hover { text-decoration: underline; }
 .identity span, .identity small { display: block; color: var(--color-text-muted); font-size: .65rem; }
 .identity h2 { overflow: hidden; margin: .08rem 0; font-size: 1.1rem; text-overflow: ellipsis; white-space: nowrap; }
 .inspector form { display: grid; gap: 1rem; }

@@ -121,6 +121,7 @@ export const organizationMemberSchema = z.object({
   displayName: z.string().trim().min(1).max(80),
   bio: z.string().trim().max(2_000).default(""),
   xboxGamertag: z.string().trim().max(50).default(""),
+  avatarId: z.string().uuid().nullable().optional(),
   userId: z.string().uuid().nullable().default(null),
   role: z.enum(["master", "administrator", "server_owner", "team_member", "trainee"]),
   team: z.string().trim().max(80).default(""),

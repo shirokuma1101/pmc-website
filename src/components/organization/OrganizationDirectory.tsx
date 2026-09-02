@@ -61,7 +61,7 @@ export function OrganizationDirectory({ members, sections }: { members: Organiza
                 {memberSupporterTier(member) ? <span className={styles.memberBadge}>{supporterTierLabel(memberSupporterTier(member))}</span> : null}
                 <header>
                   <Avatar user={member} size="lg" />
-                  <div><p>{groupNames.get(member.groupId ?? "") ?? "未分類"}</p><h3>{member.displayName}</h3><span>{member.team || "所属なし"}</span></div>
+                  <div><p>{groupNames.get(member.groupId ?? "") ?? "未分類"}</p><h3>{member.displayName}</h3></div>
                 </header>
                 <p className={styles.bio}>{member.bio || "紹介文はまだありません。"}</p>
               </button>
@@ -101,10 +101,10 @@ export function OrganizationDirectory({ members, sections }: { members: Organiza
       {selected ? <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
         <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="member-detail-title">
           <button className={styles.modalClose} type="button" aria-label="詳細を閉じる" onClick={() => setSelected(null)}>×</button>
-          <header className={styles.modalHeader}><Avatar user={selected} size="lg" /><div><p>{groupNames.get(selected.groupId ?? "") ?? "未分類"}</p><h2 id="member-detail-title">{selected.displayName}</h2><span>{selected.team || "所属なし"}</span>{memberSupporterTier(selected) ? <b className={styles.modalBadge} data-supporter-tier={memberSupporterTier(selected)}>{supporterTierLabel(memberSupporterTier(selected))}</b> : null}</div></header>
+          <header className={styles.modalHeader}><Avatar user={selected} size="lg" /><div><p>{groupNames.get(selected.groupId ?? "") ?? "未分類"}</p><h2 id="member-detail-title">{selected.displayName}</h2>{memberSupporterTier(selected) ? <b className={styles.modalBadge} data-supporter-tier={memberSupporterTier(selected)}>{supporterTierLabel(memberSupporterTier(selected))}</b> : null}</div></header>
           <p className={styles.modalBio}>{selected.bio || "紹介文はまだありません。"}</p>
           {selected.xboxGamertag ? <p className={styles.modalGamertag}><span>Xbox</span>{selected.xboxGamertag}</p> : null}
-          {selected.userId ? <Link className={styles.modalProfileLink} href={`/members/${selected.userId}`}>プロフィールページを見る <span aria-hidden="true">→</span></Link> : <span className={styles.accountless}>この紹介は公開メンバー情報のみです</span>}
+          {selected.userId ? <Link className={styles.modalProfileLink} href={`/members/${selected.userId}`}>プロフィールページを見る <span aria-hidden="true">→</span></Link> : <span className={styles.accountless}>プロフィールページはありません</span>}
         </section>
       </div> : null}
     </section>
