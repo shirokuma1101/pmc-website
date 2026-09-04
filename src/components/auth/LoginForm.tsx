@@ -10,6 +10,8 @@ import { getApiErrorMessage } from "../apiResponse";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { SsoButton } from "./SsoButton";
+import { TurnstileWidget } from "./TurnstileWidget";
 
 export interface LoginFormProps {
   endpoint?: string;
@@ -18,6 +20,7 @@ export interface LoginFormProps {
   description?: string;
   notice?: string;
   footer?: ReactNode;
+  ssoProviders?: Array<"google" | "x">;
 }
 
 async function getErrorMessage(response: Response, fallback: string) {
@@ -32,6 +35,7 @@ export function LoginForm({
   description = "活動を記録するには、アカウントへログインしてください。",
   notice,
   footer,
+  ssoProviders = [],
 }: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -40,6 +44,8 @@ export function LoginForm({
   const [requiresOtp, setRequiresOtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,6 +59,10 @@ export function LoginForm({
       setError("認証アプリに表示された6桁のコードを入力してください。");
       return;
     }
+    if (!turnstileToken) {
+      setError("セキュリティ確認を完了してください。");
+      return;
+    }
     setSubmitting(true);
     try {
       const response = await fetch(endpoint, {
@@ -63,11 +73,13 @@ export function LoginForm({
           email: email.trim(),
           password,
           ...(otp ? { otp } : {}),
+          turnstileToken,
         }),
       });
       if (response.status === 202) {
         setRequiresOtp(true);
         setOtp("");
+        setTurnstileResetKey((value) => value + 1);
         return;
       }
       if (!response.ok) {
@@ -83,6 +95,7 @@ export function LoginForm({
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "ログインできませんでした。");
+      setTurnstileResetKey((value) => value + 1);
     } finally {
       setSubmitting(false);
     }
@@ -170,8 +183,9 @@ export function LoginForm({
             />
           </>
         )}
+        <TurnstileWidget action="login" onTokenChange={setTurnstileToken} resetKey={turnstileResetKey} />
         {error ? <Alert tone="error">{error}</Alert> : null}
-        <Button type="submit" fullWidth size="lg" loading={submitting}>
+        <Button type="submit" fullWidth size="lg" loading={submitting} disabled={!turnstileToken}>
           {requiresOtp ? "認証してログイン" : "ログイン"}
         </Button>
         {requiresOtp ? (
@@ -186,6 +200,14 @@ export function LoginForm({
           </Button>
         ) : null}
       </form>
+
+      {ssoProviders.length ? (
+        <div className="auth-sso" aria-label="外部サービスでログイン">
+          <p className="auth-sso__separator"><span>または</span></p>
+          {ssoProviders.includes("google") ? <SsoButton provider="google" label="Google" /> : null}
+          {ssoProviders.includes("x") ? <SsoButton provider="x" label="X" /> : null}
+        </div>
+      ) : null}
 
       <div className="auth-card__footer">
         {footer ?? <Link href="/">公開ページへ戻る</Link>}

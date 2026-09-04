@@ -53,6 +53,43 @@
   gap: 1.15rem;
 }
 
+.turnstile-field,
+.turnstile-field > div,
+.auth-sso,
+.sso-option {
+  width: 100%;
+}
+
+.turnstile-field > div:not(.field__error) {
+  display: flex;
+  justify-content: center;
+}
+
+.auth-sso,
+.sso-option {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-sso {
+  margin-top: 1.25rem;
+}
+
+.auth-sso__separator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+}
+
+.auth-sso__separator::before,
+.auth-sso__separator::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--color-line);
+}
+
 .auth-form__identity {
   padding: 0.75rem 0.9rem;
   margin: 0;

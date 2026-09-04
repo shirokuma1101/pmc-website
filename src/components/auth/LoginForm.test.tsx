@@ -7,6 +7,11 @@ const routerMocks = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMocks,
 }));
+vi.mock("./TurnstileWidget", () => ({
+  TurnstileWidget: ({ onTokenChange }: { onTokenChange: (token: string) => void }) => (
+    <button type="button" onClick={() => onTokenChange("test-token")}>セキュリティ確認を完了</button>
+  ),
+}));
 
 describe("LoginForm", () => {
   afterEach(() => {
@@ -22,6 +27,7 @@ describe("LoginForm", () => {
     expect(screen.getByRole("textbox", { name: /メールアドレス/ })).toBeInTheDocument();
     expect(screen.getByLabelText(/パスワード/)).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "認証コード" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ログイン" })).toBeDisabled();
   });
 
   it("moves 2FA users to the dedicated code screen and submits the OTP", async () => {
@@ -31,11 +37,13 @@ describe("LoginForm", () => {
     render(<LoginForm />);
     fireEvent.change(screen.getByRole("textbox", { name: /メールアドレス/ }), { target: { value: "member@example.com" } });
     fireEvent.change(screen.getByLabelText(/パスワード/), { target: { value: "password" } });
+    fireEvent.click(screen.getByRole("button", { name: "セキュリティ確認を完了" }));
     fireEvent.click(screen.getByRole("button", { name: "ログイン" }));
 
     expect(await screen.findByRole("heading", { name: "認証コードを入力" })).toBeInTheDocument();
     const otp = screen.getByRole("textbox", { name: "認証コード" });
     fireEvent.change(otp, { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "セキュリティ確認を完了" }));
     fireEvent.click(screen.getByRole("button", { name: "認証してログイン" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));

@@ -9,6 +9,7 @@ import { getApiErrorMessage } from "../apiResponse";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { TurnstileWidget } from "./TurnstileWidget";
 
 export function RegistrationForm() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export function RegistrationForm() {
   const [confirmation, setConfirmation] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,6 +37,10 @@ export function RegistrationForm() {
       setError("確認用パスワードが一致しません。");
       return;
     }
+    if (!turnstileToken) {
+      setError("セキュリティ確認を完了してください。");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -41,13 +48,14 @@ export function RegistrationForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ displayName: displayName.trim(), email: email.trim(), password }),
+        body: JSON.stringify({ displayName: displayName.trim(), email: email.trim(), password, turnstileToken }),
       });
       if (!response.ok) throw new Error(await getApiErrorMessage(response, "アカウントを作成できませんでした。"));
       router.push("/register/pending");
       router.refresh();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "アカウントを作成できませんでした。");
+      setTurnstileResetKey((value) => value + 1);
     } finally {
       setSubmitting(false);
     }
@@ -66,8 +74,9 @@ export function RegistrationForm() {
         <Input label="メールアドレス" name="email" type="email" value={email} maxLength={254} autoComplete="email" inputMode="email" required disabled={submitting} onChange={(event) => setEmail(event.target.value)} />
         <Input label="パスワード" hint="12文字以上で設定してください。" name="password" type="password" value={password} minLength={12} maxLength={128} autoComplete="new-password" required disabled={submitting} onChange={(event) => setPassword(event.target.value)} />
         <Input label="パスワード（確認）" name="passwordConfirmation" type="password" value={confirmation} minLength={12} maxLength={128} autoComplete="new-password" required disabled={submitting} onChange={(event) => setConfirmation(event.target.value)} />
+        <TurnstileWidget action="registration" onTokenChange={setTurnstileToken} resetKey={turnstileResetKey} />
         {error ? <Alert tone="error">{error}</Alert> : null}
-        <Button type="submit" fullWidth size="lg" loading={submitting}>アカウントを作成</Button>
+        <Button type="submit" fullWidth size="lg" loading={submitting} disabled={!turnstileToken}>アカウントを作成</Button>
       </form>
       <div className="auth-card__footer"><Link href="/login">すでにアカウントをお持ちの方</Link></div>
     </section>

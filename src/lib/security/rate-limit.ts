@@ -12,7 +12,7 @@ interface RateLimitState {
 }
 
 export interface AuthRateLimitPolicy {
-  action: "login" | "registration" | "tfa" | "password-reset-request" | "password-reset";
+  action: "login" | "registration" | "sso" | "tfa" | "password-reset-request" | "password-reset";
   accountLimit: number;
   ipLimit: number;
   windowMs: number;
@@ -21,6 +21,7 @@ export interface AuthRateLimitPolicy {
 export const AUTH_RATE_LIMITS = {
   login: { action: "login", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   registration: { action: "registration", accountLimit: 3, ipLimit: 5, windowMs: 60 * 60_000 },
+  sso: { action: "sso", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   tfa: { action: "tfa", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   passwordResetRequest: {
     action: "password-reset-request",

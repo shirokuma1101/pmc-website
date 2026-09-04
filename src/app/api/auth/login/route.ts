@@ -5,13 +5,16 @@ import { DirectusError } from "@/lib/directus/client";
 import { assertSameOrigin } from "@/lib/security/csrf";
 import { AUTH_RATE_LIMITS, enforceAuthRateLimit, resetAuthAccountLimit } from "@/lib/security/rate-limit";
 import { loginSchema } from "@/lib/validation/schemas";
+import { turnstileTokenFrom, verifyTurnstile } from "@/lib/security/turnstile";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
   return withRouteErrors(async () => {
     assertSameOrigin(request);
-    const { email, password, otp } = loginSchema.parse(await readJson(request));
+    const body = await readJson(request);
+    const { email, password, otp } = loginSchema.parse(body);
+    await verifyTurnstile(request, turnstileTokenFrom(body), "login");
     enforceAuthRateLimit(request, email, AUTH_RATE_LIMITS.login);
     let tokens;
     try {
