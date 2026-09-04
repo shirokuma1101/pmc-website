@@ -80,6 +80,11 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
 UbuntuではPowerShell版ではなく、`generate-history.sh`を使用します。バックアップの更新日時は既定で`Asia/Tokyo`としてIDと表示日時へ変換されます。`minecraft-map/.env.map`が存在する場合は、自動的にDocker Composeの環境ファイルとして読み込みます。事前の`source`は不要です。
 
+処理するバックアップの日付は`--archive-schedule daily`（既定・全日）、
+`--archive-schedule weekly:0`（日曜）、`--archive-schedule monthly:1`（毎月1日）で選別できます。
+判定対象はアーカイブの更新日時です。`--dry-run`を付けるとDockerを起動せず対象だけ確認できます。
+ワールド別に設定した定期実行例は[README](README.md)を参照してください。
+
 ```bash
 bash minecraft-map/generate-history.sh \
   --archive-directory .tmp/6c1044f4-a2d8-48e1-8839-d1aec89ebe8d \
