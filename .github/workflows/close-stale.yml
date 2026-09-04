@@ -1,0 +1,38 @@
+name: Close stale issues
+
+on:
+  schedule:
+    - cron: "30 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  close-stale-issues:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Mark and close stale issues
+        uses: actions/stale@v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          stale-issue-label: stale
+          exempt-issue-labels: bug,help wanted
+          exempt-all-issue-assignees: true
+          exempt-all-issue-milestones: true
+          remove-issue-stale-when-updated: true
+          close-issue-reason: not_planned
+          stale-issue-message: >-
+            このIssueは60日間更新がなかったため、staleとしてマークされました。
+            引き続き対応が必要な場合は、コメントまたはIssueの更新をお願いします。
+            今後14日間更新がない場合、このIssueは自動的にCloseされます。
+          close-issue-message: >-
+            このIssueはstaleとしてマークされてから14日間更新がなかったため、
+            自動的にCloseされました。対応が必要な場合は、理由を添えて再Openしてください。
