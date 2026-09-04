@@ -2282,12 +2282,13 @@ fields:
       special: null
       translations: null
       validation:
-        _in:
-          - master
-          - administrator
-          - server_owner
-          - team_member
-          - trainee
+        organization_role:
+          _in:
+            - master
+            - administrator
+            - server_owner
+            - team_member
+            - trainee
       validation_message: null
       width: half
     schema:
