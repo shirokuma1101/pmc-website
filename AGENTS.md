@@ -43,8 +43,8 @@
 
 - `main` へ直接コミット・pushしません。`git push origin 作業ブランチ:main` も禁止します。
 - 原則として `git fetch origin main` 後の最新 `origin/main` を起点にします。取得に失敗した状態で「最新」と判断しません。
-- ブランチ名は `codex/<type>/issue-<番号>-<短い説明>` とします。英小文字・数字・ハイフンを使用します。
-- 例: `codex/fix/issue-73-android-image-upload`、`codex/docs/issue-123-agent-rules`。
+- ブランチ名は `<type>/issue-<番号>-<短い説明>` とします。英小文字・数字・ハイフンを使用します。
+- 例: `fix/issue-73-android-image-upload`、`docs/issue-123-agent-rules`。新機能は`feature/`を使用します。
 - ユーザー指定のブランチ名や、当該Issueの既存作業ブランチ・PRがある場合はそれを優先します。命名規則のためだけに既存ブランチを変更しません。
 - 原則として1つの独立したIssueにつき1ブランチ・1PRとし、無関係な修正を混ぜません。
 - 未コミット変更がある場合は安全に作業を分離します。無断のstash、変更の破棄、履歴の書き換えはしません。
