@@ -3,6 +3,15 @@
 .idea
 .vscode
 .codex-tmp-*
+# Local worktrees and package caches can contain entire dependency trees.
+.codex-worktrees
+.pnpm-store
+.cache
+.turbo
+# Production backups are runtime data, never frontend build inputs.
+backups
+.local-backups
+.production-update.lock
 .next
 .tmp
 out

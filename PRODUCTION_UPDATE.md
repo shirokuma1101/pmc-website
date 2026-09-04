@@ -45,6 +45,37 @@ df -h
 
 未コミット変更がある場合は、その内容を確認するまで更新しないでください。
 
+### ビルド時に容量不足になる場合
+
+`load build context` の転送量が数十GBになる場合は、まず不要なデータの混入を確認します。
+更新スクリプトはビルド前に `backups/` を作成するため、`.dockerignore` での除外が必要です。
+`.gitignore` の設定だけでは Docker の転送対象から除外されません。
+このリポジトリでは `backups/`、`.local-backups/`、`.codex-worktrees/`、`.pnpm-store/` などを `.dockerignore` で除外しています。
+除外はファイルを削除せず、ビルドへの転送を防ぎます。
+
+本番ホストで容量の内訳を確認します。
+
+```sh
+df -h
+du -sh backups .local-backups .codex-worktrees .pnpm-store minecraft-map/output 2>/dev/null
+docker system df
+```
+
+修正済みの `.dockerignore` を本番へ反映してから再ビルドしてください。
+既存のビルドキャッシュで空き容量が不足する場合は、他のビルドが動いていないことを確認して、不要なビルドキャッシュを削除できます。
+次のコマンドは確認プロンプトを表示します。キャッシュ削除後は再ビルドに時間がかかる場合があります。
+
+```sh
+docker builder prune
+docker compose --env-file .env --progress plain build frontend
+```
+
+`transferring context` の転送量が減ったことを確認します。
+DB・uploads を保持するボリュームは削除しないでください。容量確保に `docker compose down -v` は使いません。
+バックアップ自体の容量は除外後も残るため、古い世代は外部ストレージへの退避と復元可能性の確認後に整理してください。
+更新スクリプトの空き容量チェックはプロジェクト配置先を対象とし、ビルド用の既定余裕は1GiBです。
+Docker の保存先が別ディスクなら、その空き容量も確認してください。
+
 ## 2. バックアップ先の準備
 
 バックアップは、プロジェクト直下の`backups`へ保存します。
