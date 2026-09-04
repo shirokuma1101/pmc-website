@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 type TurnstileAction = "login" | "registration" | "google-sso" | "x-sso" | "password-reset-request";
 
 declare global {
@@ -32,8 +32,8 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
     callbackRef.current = onTokenChange;
   }, [onTokenChange]);
 
-  const renderWidget = useCallback(() => {
-    if (!sitekey || !containerRef.current || !window.turnstile || widgetIdRef.current) return;
+  function renderWidget(): boolean {
+    if (!sitekey || !containerRef.current || !window.turnstile || widgetIdRef.current) return false;
     try {
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey,
@@ -58,17 +58,37 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
           callbackRef.current(null);
         },
       });
+      return true;
     } catch {
       setWidgetError(true);
       callbackRef.current(null);
+      return false;
     }
-  }, [action, sitekey]);
+  }
 
-  useEffect(() => () => {
+  useEffect(() => {
+    let attempts = 0;
+    const tryRender = () => {
+      attempts += 1;
+      if (renderWidget()) {
+        clearInterval(interval);
+      } else if (attempts >= 100) {
+        clearInterval(interval);
+        setWidgetError(true);
+      }
+    };
+    const interval = window.setInterval(tryRender, 100);
+    tryRender();
+
+    return () => {
+      clearInterval(interval);
       if (widgetIdRef.current && window.turnstile) window.turnstile.remove(widgetIdRef.current);
       widgetIdRef.current = undefined;
       callbackRef.current(null);
-  }, []);
+    };
+  // `action` and `sitekey` define the lifetime of the external widget instance.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action, sitekey]);
 
   useEffect(() => {
     if (resetKey > 0 && widgetIdRef.current && window.turnstile) {
@@ -84,7 +104,7 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
         id="cloudflare-turnstile"
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         strategy="afterInteractive"
-        onReady={renderWidget}
+        onReady={() => undefined}
         onError={() => {
           setWidgetError(true);
           callbackRef.current(null);
