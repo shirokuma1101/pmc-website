@@ -66,6 +66,7 @@ export async function POST(request: Request): Promise<Response> {
         summary: formString(form, "summary") ?? "",
         tags: (formString(form, "tags") ?? "").split(",").map((tag) => tag.trim()).filter(Boolean),
         body: formString(form, "body") ?? "",
+        eventAt: formString(form, "eventAt") || null,
       };
       if (session.user.isAdmin) {
         adminInput = adminArticleFieldsSchema.parse({
@@ -82,6 +83,7 @@ export async function POST(request: Request): Promise<Response> {
         summary: body.summary,
         tags: body.tags,
         body: body.body,
+        ...(body.eventAt !== undefined ? { eventAt: body.eventAt } : {}),
       } : body;
       if (session.user.isAdmin) {
         adminInput = adminArticleFieldsSchema.parse({
@@ -105,6 +107,7 @@ export async function POST(request: Request): Promise<Response> {
       summary: validated.summary,
       tags: validated.tags,
       body: validated.body,
+      eventAt: validated.eventAt,
       ...adminInput,
     }, session.accessToken);
     return dataResponse(article, 201);

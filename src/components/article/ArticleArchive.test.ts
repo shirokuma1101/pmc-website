@@ -45,4 +45,14 @@ describe("buildArticleArchive", () => {
   it("omits articles without a valid date", () => {
     expect(buildArticleArchive([article("invalid", "not-a-date")])).toEqual([]);
   });
+
+  it("uses the event date before the publication date and falls back when absent", () => {
+    const eventArticle = { ...article("event", "2026-01-01T00:00:00.000Z"), eventAt: "2026-09-01T00:00:00.000Z" };
+    const publishedArticle = article("published", "2026-08-01T00:00:00.000Z");
+
+    const archive = buildArticleArchive([publishedArticle, eventArticle]);
+
+    expect(archive[0].months[0].articles.map(({ article: item }) => item.id)).toEqual(["event"]);
+    expect(archive[0].months[1].articles.map(({ article: item }) => item.id)).toEqual(["published"]);
+  });
 });

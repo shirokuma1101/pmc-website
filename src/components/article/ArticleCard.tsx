@@ -34,7 +34,8 @@ export function ArticleCard({
   headingLevel = 3,
 }: ArticleCardProps) {
   const articleHref = href ?? (article.status === "published" ? `/articles/${article.slug}` : `/article/${article.id}/edit`);
-  const date = formatArticleDate(article.publishedAt ?? article.updatedAt ?? article.createdAt);
+  const displayDate = article.eventAt ?? article.publishedAt ?? article.createdAt;
+  const date = formatArticleDate(displayDate);
   const Heading = headingLevel === 2 ? "h2" : "h3";
 
   return (
@@ -51,7 +52,7 @@ export function ArticleCard({
       <div className="article-card__body">
         <div className="article-card__eyebrow">
           {showStatus ? <StatusBadge status={article.status} /> : <span>ARTICLE</span>}
-          {date ? <time dateTime={article.publishedAt ?? article.updatedAt ?? article.createdAt}>{date}</time> : null}
+          {date && displayDate ? <time dateTime={displayDate}>{date}</time> : null}
         </div>
         <Heading className="article-card__title">
           <Link href={articleHref}>{article.title}</Link>

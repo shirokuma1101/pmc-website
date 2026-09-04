@@ -69,6 +69,7 @@ const articleFields = {
     tags.filter((tag, index) => tags.findIndex((candidate) => candidate.toLocaleLowerCase() === tag.toLocaleLowerCase()) === index)
   )),
   body: z.string().max(100_000),
+  eventAt: z.string().datetime({ offset: true }).nullable().optional(),
 };
 
 export const createArticleSchema = z.object(articleFields).strict();
@@ -85,6 +86,7 @@ export const updateArticleSchema = z.object({
   summary: articleFields.summary.optional(),
   tags: articleFields.tags.optional(),
   body: articleFields.body.optional(),
+  eventAt: articleFields.eventAt,
 }).strict().refine((value) => Object.keys(value).length > 0, {
   message: "At least one editable field is required",
 });

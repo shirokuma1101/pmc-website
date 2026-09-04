@@ -134,6 +134,7 @@ export interface SaveArticleInput {
   authorId?: string;
   createdAt?: string;
   publishedAt?: string;
+  eventAt?: string | null;
 }
 
 function articlePayload(input: Partial<SaveArticleInput>): Record<string, unknown> {
@@ -146,6 +147,7 @@ function articlePayload(input: Partial<SaveArticleInput>): Record<string, unknow
     ...(input.authorId !== undefined ? { author_id: input.authorId } : {}),
     ...(input.createdAt !== undefined ? { created_at: input.createdAt } : {}),
     ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
+    ...(input.eventAt !== undefined ? { event_at: input.eventAt } : {}),
   };
 }
 
