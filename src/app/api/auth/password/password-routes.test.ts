@@ -5,6 +5,10 @@ vi.mock("@/lib/auth/provider", () => ({
   requestPasswordResetDirectus: vi.fn(),
   resetPasswordDirectus: vi.fn(),
 }));
+vi.mock("@/lib/security/turnstile", () => ({
+  turnstileTokenFrom: () => "test-token",
+  verifyTurnstile: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { requestPasswordResetDirectus, resetPasswordDirectus } from "@/lib/auth/provider";
 import { DirectusError } from "@/lib/directus/client";

@@ -8,6 +8,7 @@ import { getApiErrorMessage } from "../apiResponse";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
+import { TurnstileWidget } from "./TurnstileWidget";
 
 async function responseError(response: Response, fallback: string): Promise<string> {
   if (response.status === 429) return "試行回数が多すぎます。時間をおいてからお試しください。";
@@ -19,22 +20,29 @@ export function PasswordResetRequestForm() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    if (!turnstileToken) {
+      setError("セキュリティ確認を完了してください。");
+      return;
+    }
     setSubmitting(true);
     try {
       const response = await fetch("/api/auth/password/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), turnstileToken }),
       });
       if (!response.ok) throw new Error(await responseError(response, "再設定メールを送信できませんでした。"));
       setSent(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "再設定メールを送信できませんでした。");
+      setTurnstileResetKey((value) => value + 1);
     } finally {
       setSubmitting(false);
     }
@@ -66,8 +74,9 @@ export function PasswordResetRequestForm() {
             disabled={submitting}
             onChange={(event) => setEmail(event.target.value)}
           />
+          <TurnstileWidget action="password-reset-request" onTokenChange={setTurnstileToken} resetKey={turnstileResetKey} />
           {error ? <Alert tone="error">{error}</Alert> : null}
-          <Button type="submit" fullWidth size="lg" loading={submitting}>再設定メールを送信</Button>
+          <Button type="submit" fullWidth size="lg" loading={submitting} disabled={!turnstileToken}>再設定メールを送信</Button>
         </form>
       )}
       <div className="auth-card__footer"><Link href="/login">ログインへ戻る</Link></div>

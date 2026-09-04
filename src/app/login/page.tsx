@@ -31,6 +31,10 @@ export default async function LoginPage({
       <LoginForm
         redirectTo={next}
         notice={notice}
+        ssoProviders={[
+          ...(process.env.GOOGLE_SSO_AUTH_URL ? ["google" as const] : []),
+          ...(process.env.X_SSO_AUTH_URL ? ["x" as const] : []),
+        ]}
         footer={process.env.REGISTRATION_ENABLED === "true"
           ? <><Link href="/forgot-password">パスワードを忘れた方</Link><span aria-hidden="true"> ・ </span><Link href="/register">新しいアカウントを作成</Link></>
           : <Link href="/forgot-password">パスワードを忘れた方</Link>}

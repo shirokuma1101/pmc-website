@@ -6,13 +6,16 @@ import { DirectusError } from "@/lib/directus/client";
 import { assertSameOrigin } from "@/lib/security/csrf";
 import { AUTH_RATE_LIMITS, enforceAuthRateLimit } from "@/lib/security/rate-limit";
 import { passwordResetRequestSchema } from "@/lib/validation/schemas";
+import { turnstileTokenFrom, verifyTurnstile } from "@/lib/security/turnstile";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
   return withRouteErrors(async () => {
     assertSameOrigin(request);
-    const { email } = passwordResetRequestSchema.parse(await readJson(request));
+    const body = await readJson(request);
+    const { email } = passwordResetRequestSchema.parse(body);
+    await verifyTurnstile(request, turnstileTokenFrom(body), "password-reset-request");
     enforceAuthRateLimit(request, email, AUTH_RATE_LIMITS.passwordResetRequest);
     try {
       await requestPasswordResetDirectus(email, `${getPublicAppUrl()}/reset-password`);

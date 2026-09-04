@@ -6,6 +6,10 @@ vi.mock("@/lib/security/csrf", async (importOriginal) => ({
   assertSameOrigin: vi.fn(),
 }));
 vi.mock("@/lib/auth/provider", () => ({ registerDirectus: vi.fn() }));
+vi.mock("@/lib/security/turnstile", () => ({
+  turnstileTokenFrom: () => "test-token",
+  verifyTurnstile: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { registerDirectus } from "@/lib/auth/provider";
 import { POST } from "./route";
