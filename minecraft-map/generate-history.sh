@@ -10,6 +10,8 @@ center_x='0'
 center_z='0'
 snapshot_timezone='Asia/Tokyo'
 force='false'
+archive_schedule='daily'
+dry_run='false'
 
 usage() {
   cat <<'EOF'
@@ -23,6 +25,9 @@ Options:
   --center-x X                Radius center X (default: 0)
   --center-z Z                Radius center Z (default: 0)
   --timezone ZONE             Archive timestamp timezone (default: Asia/Tokyo)
+  --archive-schedule RULE     daily | weekly:0-6 (Sun-Sat) | monthly:1-31
+                             Select by archive modification date (default: daily)
+  --dry-run                   List selected archives without starting Docker
   --force                     Regenerate existing snapshot IDs
 EOF
 }
@@ -37,6 +42,8 @@ while (($#)); do
     --center-x) center_x="${2:?missing value}"; shift 2 ;;
     --center-z) center_z="${2:?missing value}"; shift 2 ;;
     --timezone) snapshot_timezone="${2:?missing value}"; shift 2 ;;
+    --archive-schedule) archive_schedule="${2:?missing value}"; shift 2 ;;
+    --dry-run) dry_run='true'; shift ;;
     --force) force='true'; shift ;;
     --help|-h) usage; exit 0 ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
@@ -45,6 +52,10 @@ done
 
 [[ -n "$archive_directory" ]] || { usage >&2; exit 2; }
 [[ "$render_mode" == 'full' || "$render_mode" == 'radius' ]] || { printf 'Invalid render mode: %s\n' "$render_mode" >&2; exit 2; }
+[[ "$archive_schedule" =~ ^(daily|weekly:[0-6]|monthly:([1-9]|[12][0-9]|3[01]))$ ]] || {
+  printf 'Invalid archive schedule: %s (use daily, weekly:0-6, or monthly:1-31)\n' "$archive_schedule" >&2
+  exit 2
+}
 
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 archive_root="$(cd -- "$archive_directory" && pwd)"
@@ -61,6 +72,13 @@ mapfile -t archives < <(find "$archive_root" -maxdepth 1 -type f -name '*.tar.gz
 
 for archive in "${archives[@]}"; do
   modified_epoch="$(stat -c '%Y' "$archive")"
+  archive_weekday="$(TZ="$snapshot_timezone" date -d "@$modified_epoch" '+%w')"
+  archive_day="$(TZ="$snapshot_timezone" date -d "@$modified_epoch" '+%-d')"
+  if [[ "$archive_schedule" == weekly:* && "$archive_weekday" != "${archive_schedule#weekly:}" ]] ||
+     [[ "$archive_schedule" == monthly:* && "$archive_day" != "${archive_schedule#monthly:}" ]]; then
+    printf '[map-history] Skip date filter %s (%s)\n' "$archive_schedule" "$(basename "$archive")"
+    continue
+  fi
   snapshot_id="$(TZ="$snapshot_timezone" date -d "@$modified_epoch" '+%Y%m%dT%H%M%S')"
   snapshot_label="$(TZ="$snapshot_timezone" date -d "@$modified_epoch" '+%Y/%m/%d %H:%M')"
   snapshot_created_at="$(TZ="$snapshot_timezone" date -d "@$modified_epoch" '+%Y-%m-%dT%H:%M:%S%:z')"
@@ -72,6 +90,10 @@ for archive in "${archives[@]}"; do
   fi
 
   printf '[map-history] Generate %s / %s from %s\n' "$world_id" "$snapshot_label" "$(basename "$archive")"
+  if [[ "$dry_run" == 'true' ]]; then
+    printf '[map-history] Dry run: no conversion or rendering performed\n'
+    continue
+  fi
   MAP_GENERATOR_UID="$(id -u)" \
   MAP_GENERATOR_GID="$(id -g)" \
   MAP_ARCHIVE_DIRECTORY="$archive_root" \

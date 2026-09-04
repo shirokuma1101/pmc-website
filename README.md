@@ -222,21 +222,43 @@ cd "$project_root" || exit 1
 run_world() {
   world_id="$1"
   world_label="$2"
-  archive_directory="$3"
+  archive_schedule="$3"
+  archive_directory="$4"
 
   echo "[pmc-map-update] Start: $world_label"
   /usr/bin/bash minecraft-map/generate-history.sh \
     --archive-directory "$archive_directory" \
     --world-id "$world_id" \
+    --archive-schedule "$archive_schedule" \
     --world-label "$world_label" || failed=1
 }
 
-run_world 6c1044f4 'PMC6.0' /mnt/pelican_backups/6c1044f4-*
-run_world ad9581c5 'PMC2.0' /mnt/pelican_backups/ad9581c5-*
-run_world c5227293 'PMC' /mnt/pelican_backups/c5227293-*
+run_world 6c1044f4 'PMC6.0' daily /mnt/pelican_backups/6c1044f4-*
+run_world ad9581c5 'PMC2.0' monthly:1 /mnt/pelican_backups/ad9581c5-*
+run_world c5227293 'PMC' weekly:0 /mnt/pelican_backups/c5227293-*
 
 exit "$failed"
 ```
+
+timerは毎日起動したまま、バックアップの**更新日時**を基準にワールドごとの対象を選別します。
+`daily`は全日、`monthly:1`は毎月1日、`weekly:0`は日曜のみです。
+曜日は0（日曜）〜6（土曜）、月の日は1〜31を指定できます。既定の判定タイムゾーンは
+`Asia/Tokyo`で、`--timezone`で変更できます。
+該当日のファイルがなければ代わりの日は処理しません。同日に複数ファイルがあればすべて対象です。
+`--force`でも日付条件は解除されず、既存成果物も削除しません。
+既に運用中の場合は、リポジトリ更新に加えて`/usr/local/bin/pmc-map-update`も上記に更新してください。
+
+生成せずに対象を確認する例（既存スナップショットは通常どおりスキップ）:
+
+```bash
+bash minecraft-map/generate-history.sh \
+  --archive-directory /mnt/pelican_backups/ad9581c5-* \
+  --world-id ad9581c5 --world-label 'PMC2.0' \
+  --archive-schedule monthly:1 --dry-run
+```
+
+入力形式は従来どおり`.tar.gz`です。この日付選別オプションはUbuntu用の
+`generate-history.sh`に対応し、PowerShell版には適用されません。
 
 実行権限を設定し、一度手動で確認します。出力済みのスナップショットは
 `generate-history.sh`によってスキップされます。
