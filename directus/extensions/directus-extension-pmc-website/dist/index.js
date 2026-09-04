@@ -326,6 +326,7 @@ const ARTICLE_FIELDS = [
   "created_at",
   "updated_at",
   "published_at",
+  "event_at",
   "review_comment",
   "author.id",
   "author.profile.id",
@@ -342,6 +343,7 @@ const ARTICLE_FIELDS = [
   "published_version_thumbnail.id",
   "published_version_thumbnail.description",
   "published_version_thumbnail.type",
+  "published_version_event_at",
 ];
 const REVIEW_FIELDS = [
   "id",
@@ -833,6 +835,7 @@ export function publicArticleView(article) {
     tags: article.published_version_tags,
     body: article.published_version_body,
     thumbnail: article.published_version_thumbnail,
+    event_at: article.published_version_event_at,
     status: "published",
   };
 }
@@ -856,6 +859,7 @@ function publishedVersionSnapshot(article) {
     published_version_tags: article.tags ?? [],
     published_version_body: article.body ?? "",
     published_version_thumbnail: article.thumbnail ?? null,
+    published_version_event_at: article.event_at ?? null,
   };
 }
 
@@ -866,6 +870,7 @@ const CLEAR_PUBLISHED_VERSION = {
   published_version_tags: null,
   published_version_body: null,
   published_version_thumbnail: null,
+  published_version_event_at: null,
 };
 
 function uuid(value, field, { nullable = false } = {}) {
@@ -999,7 +1004,7 @@ function postInput(request, { partial = false } = {}) {
 
 function articleInput(request, { partial = false } = {}) {
   const body = objectBody(request);
-  strictKeys(body, new Set(["title", "slug", "summary", "tags", "body", "author_id", "created_at", "published_at"]));
+  strictKeys(body, new Set(["title", "slug", "summary", "tags", "body", "event_at", "author_id", "created_at", "published_at"]));
   const title = body.title === undefined && partial
     ? undefined
     : requiredText(body.title, "title", 160);
@@ -1022,15 +1027,18 @@ function articleInput(request, { partial = false } = {}) {
   const author = body.author_id === undefined ? undefined : uuid(body.author_id, "author_id");
   const createdAt = body.created_at === undefined ? undefined : timestamp(body.created_at, "created_at");
   const publishedAt = body.published_at === undefined ? undefined : timestamp(body.published_at, "published_at");
+  const eventAt = body.event_at === undefined
+    ? undefined
+    : body.event_at === null ? null : timestamp(body.event_at, "event_at");
   if ((author !== undefined || createdAt !== undefined || publishedAt !== undefined)
     && request.accountability?.admin !== true) {
     throw new EndpointError(403, "ADMIN_REQUIRED", "Only administrators can change article metadata");
   }
-  if (partial && [title, slug, summary, tags, articleBody, thumbnail, author, createdAt, publishedAt]
+  if (partial && [title, slug, summary, tags, articleBody, thumbnail, eventAt, author, createdAt, publishedAt]
     .every((value) => value === undefined)) {
     throw new EndpointError(400, "INVALID_PAYLOAD", "At least one editable field is required");
   }
-  return { title, slug, summary, tags, body: articleBody, thumbnail, author, createdAt, publishedAt };
+  return { title, slug, summary, tags, body: articleBody, thumbnail, event_at: eventAt, author, createdAt, publishedAt };
 }
 
 function profileInput(request) {
@@ -1915,15 +1923,32 @@ export default {
         schema,
         accountability: null,
       });
+      let publishedOrder = null;
+      if (scope === "published") {
+        const orderedRows = await count.clone()
+          .clearSelect()
+          .select("id")
+          .orderByRaw(`CASE
+            WHEN published_version_title IS NOT NULL
+              THEN COALESCE(published_version_event_at, published_at, created_at)
+            ELSE COALESCE(event_at, published_at, created_at)
+          END DESC`)
+          .limit(limit)
+          .offset(offset);
+        publishedOrder = orderedRows.map((row) => String(row.id));
+        filter.id = { _in: publishedOrder.length ? publishedOrder : ["00000000-0000-0000-0000-000000000000"] };
+      }
       const data = await articles.readByQuery({
         fields: ARTICLE_FIELDS,
         filter,
-        sort: ["-published_at", "-created_at"],
-        limit,
-        offset,
+        sort: scope === "published" ? undefined : ["-published_at", "-created_at"],
+        limit: scope === "published" ? publishedOrder.length : limit,
+        offset: scope === "published" ? 0 : offset,
       });
       const totalRow = await count.count("id", { as: "count" }).first();
-      const visibleData = scope === "published" ? data.map(publicArticleView) : data;
+      const visibleData = scope === "published"
+        ? data.sort((left, right) => publishedOrder.indexOf(String(left.id)) - publishedOrder.indexOf(String(right.id))).map(publicArticleView)
+        : data;
       const enriched = await withLikeState(database, visibleData, "article_likes", "article", request.accountability?.user);
       response.json({
         data: enriched,
@@ -2110,6 +2135,7 @@ export default {
         tags: input.tags,
         body: input.body,
         thumbnail: input.thumbnail ?? null,
+        event_at: input.event_at ?? null,
         status: "draft",
       });
       if (input.createdAt || input.publishedAt) {
@@ -2170,6 +2196,7 @@ export default {
           ...(input.author !== undefined ? { author: input.author } : {}),
           ...(input.createdAt !== undefined ? { created_at: input.createdAt } : {}),
           ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
+          updated_at: new Date(),
         });
       }
       response.status(204).send();
@@ -2204,7 +2231,7 @@ export default {
       const userId = currentUser(request);
       const id = routeId(request);
       const article = await database("articles")
-        .select("id", "status", "published_version_title")
+        .select("id", "status", "published_at", "published_version_title")
         .where({ id })
         .first();
       if (!article || (article.status !== "published" && article.published_version_title == null)) {
@@ -2260,7 +2287,7 @@ export default {
         throw new EndpointError(400, "INVALID_PAYLOAD", "A rejection comment is required");
       }
       const article = await database("articles")
-        .select("id", "status", "published_version_title")
+        .select("id", "status", "published_at", "published_version_title")
         .where({ id })
         .first();
       if (!article) throw new EndpointError(404, "RECORD_NOT_FOUND", "The requested article was not found");
@@ -2275,7 +2302,7 @@ export default {
       await database.transaction(async (transaction) => {
         await articles.fork({ knex: transaction }).updateOne(id, {
           status: approved ? "published" : "rejected",
-          ...(approved ? { published_at: new Date(), ...CLEAR_PUBLISHED_VERSION } : {}),
+          ...(approved ? { published_at: article.published_at ?? new Date(), ...CLEAR_PUBLISHED_VERSION } : {}),
           review_comment: comment ?? null,
         });
         await reviews.fork({ knex: transaction }).createOne({

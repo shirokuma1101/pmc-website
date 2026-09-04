@@ -77,6 +77,8 @@ const revision = {
   published_version_tags: ["Published"],
   published_version_body: "公開中の本文",
   published_version_thumbnail: { id: "published-thumbnail" },
+  event_at: "2026-09-05T09:00:00.000Z",
+  published_version_event_at: "2026-08-01T09:00:00.000Z",
 };
 assert.deepEqual(publicArticleView(revision), {
   ...revision,
@@ -86,6 +88,7 @@ assert.deepEqual(publicArticleView(revision), {
   tags: ["Published"],
   body: "公開中の本文",
   thumbnail: { id: "published-thumbnail" },
+  event_at: "2026-08-01T09:00:00.000Z",
   status: "published",
 });
 assert.equal(publicArticleView({ id: "draft", status: "draft" }).status, "draft");

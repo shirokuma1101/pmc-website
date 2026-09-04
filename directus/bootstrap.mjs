@@ -303,6 +303,16 @@ const collectionDefinitions = [
         schema: { is_nullable: true },
       },
       {
+        field: "event_at",
+        type: "timestamp",
+        meta: {
+          interface: "datetime",
+          display: "datetime",
+          note: "Optional date and time of the event described by the article",
+        },
+        schema: { is_nullable: true },
+      },
+      {
         field: "review_comment",
         type: "text",
         meta: { interface: "input-multiline", readonly: true },
@@ -339,6 +349,12 @@ const collectionDefinitions = [
         schema: { is_nullable: true },
       },
       manyToOne("published_version_thumbnail", { hidden: true }),
+      {
+        field: "published_version_event_at",
+        type: "timestamp",
+        meta: { interface: "datetime", hidden: true, readonly: true },
+        schema: { is_nullable: true },
+      },
     ],
   },
   {

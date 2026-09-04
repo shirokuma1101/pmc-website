@@ -21,6 +21,12 @@ describe("API input schemas", () => {
     expect(updateArticleSchema.safeParse({ status: "published" }).success).toBe(false);
   });
 
+  it("accepts an optional event timestamp but rejects invalid timestamps", () => {
+    expect(updateArticleSchema.safeParse({ eventAt: "2026-09-05T12:30:00+09:00" }).success).toBe(true);
+    expect(updateArticleSchema.safeParse({ eventAt: null }).success).toBe(true);
+    expect(updateArticleSchema.safeParse({ eventAt: "2026-09-05 12:30" }).success).toBe(false);
+  });
+
   it("normalizes article tags and enforces tag limits", () => {
     expect(updateArticleSchema.parse({ tags: [" Minecraft ", "建築"] }).tags).toEqual(["Minecraft", "建築"]);
     expect(updateArticleSchema.parse({ tags: ["Event", "event"] }).tags).toEqual(["Event"]);

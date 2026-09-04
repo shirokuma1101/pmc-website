@@ -24,6 +24,7 @@ type ArticleDraftSnapshot = {
   authorId: string;
   createdAt: string;
   publishedAt: string;
+  eventAt: string;
 };
 
 export interface ArticleFormProps {
@@ -70,6 +71,7 @@ export function ArticleForm({
   const [authorId, setAuthorId] = useState(article?.author.id ?? currentUserId ?? authorOptions[0]?.id ?? "");
   const [createdAt, setCreatedAt] = useState(dateTimeLocalValue(article?.createdAt));
   const [publishedAt, setPublishedAt] = useState(dateTimeLocalValue(article?.publishedAt));
+  const [eventAt, setEventAt] = useState(dateTimeLocalValue(article?.eventAt));
   const [savedSnapshot, setSavedSnapshot] = useState<ArticleDraftSnapshot>({
     title: article?.title ?? "",
     summary: article?.summary ?? "",
@@ -78,13 +80,14 @@ export function ArticleForm({
     authorId: article?.author.id ?? currentUserId ?? authorOptions[0]?.id ?? "",
     createdAt: dateTimeLocalValue(article?.createdAt),
     publishedAt: dateTimeLocalValue(article?.publishedAt),
+    eventAt: dateTimeLocalValue(article?.eventAt),
   });
 
   const editingPublished = article?.status === "published" && allowPublishedEdit;
   const requiresPublishedReview = editingPublished && !adminMode;
   const locked = (article?.status === "pending" && !adminMode)
     || (article?.status === "published" && !allowPublishedEdit);
-  const currentSnapshot: ArticleDraftSnapshot = { title, summary, tags, body, authorId, createdAt, publishedAt };
+  const currentSnapshot: ArticleDraftSnapshot = { title, summary, tags, body, authorId, createdAt, publishedAt, eventAt };
   const isDirty = !locked && Object.entries(currentSnapshot)
     .some(([field, value]) => savedSnapshot[field as keyof ArticleDraftSnapshot] !== value);
   useUnsavedChangesWarning(isDirty);
@@ -106,6 +109,7 @@ export function ArticleForm({
     formData.append("summary", summary.trim());
     formData.append("tags", tags);
     formData.append("body", body);
+    formData.append("eventAt", eventAt ? new Date(eventAt).toISOString() : "");
     if (adminMode) {
       if (authorId) formData.append("authorId", authorId);
       if (createdAt) formData.append("createdAt", new Date(createdAt).toISOString());
@@ -266,6 +270,18 @@ export function ArticleForm({
           autoComplete="off"
           onChange={(event) => setTags(event.target.value)}
         />
+
+        <label className="field">
+          <span className="field__label">イベント日時（任意）</span>
+          <input
+            className="input"
+            name="eventAt"
+            type="datetime-local"
+            value={eventAt}
+            onChange={(event) => setEventAt(event.target.value)}
+          />
+          <span className="field__hint">記事で扱うイベントや出来事の日時です。一覧ではこの日時が優先されます。</span>
+        </label>
 
         <label className="field">
           <span className="field__label">概要（任意）</span>

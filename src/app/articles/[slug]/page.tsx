@@ -14,6 +14,8 @@ function formatDate(value?: string) {
     year: "numeric",
     month: "long",
     day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
     timeZone: "Asia/Tokyo",
   }).format(new Date(value));
 }
@@ -87,11 +89,23 @@ export default async function ArticleDetailPage({
               <span><strong>{article.author.displayName}</strong><small>著者</small></span>
             </Link>
             <span className="article-detail__date">
-              <small>公開日</small>
+              <small>投稿日時</small>
               <time dateTime={article.publishedAt ?? article.createdAt}>
                 {formatDate(article.publishedAt ?? article.createdAt)}
               </time>
             </span>
+            {article.eventAt ? (
+              <span className="article-detail__date">
+                <small>イベント日時</small>
+                <time dateTime={article.eventAt}>{formatDate(article.eventAt)}</time>
+              </span>
+            ) : null}
+            {article.updatedAt ? (
+              <span className="article-detail__date">
+                <small>更新日時</small>
+                <time dateTime={article.updatedAt}>{formatDate(article.updatedAt)}</time>
+              </span>
+            ) : null}
             {canEdit ? (
               <Link className="button button--secondary button--sm article-detail__edit-link" href={`/article/${article.id}/edit`}>
                 この記事を編集

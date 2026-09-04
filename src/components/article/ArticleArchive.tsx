@@ -35,7 +35,8 @@ const displayDateFormatter = new Intl.DateTimeFormat("ja-JP", {
 });
 
 function articleDate(article: Article) {
-  const value = article.publishedAt ?? article.updatedAt ?? article.createdAt;
+  const value = article.eventAt ?? article.publishedAt ?? article.createdAt;
+  if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
@@ -106,7 +107,7 @@ export function ArticleArchive({ articles }: { articles: Article[] }) {
                           <Link href={`/articles/${article.slug}`}>{article.title}</Link>
                         </h4>
                         <p>
-                          <time dateTime={article.publishedAt ?? article.updatedAt ?? article.createdAt}>
+                          <time dateTime={article.eventAt ?? article.publishedAt ?? article.createdAt}>
                             {displayDateFormatter.format(date)}
                           </time>
                           <span aria-hidden="true">・</span>

@@ -84,6 +84,7 @@ export interface DirectusArticleRaw {
   created_at: string;
   updated_at?: string | null;
   published_at?: string | null;
+  event_at?: string | null;
   review_comment?: string | null;
   like_count?: number;
   liked_by_me?: boolean;

@@ -15,3 +15,12 @@ describe("Directus profile validation snapshot", () => {
     }
   });
 });
+
+describe("Directus article date snapshot", () => {
+  it("defines editable event time and protected publication/update times", () => {
+    expect(snapshot).toMatch(/field: event_at[\s\S]*?readonly: false/);
+    expect(snapshot).toMatch(/field: published_at[\s\S]*?readonly: true/);
+    expect(snapshot).toMatch(/field: updated_at[\s\S]*?date-updated/);
+    expect(snapshot).toContain("field: published_version_event_at");
+  });
+});

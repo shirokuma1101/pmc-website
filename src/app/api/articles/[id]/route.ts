@@ -51,6 +51,9 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
           ? { tags: (formString(form, "tags") ?? "").split(",").map((tag) => tag.trim()).filter(Boolean) }
           : {}),
         ...(form.has("body") ? { body: formString(form, "body") ?? "" } : {}),
+        ...(form.has("eventAt")
+          ? { eventAt: formString(form, "eventAt") || null }
+          : {}),
       };
       if (session.user.isAdmin) {
         adminInput = adminArticleFieldsSchema.parse({
@@ -67,6 +70,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
         ...(body.summary !== undefined ? { summary: body.summary } : {}),
         ...(body.tags !== undefined ? { tags: body.tags } : {}),
         ...(body.body !== undefined ? { body: body.body } : {}),
+        ...(body.eventAt !== undefined ? { eventAt: body.eventAt } : {}),
       } : body;
       if (session.user.isAdmin) {
         adminInput = adminArticleFieldsSchema.parse({

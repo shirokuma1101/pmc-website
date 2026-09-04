@@ -113,6 +113,7 @@ export function mapArticle(raw: DirectusArticleRaw): Article {
     createdAt: raw.created_at,
     ...(raw.updated_at ? { updatedAt: raw.updated_at } : {}),
     ...(raw.published_at ? { publishedAt: raw.published_at } : {}),
+    ...(raw.event_at ? { eventAt: raw.event_at } : {}),
     ...(raw.review_comment ? { reviewComment: raw.review_comment } : {}),
     likeCount: raw.like_count ?? 0,
     likedByMe: raw.liked_by_me ?? false,

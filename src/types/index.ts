@@ -102,6 +102,7 @@ export interface Article {
   createdAt: string;
   updatedAt?: string;
   publishedAt?: string;
+  eventAt?: string;
   reviewComment?: string;
   likeCount: number;
   likedByMe: boolean;

@@ -1081,6 +1081,46 @@ fields:
       foreign_key_table: null
       foreign_key_column: null
   - collection: articles
+    field: event_at
+    type: timestamp
+    meta:
+      collection: articles
+      conditions: null
+      display: datetime
+      display_options: null
+      field: event_at
+      group: null
+      hidden: false
+      interface: datetime
+      note: Optional date and time of the event described by the article
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 12
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: event_at
+      table: articles
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: articles
     field: review_comment
     type: text
     meta:
@@ -1363,6 +1403,46 @@ fields:
       has_auto_increment: false
       foreign_key_table: directus_files
       foreign_key_column: id
+  - collection: articles
+    field: published_version_event_at
+    type: timestamp
+    meta:
+      collection: articles
+      conditions: null
+      display: null
+      display_options: null
+      field: published_version_event_at
+      group: null
+      hidden: true
+      interface: datetime
+      note: null
+      options: null
+      readonly: true
+      required: false
+      searchable: true
+      sort: 19
+      special: null
+      translations: null
+      validation: null
+      validation_message: null
+      width: full
+    schema:
+      name: published_version_event_at
+      table: articles
+      data_type: timestamp with time zone
+      default_value: null
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: true
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
   - collection: articles
     field: reviews
     type: alias
