@@ -7,6 +7,7 @@ vi.mock("@/lib/security/csrf", async (importOriginal) => ({
 }));
 vi.mock("@/lib/auth/provider", () => ({ registerDirectus: vi.fn() }));
 vi.mock("@/lib/security/turnstile", () => ({
+  turnstileProtectedInputFrom: (body: Record<string, unknown>) => body,
   turnstileTokenFrom: () => "test-token",
   verifyTurnstile: vi.fn().mockResolvedValue(undefined),
 }));
