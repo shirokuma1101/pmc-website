@@ -5,6 +5,7 @@ import { ApiRouteError } from "@/lib/api/route";
 
 const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const MAX_TOKEN_LENGTH = 2048;
+const ALWAYS_PASS_TEST_SECRET = "1x0000000000000000000000000000000AA";
 
 export type TurnstileAction =
   | "login"
@@ -15,6 +16,13 @@ export type TurnstileAction =
 
 export function turnstileTokenFrom(body: unknown): unknown {
   return body && typeof body === "object" ? (body as Record<string, unknown>).turnstileToken : undefined;
+}
+
+export function turnstileProtectedInputFrom(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const input = { ...body as Record<string, unknown> };
+  delete input.turnstileToken;
+  return input;
 }
 
 interface SiteverifyResponse {
@@ -70,5 +78,7 @@ export async function verifyTurnstile(
   } catch {
     throw verificationError();
   }
-  if (result.success !== true || result.action !== expectedAction) throw verificationError();
+  const actionMatches = result.action === expectedAction
+    || (secret === ALWAYS_PASS_TEST_SECRET && result.action === undefined);
+  if (result.success !== true || !actionMatches) throw verificationError();
 }
