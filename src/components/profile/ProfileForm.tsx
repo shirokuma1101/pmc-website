@@ -195,7 +195,7 @@ export function ProfileForm({
 
       <fieldset className="profile-form__skin-field">
         <legend>Minecraftスキン</legend>
-        <p className="field__hint">64×64または64×32のPNG。Capeには対応していません。</p>
+        <p className="field__hint">64×64、64×32、または128×128のPNG。Capeには対応していません。</p>
         <div className="profile-form__skin-row">
           <label className="file-button" htmlFor="profile-minecraft-skin">PNGを選択</label>
           <span>{minecraftSkinName}</span>

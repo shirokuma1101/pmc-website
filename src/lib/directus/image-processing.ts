@@ -31,8 +31,11 @@ export async function sanitizeMinecraftSkin(file: File): Promise<SanitizedImage>
   try {
     const image = sharp(input, { failOn: "error", limitInputPixels: maximumInputPixels(), sequentialRead: true });
     const metadata = await image.metadata();
-    if (metadata.format !== "png" || metadata.width !== 64 || (metadata.height !== 64 && metadata.height !== 32) || (metadata.pages ?? 1) !== 1) {
-      throw new ApiRouteError("Minecraft skin must be a valid 64×64 or 64×32 PNG image", 400, "INVALID_SKIN_DIMENSIONS");
+    const hasSupportedDimensions =
+      (metadata.width === 64 && (metadata.height === 64 || metadata.height === 32)) ||
+      (metadata.width === 128 && metadata.height === 128);
+    if (metadata.format !== "png" || !hasSupportedDimensions || (metadata.pages ?? 1) !== 1) {
+      throw new ApiRouteError("Minecraft skin must be a valid 64×64, 64×32, or 128×128 PNG image", 400, "INVALID_SKIN_DIMENSIONS");
     }
     const output = await image.png({ compressionLevel: 9 }).toBuffer();
     const bytes = new Uint8Array(output.length);

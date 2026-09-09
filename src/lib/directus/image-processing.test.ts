@@ -151,14 +151,14 @@ describe("sanitizeImageUpload", () => {
 });
 
 describe("sanitizeMinecraftSkin", () => {
-  it.each([64, 32])("accepts a real 64×%i PNG", async (height) => {
-    const source = await sharp({ create: { width: 64, height, channels: 4, background: { r: 20, g: 60, b: 100, alpha: 1 } } }).png().toBuffer();
+  it.each([[64, 64], [64, 32], [128, 128]])("accepts a real %i×%i PNG", async (width, height) => {
+    const source = await sharp({ create: { width, height, channels: 4, background: { r: 20, g: 60, b: 100, alpha: 1 } } }).png().toBuffer();
     const result = await sanitizeMinecraftSkin(uploadedFile(source, "image/png", "skin.png"));
-    await expect(sharp(Buffer.from(result.bytes)).metadata()).resolves.toMatchObject({ format: "png", width: 64, height });
+    await expect(sharp(Buffer.from(result.bytes)).metadata()).resolves.toMatchObject({ format: "png", width, height });
   });
 
   it("rejects PNG files with unsupported dimensions", async () => {
-    const source = await sharp({ create: { width: 128, height: 128, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();
+    const source = await sharp({ create: { width: 128, height: 64, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();
     await expect(sanitizeMinecraftSkin(uploadedFile(source, "image/png", "skin.png"))).rejects.toMatchObject({ code: "INVALID_SKIN_DIMENSIONS", status: 400 });
   });
 
