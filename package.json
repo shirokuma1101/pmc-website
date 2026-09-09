@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "leaflet": "^1.9.4",
-    "next": "16.3.1",
+    "next": "16.3.4",
     "qrcode": "1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -51,7 +51,7 @@
     "rehype-sanitize": "6.0.0",
     "remark-gfm": "4.0.1",
     "server-only": "0.0.1",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "skinview3d": "3.4.1",
     "zod": "4.4.3"
   },
