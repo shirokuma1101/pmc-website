@@ -645,6 +645,16 @@ function effectiveSupporterTier(entitlements, now = new Date()) {
   return effective;
 }
 
+function addUtcMonths(date, months) {
+  const result = new Date(date);
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
+
 function ensureProfileEntitlementsTable(database) {
   profileEntitlementsTablePromise ??= (async () => {
     await ensureOrganizationMembersTable(database);
@@ -670,6 +680,35 @@ function ensureProfileEntitlementsTable(database) {
     }
   })();
   return profileEntitlementsTablePromise;
+}
+
+let supporterPaymentsTablePromise;
+function ensureSupporterPaymentsTable(database) {
+  supporterPaymentsTablePromise ??= (async () => {
+    await ensureProfileEntitlementsTable(database);
+    if (!await database.schema.hasTable("supporter_payments")) {
+      await database.schema.createTable("supporter_payments", (table) => {
+        table.uuid("id").primary();
+        table.string("stripe_event_id", 255).notNullable().unique();
+        table.string("stripe_object_id", 255).notNullable().index();
+        table.string("stripe_customer_id", 255).nullable().index();
+        table.uuid("user").nullable().references("id").inTable("directus_users").onDelete("SET NULL").index();
+        table.uuid("member").nullable().references("id").inTable("organization_members").onDelete("SET NULL").index();
+        table.string("frequency", 16).notNullable();
+        table.string("tier", 32).notNullable();
+        table.integer("amount").nullable();
+        table.integer("quantity").notNullable().defaultTo(1);
+        table.string("currency", 3).nullable();
+        table.string("status", 24).notNullable();
+        table.boolean("livemode").notNullable();
+        table.timestamp("created_at").notNullable().defaultTo(database.fn.now());
+        table.timestamp("updated_at").nullable();
+      });
+    }
+    if (!await database.schema.hasColumn("supporter_payments", "stripe_customer_id")) await database.schema.alterTable("supporter_payments", (table) => table.string("stripe_customer_id", 255).nullable().index());
+    if (!await database.schema.hasColumn("supporter_payments", "quantity")) await database.schema.alterTable("supporter_payments", (table) => table.integer("quantity").notNullable().defaultTo(1));
+  })();
+  return supporterPaymentsTablePromise;
 }
 
 function organizationLayoutInput(request) {
@@ -1120,6 +1159,59 @@ export default {
   handler: (router, context) => {
     const { database, getSchema, services, logger } = context;
     const { AssetsService, FilesService, ItemsService, UsersService } = services;
+
+    router.post("/support-events", route(async (request, response) => {
+      const expectedSecret = process.env.STRIPE_INTERNAL_SECRET;
+      if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
+      const body = objectBody(request);
+      strictKeys(body, new Set(["id", "type", "livemode", "object"]));
+      const eventId = requiredText(body.id, "id", 255);
+      const eventType = requiredText(body.type, "type", 80);
+      if (typeof body.livemode !== "boolean" || !body.object || typeof body.object !== "object" || Array.isArray(body.object)) throw new EndpointError(400, "INVALID_PAYLOAD", "Invalid Stripe event");
+      await ensureSupporterPaymentsTable(database);
+      if (await database("supporter_payments").where({ stripe_event_id: eventId }).first()) { response.status(204).send(); return; }
+
+      const object = body.object;
+      const metadata = object.metadata && typeof object.metadata === "object" ? object.metadata : {};
+      const userId = typeof metadata.user_id === "string" && UUID_PATTERN.test(metadata.user_id) ? metadata.user_id : null;
+      const member = userId ? await database("organization_members").select("id").where({ user: userId }).first() : null;
+      const frequency = metadata.frequency === "monthly" || eventType.startsWith("customer.subscription") ? "monthly" : "one_time";
+      const tier = SUPPORTER_TIER_PRIORITY.has(metadata.tier) ? metadata.tier : frequency === "one_time" ? "supporter" : null;
+      if (!tier) throw new EndpointError(400, "INVALID_PAYLOAD", "Supporter tier is missing");
+      const quantity = frequency === "one_time" ? Number(metadata.quantity) : 1;
+      if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 12) throw new EndpointError(400, "INVALID_PAYLOAD", "Support quantity is invalid");
+      const active = eventType === "checkout.session.completed"
+        ? object.payment_status === "paid" || object.status === "complete"
+        : eventType === "customer.subscription.updated" && ["active", "trialing"].includes(object.status);
+      const status = eventType === "customer.subscription.deleted" ? "revoked" : active ? "active" : String(object.status ?? "pending").slice(0, 24);
+      const externalReference = String(object.subscription ?? object.id ?? "").slice(0, 255);
+
+      await database.transaction(async (transaction) => {
+        await transaction("supporter_payments").insert({ id: randomUUID(), stripe_event_id: eventId, stripe_object_id: String(object.id ?? eventId).slice(0, 255), stripe_customer_id: typeof object.customer === "string" ? object.customer.slice(0, 255) : null, user: userId, member: member?.id ?? null, frequency, tier, amount: Number.isSafeInteger(object.amount_total) ? object.amount_total : null, quantity, currency: typeof object.currency === "string" ? object.currency.slice(0, 3) : null, status, livemode: body.livemode, created_at: new Date(), updated_at: new Date() });
+        if (member && (frequency === "monthly" || active)) {
+          const existing = await transaction("profile_entitlements").where({ member: member.id, feature: "profile_highlight", source: "stripe" }).first();
+          let validUntil = null;
+          if (frequency === "one_time" && active) {
+            const now = new Date();
+            const currentExpiry = existing?.status === "active" && existing.valid_until ? new Date(existing.valid_until) : null;
+            validUntil = addUtcMonths(currentExpiry && currentExpiry > now ? currentExpiry : now, quantity);
+          }
+          const record = { status: active ? "active" : "revoked", variant: tier, valid_until: validUntil, external_reference: externalReference, updated_at: new Date() };
+          if (existing) await transaction("profile_entitlements").where({ id: existing.id }).update(record);
+          else await transaction("profile_entitlements").insert({ id: randomUUID(), member: member.id, feature: "profile_highlight", source: "stripe", ...record, created_at: new Date() });
+        }
+      });
+      response.status(204).send();
+    }));
+
+    router.get("/support-customer/:id", route(async (request, response) => {
+      const expectedSecret = process.env.STRIPE_INTERNAL_SECRET;
+      if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
+      await ensureSupporterPaymentsTable(database);
+      const userId = routeId(request);
+      const payment = await database("supporter_payments").select("stripe_customer_id").where({ user: userId, frequency: "monthly" }).whereNotNull("stripe_customer_id").orderBy("created_at", "desc").first();
+      response.json({ data: { customer: payment?.stripe_customer_id ?? null } });
+    }));
 
     router.post("/register", route(async (request, response) => {
       if (process.env.REGISTRATION_ENABLED !== "true") {

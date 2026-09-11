@@ -1,4 +1,4 @@
-/* Donation */
+/* Supporter checkout */
 .donation-page {
   display: grid;
   gap: clamp(2.5rem, 7vw, 5rem);
@@ -124,10 +124,25 @@
   font-weight: 700;
 }
 
+.support-plan-lead {
+  margin: -0.55rem 0 0;
+  color: var(--color-ink-faint);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
 .donation-amounts {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.65rem;
+}
+
+.donation-amounts--plans {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.donation-amounts--one-time {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .donation-amount {
@@ -142,10 +157,14 @@
   opacity: 0;
 }
 
-.donation-amount span {
+.donation-amount > .donation-amount__surface {
+  position: relative;
   display: grid;
-  min-height: 3.5rem;
-  place-items: center;
+  min-height: 9.4rem;
+  align-content: center;
+  justify-items: start;
+  gap: 0.3rem;
+  padding: 1.1rem;
   color: var(--color-ink-soft);
   background: var(--color-surface-soft);
   border: 1px solid var(--color-line);
@@ -154,21 +173,71 @@
   transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
-.donation-amount:hover span {
+.donation-amount:hover > .donation-amount__surface {
   border-color: var(--color-primary);
   transform: translateY(-1px);
 }
 
-.donation-amount input:focus-visible + span {
+.donation-amount input:focus-visible + .donation-amount__surface {
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-.donation-amount input:checked + span {
+.donation-amount input:checked + .donation-amount__surface {
   color: var(--color-primary-strong);
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
   box-shadow: inset 0 0 0 1px var(--color-primary);
+}
+
+.support-plan strong {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+}
+
+.support-plan__price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  color: var(--color-primary-strong);
+}
+
+.support-plan__price b {
+  font-family: var(--font-sans);
+  font-size: 1.45rem;
+  letter-spacing: -0.03em;
+}
+
+.support-plan__price small,
+.support-plan__description {
+  color: var(--color-ink-faint);
+  font-size: 0.7rem;
+}
+
+.support-plan__check {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  display: grid;
+  width: 1.3rem;
+  height: 1.3rem;
+  place-items: center;
+  color: transparent;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  font-size: 0.72rem;
+}
+
+.donation-amount input:checked + .donation-amount__surface .support-plan__check {
+  color: #fff;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.support-plan--one-time > .donation-amount__surface {
+  min-height: 7.8rem;
 }
 
 .donation-custom-amount {
@@ -226,6 +295,11 @@
   outline: 0;
   font: inherit;
   font-weight: 700;
+}
+
+.donation-custom-amount__input > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .donation-custom-amount__input input:disabled {
@@ -379,6 +453,15 @@
 @media (max-width: 680px) {
   .donation-amounts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .donation-amounts--plans,
+  .donation-amounts--one-time {
+    grid-template-columns: 1fr;
+  }
+
+  .donation-amount > .donation-amount__surface {
+    min-height: 7.6rem;
   }
 
   .donation-usage__grid {

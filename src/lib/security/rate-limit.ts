@@ -12,7 +12,14 @@ interface RateLimitState {
 }
 
 export interface AuthRateLimitPolicy {
-  action: "login" | "registration" | "sso" | "tfa" | "password-reset-request" | "password-reset";
+  action:
+    | "login"
+    | "registration"
+    | "sso"
+    | "tfa"
+    | "password-reset-request"
+    | "password-reset"
+    | "support-checkout";
   accountLimit: number;
   ipLimit: number;
   windowMs: number;
@@ -33,6 +40,12 @@ export const AUTH_RATE_LIMITS = {
     action: "password-reset",
     accountLimit: 10,
     ipLimit: 30,
+    windowMs: 15 * 60_000,
+  },
+  supportCheckout: {
+    action: "support-checkout",
+    accountLimit: 10,
+    ipLimit: 20,
     windowMs: 15 * 60_000,
   },
 } as const satisfies Record<string, AuthRateLimitPolicy>;

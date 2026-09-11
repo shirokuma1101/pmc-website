@@ -25,6 +25,7 @@ const publicNavigation = [
   { href: "/map", label: "マップ" },
   { href: "/organization", label: "メンバー" },
   { href: "/about", label: "About Us" },
+  { href: "/supporters", label: "サポーター" },
 ];
 
 const memberNavigation = [
