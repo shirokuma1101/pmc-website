@@ -12,6 +12,7 @@ snapshot_timezone='Asia/Tokyo'
 force='false'
 archive_schedule='daily'
 dry_run='false'
+history_retention='all'
 
 usage() {
   cat <<'EOF'
@@ -27,6 +28,7 @@ Options:
   --timezone ZONE             Archive timestamp timezone (default: Asia/Tokyo)
   --archive-schedule RULE     daily | weekly:0-6 (Sun-Sat) | monthly:1-31
                              Select by archive modification date (default: daily)
+  --history-retention RULE    all | mondays (keeps Mondays and latest; default: all)
   --dry-run                   List selected archives without starting Docker
   --force                     Regenerate existing snapshot IDs
 EOF
@@ -43,6 +45,7 @@ while (($#)); do
     --center-z) center_z="${2:?missing value}"; shift 2 ;;
     --timezone) snapshot_timezone="${2:?missing value}"; shift 2 ;;
     --archive-schedule) archive_schedule="${2:?missing value}"; shift 2 ;;
+    --history-retention) history_retention="${2:?missing value}"; shift 2 ;;
     --dry-run) dry_run='true'; shift ;;
     --force) force='true'; shift ;;
     --help|-h) usage; exit 0 ;;
@@ -54,6 +57,10 @@ done
 [[ "$render_mode" == 'full' || "$render_mode" == 'radius' ]] || { printf 'Invalid render mode: %s\n' "$render_mode" >&2; exit 2; }
 [[ "$archive_schedule" =~ ^(daily|weekly:[0-6]|monthly:([1-9]|[12][0-9]|3[01]))$ ]] || {
   printf 'Invalid archive schedule: %s (use daily, weekly:0-6, or monthly:1-31)\n' "$archive_schedule" >&2
+  exit 2
+}
+[[ "$history_retention" == 'all' || "$history_retention" == 'mondays' ]] || {
+  printf 'Invalid history retention: %s (use all or mondays)\n' "$history_retention" >&2
   exit 2
 }
 
@@ -69,6 +76,9 @@ if [[ -f "$env_file" ]]; then
 fi
 mapfile -t archives < <(find "$archive_root" -maxdepth 1 -type f -name '*.tar.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2-)
 [[ ${#archives[@]} -gt 0 ]] || { printf 'No .tar.gz archives found in %s\n' "$archive_root" >&2; exit 1; }
+latest_archive="${archives[-1]}"
+latest_modified_epoch="$(stat -c '%Y' "$latest_archive")"
+latest_snapshot_id="$(TZ="$snapshot_timezone" date -d "@$latest_modified_epoch" '+%Y%m%dT%H%M%S')"
 
 for archive in "${archives[@]}"; do
   modified_epoch="$(stat -c '%Y' "$archive")"
@@ -77,6 +87,10 @@ for archive in "${archives[@]}"; do
   if [[ "$archive_schedule" == weekly:* && "$archive_weekday" != "${archive_schedule#weekly:}" ]] ||
      [[ "$archive_schedule" == monthly:* && "$archive_day" != "${archive_schedule#monthly:}" ]]; then
     printf '[map-history] Skip date filter %s (%s)\n' "$archive_schedule" "$(basename "$archive")"
+    continue
+  fi
+  if [[ "$history_retention" == 'mondays' && "$archive" != "$latest_archive" && "$archive_weekday" != '1' ]]; then
+    printf '[map-history] Skip retention filter %s (%s)\n' "$history_retention" "$(basename "$archive")"
     continue
   fi
   snapshot_id="$(TZ="$snapshot_timezone" date -d "@$modified_epoch" '+%Y%m%dT%H%M%S')"
@@ -110,5 +124,23 @@ for archive in "${archives[@]}"; do
     -e "MAP_RENDER_CENTER_Z=$center_z" \
     map-generator
 done
+
+if [[ "$history_retention" == 'mondays' ]]; then
+  retention_args=(--output "$output_root" --world-id "$world_id" --timezone "$snapshot_timezone" --keep-snapshot-id "$latest_snapshot_id")
+  [[ "$dry_run" == 'true' ]] && retention_args+=(--dry-run)
+  removed_snapshots="$(python3 "$script_directory/generator/snapshot_retention.py" "${retention_args[@]}")" || {
+    printf '[map-history] Snapshot retention failed for %s\n' "$world_id" >&2
+    exit 1
+  }
+  while IFS= read -r removed_snapshot; do
+    if [[ -n "$removed_snapshot" ]]; then
+      if [[ "$dry_run" == 'true' ]]; then
+        printf '[map-history] Dry run: would remove non-Monday snapshot %s\n' "$removed_snapshot"
+      else
+        printf '[map-history] Removed non-Monday snapshot %s\n' "$removed_snapshot"
+      fi
+    fi
+  done <<< "$removed_snapshots"
+fi
 
 printf '[map-history] Complete. Catalog: %s/catalog.json\n' "$output_root"

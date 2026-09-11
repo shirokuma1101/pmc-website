@@ -205,7 +205,7 @@ MAP_RENDER_THREADS=2
 値には1以上の整数を指定します。大きくするほどCPUとメモリの使用量が増えるため、
 物理コア数を超えない範囲でホストの負荷を確認しながら調整してください。
 
-#### Ubuntuで毎日自動生成する
+#### Ubuntuで世代別ルールにより自動生成する
 
 長時間実行、再起動後の実行、ログ確認をsystemdで管理します。最初に3ワールドを
 順番に処理するスクリプトを`/usr/local/bin/pmc-map-update`へ配置します。
@@ -223,29 +223,34 @@ run_world() {
   world_id="$1"
   world_label="$2"
   archive_schedule="$3"
-  archive_directory="$4"
+  history_retention="$4"
+  archive_directory="$5"
 
   echo "[pmc-map-update] Start: $world_label"
   /usr/bin/bash minecraft-map/generate-history.sh \
     --archive-directory "$archive_directory" \
     --world-id "$world_id" \
     --archive-schedule "$archive_schedule" \
+    --history-retention "$history_retention" \
     --world-label "$world_label" || failed=1
 }
 
-run_world 6c1044f4 'PMC6.0' daily /mnt/pelican_backups/6c1044f4-*
-run_world ad9581c5 'PMC2.0' monthly:1 /mnt/pelican_backups/ad9581c5-*
-run_world c5227293 'PMC' weekly:0 /mnt/pelican_backups/c5227293-*
+run_world 6c1044f4 'PMC6.0' daily mondays /mnt/pelican_backups/6c1044f4-*
+run_world ad9581c5 'PMC2.0' monthly:1 all /mnt/pelican_backups/ad9581c5-*
+run_world c5227293 'PMC1.0' monthly:1 all /mnt/pelican_backups/c5227293-*
 
 exit "$failed"
 ```
 
 timerは毎日起動したまま、バックアップの**更新日時**を基準にワールドごとの対象を選別します。
-`daily`は全日、`monthly:1`は毎月1日、`weekly:0`は日曜のみです。
+`daily`は全日、`monthly:1`は毎月1日です。
 曜日は0（日曜）〜6（土曜）、月の日は1〜31を指定できます。既定の判定タイムゾーンは
 `Asia/Tokyo`で、`--timezone`で変更できます。
 該当日のファイルがなければ代わりの日は処理しません。同日に複数ファイルがあればすべて対象です。
-`--force`でも日付条件は解除されず、既存成果物も削除しません。
+`--history-retention all`は生成済み履歴をすべて保持します。
+`--history-retention mondays`は月曜日分と最新分だけを保持し、それ以外の過去スナップショットを
+カタログと出力ディレクトリから削除します。元の`.tar.gz`バックアップは削除しません。
+`--force`でも日付・保持条件は解除されません。
 既に運用中の場合は、リポジトリ更新に加えて`/usr/local/bin/pmc-map-update`も上記に更新してください。
 
 生成せずに対象を確認する例（既存スナップショットは通常どおりスキップ）:
@@ -257,11 +262,21 @@ bash minecraft-map/generate-history.sh \
   --archive-schedule monthly:1 --dry-run
 ```
 
+PMC6.0で生成対象と削除予定を事前確認する場合は次のように実行します。
+
+```bash
+bash minecraft-map/generate-history.sh \
+  --archive-directory /mnt/pelican_backups/6c1044f4-* \
+  --world-id 6c1044f4 --world-label 'PMC6.0' \
+  --archive-schedule daily --history-retention mondays --dry-run
+```
+
 入力形式は従来どおり`.tar.gz`です。この日付選別オプションはUbuntu用の
 `generate-history.sh`に対応し、PowerShell版には適用されません。
 
 実行権限を設定し、一度手動で確認します。出力済みのスナップショットは
-`generate-history.sh`によってスキップされます。
+`generate-history.sh`によってスキップされます。PMC6.0の通常実行では、生成の正常終了後に
+保持条件外の既存マップが削除されるため、初回は必ず上記の`--dry-run`で対象を確認してください。
 
 ```bash
 sudo chmod 755 /usr/local/bin/pmc-map-update

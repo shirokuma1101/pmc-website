@@ -83,6 +83,9 @@ UbuntuではPowerShell版ではなく、`generate-history.sh`を使用します�
 処理するバックアップの日付は`--archive-schedule daily`（既定・全日）、
 `--archive-schedule weekly:0`（日曜）、`--archive-schedule monthly:1`（毎月1日）で選別できます。
 判定対象はアーカイブの更新日時です。`--dry-run`を付けるとDockerを起動せず対象だけ確認できます。
+`--history-retention mondays`を指定すると、月曜日分と最新分だけを履歴に保持します。
+通常実行では保持条件外の生成済みスナップショットをカタログと出力から削除しますが、
+元の`.tar.gz`バックアップは削除しません。`--dry-run`では削除予定も変更せずに確認できます。
 ワールド別に設定した定期実行例は[README](README.md)を参照してください。
 
 ```bash
