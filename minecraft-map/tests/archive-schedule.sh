@@ -29,6 +29,16 @@ check_count monthly:31 0
 # At 00:30 UTC the date is still the previous day in this timezone.
 check_count monthly:31 2 America/Los_Angeles
 
+retention_output="$(bash "$script_directory/generate-history.sh" \
+  --archive-directory "$test_directory" --world-id schedule-test \
+  --archive-schedule daily --history-retention mondays --timezone UTC --dry-run --force)"
+retention_count="$(printf '%s\n' "$retention_output" | grep -c '\[map-history\] Generate ' || true)"
+[[ "$retention_count" == '2' ]] || {
+  printf 'FAIL: Monday retention expected 2, got %s\n%s\n' "$retention_count" "$retention_output" >&2
+  exit 1
+}
+printf 'PASS: Monday retention selects Mondays and latest archive\n'
+
 for invalid in weekly:7 monthly:0 monthly:32 unknown; do
   if bash "$script_directory/generate-history.sh" --archive-directory "$test_directory" \
     --archive-schedule "$invalid" --dry-run >/dev/null 2>&1; then
@@ -36,4 +46,9 @@ for invalid in weekly:7 monthly:0 monthly:32 unknown; do
     exit 1
   fi
 done
+if bash "$script_directory/generate-history.sh" --archive-directory "$test_directory" \
+  --history-retention tuesdays --dry-run >/dev/null 2>&1; then
+  printf 'FAIL: accepted invalid history retention\n' >&2
+  exit 1
+fi
 printf 'PASS: invalid schedules rejected\n'
