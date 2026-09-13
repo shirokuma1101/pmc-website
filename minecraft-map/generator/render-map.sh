@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 log() { printf '[map-generator] %s\n' "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
+source /usr/local/lib/render-log.sh
 
 render_threads="${MAP_RENDER_THREADS:-}"
 if [[ -n "$render_threads" ]]; then
@@ -95,16 +96,6 @@ start_paper() {
   paper_pid=$!
 }
 
-wait_for_log() {
-  local pattern="$1" timeout="${2:-600}" start
-  start=$(date +%s)
-  until grep -Fq "$pattern" "$renderer/generator.log" 2>/dev/null; do
-    kill -0 "$paper_pid" 2>/dev/null || fail "Paper stopped before: $pattern"
-    (( $(date +%s) - start < timeout )) || fail "Timed out waiting for: $pattern"
-    sleep 2
-  done
-}
-
 log "Starting Paper once to initialize Dynmap"
 : > "$renderer/generator.log"
 start_paper
@@ -153,9 +144,11 @@ else
     [[ -n "$map_name" ]] || continue
     command="dynmap fullrender ${world_name}:${map_name}"
     completion="Full render of map '$map_name' of '$world_name' completed"
+    render_log_start="$(render_log_next_line "$renderer/generator.log")"
     log "Rendering $map_name"
     printf '%s\n' "$command" >&3
-    wait_for_log "$completion" "${MAP_RENDER_TIMEOUT_SECONDS:-43200}"
+    wait_for_log "$completion" "${MAP_RENDER_TIMEOUT_SECONDS:-43200}" "$render_log_start"
+    wait_for_log "Full render of '$world_name' finished" "${MAP_RENDER_TIMEOUT_SECONDS:-43200}" "$render_log_start"
   done
 fi
 
