@@ -6,6 +6,7 @@ import {
   newlyReferencedImageIds,
   publicArticleView,
   shouldNotifyDiscordForArticleApproval,
+  stripeSupportEvent,
   storedImageIdsInMarkdown,
 } from "../src/index.js";
 
@@ -92,5 +93,44 @@ assert.deepEqual(publicArticleView(revision), {
   status: "published",
 });
 assert.equal(publicArticleView({ id: "draft", status: "draft" }).status, "draft");
+
+const supporterUserId = "123e4567-e89b-42d3-a456-426614174099";
+const paidOneTime = stripeSupportEvent({
+  type: "checkout.session.completed",
+  object: {
+    id: "cs_test_paid",
+    payment_status: "paid",
+    metadata: { frequency: "one_time", tier: "standard", quantity: "3", user_id: supporterUserId },
+  },
+});
+assert.equal(paidOneTime.active, true);
+assert.equal(paidOneTime.quantity, 3);
+assert.equal(paidOneTime.entitlementSource, "stripe_one_time");
+
+const unpaidOneTime = stripeSupportEvent({
+  type: "checkout.session.completed",
+  object: {
+    id: "cs_test_unpaid",
+    status: "complete",
+    payment_status: "unpaid",
+    metadata: { frequency: "one_time", tier: "standard", quantity: "1", user_id: supporterUserId },
+  },
+});
+assert.equal(unpaidOneTime.active, false);
+
+const activeSubscription = stripeSupportEvent({
+  type: "customer.subscription.updated",
+  object: { id: "sub_test", status: "active", metadata: { tier: "premium", user_id: supporterUserId } },
+});
+assert.equal(activeSubscription.active, true);
+assert.equal(activeSubscription.frequency, "monthly");
+assert.equal(activeSubscription.entitlementSource, "stripe_subscription");
+
+const canceledSubscription = stripeSupportEvent({
+  type: "customer.subscription.deleted",
+  object: { id: "sub_test", status: "canceled", metadata: { tier: "premium", user_id: supporterUserId } },
+});
+assert.equal(canceledSubscription.active, false);
+assert.equal(canceledSubscription.status, "revoked");
 
 console.log("Discord article payload tests passed");

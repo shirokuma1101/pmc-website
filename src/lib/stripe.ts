@@ -7,6 +7,16 @@ import type { SupporterTier } from "@/types";
 
 type MonthlyTier = keyof typeof MONTHLY_SUPPORTER_PLANS;
 
+export class StripeApiError extends Error {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
+    super(message);
+    this.name = "StripeApiError";
+  }
+}
+
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
@@ -22,10 +32,12 @@ export async function createCheckoutSession(input: {
   amount: number;
   tier: SupporterTier;
   userId?: string;
+  email?: string;
   quantity?: number;
 }): Promise<string> {
   const body = new URLSearchParams({
     mode: input.frequency === "monthly" ? "subscription" : "payment",
+    "managed_payments[enabled]": "false",
     success_url: `${getPublicAppUrl()}/supporters/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${getPublicAppUrl()}/supporters/cancel`,
     "line_items[0][quantity]": String(input.quantity ?? 1),
@@ -38,6 +50,7 @@ export async function createCheckoutSession(input: {
     "metadata[tier]": input.tier,
     "metadata[quantity]": String(input.quantity ?? 1),
     ...(input.userId ? { "metadata[user_id]": input.userId, client_reference_id: input.userId } : {}),
+    ...(input.email ? { customer_email: input.email } : {}),
   });
   if (input.frequency === "monthly") {
     body.set("line_items[0][price_data][recurring][interval]", "month");
@@ -65,9 +78,30 @@ export async function createCustomerPortalSession(customer: string): Promise<str
     body: new URLSearchParams({ customer, return_url: `${getPublicAppUrl()}/supporters` }),
     cache: "no-store",
   });
-  const payload = await response.json() as { url?: string; error?: { message?: string } };
-  if (!response.ok || !payload.url) throw new Error(payload.error?.message ?? "Stripe portal session creation failed");
+  const payload = await response.json() as { url?: string; error?: { code?: string; message?: string } };
+  if (!response.ok || !payload.url) {
+    throw new StripeApiError(payload.error?.message ?? "Stripe portal session creation failed", payload.error?.code);
+  }
   return payload.url;
+}
+
+const MANAGEABLE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "paused"]);
+
+export async function hasManageableStripeSubscription(customer: string): Promise<boolean> {
+  const query = new URLSearchParams({ customer, status: "all", limit: "100" });
+  const response = await fetch(`https://api.stripe.com/v1/subscriptions?${query}`, {
+    headers: { Authorization: `Bearer ${requiredEnvironment("STRIPE_SECRET_KEY")}` },
+    cache: "no-store",
+  });
+  const payload = await response.json() as {
+    data?: Array<{ status?: string }>;
+    error?: { code?: string; message?: string };
+  };
+  if (!response.ok) {
+    if (payload.error?.code === "resource_missing") return false;
+    throw new StripeApiError(payload.error?.message ?? "Stripe subscriptions lookup failed", payload.error?.code);
+  }
+  return payload.data?.some((subscription) => MANAGEABLE_SUBSCRIPTION_STATUSES.has(subscription.status ?? "")) ?? false;
 }
 
 export function verifyStripeSignature(payload: string, signature: string, now = Math.floor(Date.now() / 1_000)): void {

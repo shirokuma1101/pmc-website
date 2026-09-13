@@ -2,10 +2,9 @@ import type { SupporterTier } from "@/types";
 
 export const SUPPORTER_TIER_KEYS = ["supporter", "basic", "standard", "premium"] as const;
 
-export const ONE_TIME_SUPPORT = { amount: 800, label: "Standard Support (One-Time Purchase)", tier: "standard" } as const;
-export const MAX_ONE_TIME_SUPPORT_QUANTITY = 12;
+export const ONE_TIME_SUPPORT = { amount: 300, label: "Supporter (One-Time Purchase)", description: "Supporterバッジのみ", tier: "supporter" } as const;
 export const MONTHLY_SUPPORTER_PLANS = {
-  basic: { amount: 300, label: "Basic Supporter", description: "気軽に活動を応援" },
+  basic: { amount: 400, label: "Basic Supporter", description: "気軽に活動を応援" },
   standard: { amount: 800, label: "Standard Supporter", description: "継続的な活動を支援" },
   premium: { amount: 1_500, label: "Premium Supporter", description: "活動を力強く支援" },
 } as const;

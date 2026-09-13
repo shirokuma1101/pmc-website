@@ -24,6 +24,8 @@
     "docker:up": "docker compose -f docker-compose.dev.yml --env-file .env.local up -d --build --wait",
     "docker:down": "docker compose -f docker-compose.dev.yml --env-file .env.local down",
     "docker:logs": "docker compose -f docker-compose.dev.yml --env-file .env.local logs -f gateway frontend map-static directus",
+    "stripe:listen": "docker compose -f docker-compose.dev.yml --env-file .env.local --profile stripe up stripe-cli",
+    "stripe:trigger:checkout": "docker compose -f docker-compose.dev.yml --env-file .env.local --profile stripe run --rm stripe-cli trigger checkout.session.completed",
     "map:build": "docker compose -f minecraft-map/docker-compose.map.yml build map-generator",
     "map:generate": "docker compose -f minecraft-map/docker-compose.map.yml run --rm map-generator",
     "map:generate:history": "powershell -NoProfile -ExecutionPolicy Bypass -File minecraft-map/generate-history.ps1",

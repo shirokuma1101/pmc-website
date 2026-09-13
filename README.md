@@ -71,6 +71,28 @@ npm run dev             # Next.jsをポート3001で起動
 `cms:bootstrap`と`cms:smoke`はloopback以外のDirectusを拒否します。誤って公開中の
 Directusへテストデータや開発ユーザーを作らないための制限です。
 
+### Stripe test mode
+
+Stripe連携をローカルで確認する場合は、Dashboardで作成したtest modeのRestricted API Keyを
+`.env.local`の`STRIPE_SECRET_KEY`へ設定します。実値はGitへ追加しないでください。
+Checkout SessionsとCustomer Portal Sessionsを作成できる最小限の書き込み権限を付与します。
+
+Webhook転送は公式Stripe CLIコンテナを使用します。
+
+```powershell
+npm run stripe:listen
+```
+
+初回起動時にログへ表示される`whsec_...`を`.env.local`の`STRIPE_WEBHOOK_SECRET`へ設定し、
+Frontendコンテナを再作成します。CLIの認証情報やsigning secretはComposeファイルへ記載しません。
+
+```powershell
+docker compose -f docker-compose.dev.yml --env-file .env.local up -d --force-recreate frontend gateway
+npm run stripe:trigger:checkout
+```
+
+test modeとlive modeではAPI Key、Webhook endpoint、signing secret、商品・価格を分離してください。
+
 `pmc_`付きcollectionを使用していた旧ローカル環境から切り替える場合は、先に旧projectを停止します。
 
 ```powershell

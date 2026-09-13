@@ -5,7 +5,13 @@ import { verifyStripeSignature } from "@/lib/stripe";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ACCEPTED_EVENTS = new Set(["checkout.session.completed", "customer.subscription.updated", "customer.subscription.deleted"]);
+const ACCEPTED_EVENTS = new Set([
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded",
+  "checkout.session.async_payment_failed",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+]);
 
 export async function POST(request: Request): Promise<Response> {
   return withRouteErrors(async () => {

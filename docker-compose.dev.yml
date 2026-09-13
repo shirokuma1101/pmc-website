@@ -194,6 +194,27 @@ services:
     cap_drop:
       - ALL
 
+  stripe-cli:
+    image: stripe/stripe-cli:v1.50.11
+    profiles: ["stripe"]
+    depends_on:
+      frontend:
+        condition: service_healthy
+    environment:
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_DEVICE_NAME: pmc-website-docker
+    command:
+      - listen
+      - --forward-to
+      - http://frontend:3000/api/supporters/webhook
+      - --events
+      - checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,customer.subscription.updated,customer.subscription.deleted
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
 volumes:
   directus_database:
   directus_uploads:
