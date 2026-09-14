@@ -13,6 +13,7 @@ force='false'
 archive_schedule='daily'
 dry_run='false'
 history_retention='all'
+python_command="${PYTHON_COMMAND:-python3}"
 
 usage() {
   cat <<'EOF'
@@ -55,6 +56,7 @@ done
 
 [[ -n "$archive_directory" ]] || { usage >&2; exit 2; }
 [[ "$render_mode" == 'full' || "$render_mode" == 'radius' ]] || { printf 'Invalid render mode: %s\n' "$render_mode" >&2; exit 2; }
+[[ "$world_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || { printf 'Invalid world ID: %s\n' "$world_id" >&2; exit 2; }
 [[ "$archive_schedule" =~ ^(daily|weekly:[0-6]|monthly:([1-9]|[12][0-9]|3[01]))$ ]] || {
   printf 'Invalid archive schedule: %s (use daily, weekly:0-6, or monthly:1-31)\n' "$archive_schedule" >&2
   exit 2
@@ -98,9 +100,24 @@ for archive in "${archives[@]}"; do
   snapshot_created_at="$(TZ="$snapshot_timezone" date -d "@$modified_epoch" '+%Y-%m-%dT%H:%M:%S%:z')"
   snapshot_path="$output_root/worlds/$world_id/snapshots/$snapshot_id"
 
-  if [[ "$force" != 'true' && -d "$snapshot_path" ]]; then
-    printf '[map-history] Skip existing snapshot %s (%s)\n' "$snapshot_id" "$(basename "$archive")"
-    continue
+  if [[ -d "$snapshot_path" ]]; then
+    catalog_status=1
+    if [[ "$force" != 'true' ]]; then
+      catalog_status=0
+      "$python_command" "$script_directory/generator/snapshot_catalog.py" \
+        --catalog "$output_root/catalog.json" --world-id "$world_id" --snapshot-id "$snapshot_id" || catalog_status=$?
+      ((catalog_status <= 1)) || { printf 'Failed to read map catalog\n' >&2; exit "$catalog_status"; }
+    fi
+    if [[ "$catalog_status" == '0' && -f "$snapshot_path/health.txt" ]]; then
+      printf '[map-history] Skip existing snapshot %s (%s)\n' "$snapshot_id" "$(basename "$archive")"
+      continue
+    fi
+    if [[ "$dry_run" == 'true' ]]; then
+      printf '[map-history] Dry run: would replace unregistered or forced snapshot %s\n' "$snapshot_id"
+    else
+      printf '[map-history] Replace unregistered or forced snapshot %s\n' "$snapshot_id"
+      rm -rf -- "$snapshot_path"
+    fi
   fi
 
   printf '[map-history] Generate %s / %s from %s\n' "$world_id" "$snapshot_label" "$(basename "$archive")"
@@ -128,7 +145,7 @@ done
 if [[ "$history_retention" == 'mondays' ]]; then
   retention_args=(--output "$output_root" --world-id "$world_id" --timezone "$snapshot_timezone" --keep-snapshot-id "$latest_snapshot_id")
   [[ "$dry_run" == 'true' ]] && retention_args+=(--dry-run)
-  removed_snapshots="$(python3 "$script_directory/generator/snapshot_retention.py" "${retention_args[@]}")" || {
+  removed_snapshots="$("$python_command" "$script_directory/generator/snapshot_retention.py" "${retention_args[@]}")" || {
     printf '[map-history] Snapshot retention failed for %s\n' "$world_id" >&2
     exit 1
   }
