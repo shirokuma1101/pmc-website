@@ -215,6 +215,16 @@
   font-size: 0.7rem;
 }
 
+.support-plan__benefits {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 1.4rem 0 1rem;
+  color: var(--color-ink-faint);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
 .support-plan__check {
   position: absolute;
   right: 0.75rem;

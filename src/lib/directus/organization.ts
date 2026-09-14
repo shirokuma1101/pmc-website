@@ -30,8 +30,8 @@ const roleLabels: Record<OrganizationRole, string> = {
   trainee: "みならい",
 };
 
-export async function getOrganization(): Promise<OrganizationMember[]> {
-  const response = await directusRequest<{ data: OrganizationRaw[] }>(`${DIRECTUS_APP_ENDPOINT}/organization`);
+export async function getOrganization(accessToken?: string): Promise<OrganizationMember[]> {
+  const response = await directusRequest<{ data: OrganizationRaw[] }>(`${DIRECTUS_APP_ENDPOINT}/organization`, { accessToken });
   return response.data.map((raw) => ({
     profileId: raw.profile_id,
     ...(raw.user_id ? { userId: raw.user_id } : {}),
@@ -49,6 +49,11 @@ export async function getOrganization(): Promise<OrganizationMember[]> {
     highlighted: raw.highlighted === true,
     ...(raw.supporterTier ? { supporterTier: raw.supporterTier } : {}),
   }));
+}
+
+export async function getMySupporterTier(accessToken: string): Promise<SupporterTier | null> {
+  const response = await directusRequest<{ data: { tier: SupporterTier | null } }>(`${DIRECTUS_APP_ENDPOINT}/supporter-status`, { accessToken });
+  return response.data.tier;
 }
 
 export async function getOrganizationLayout(): Promise<OrganizationSection[]> {

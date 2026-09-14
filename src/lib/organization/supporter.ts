@@ -4,9 +4,9 @@ export const SUPPORTER_TIER_KEYS = ["supporter", "basic", "standard", "premium"]
 
 export const ONE_TIME_SUPPORT = { amount: 300, label: "Supporter (One-Time Purchase)", description: "Supporterバッジのみ", tier: "supporter" } as const;
 export const MONTHLY_SUPPORTER_PLANS = {
-  basic: { amount: 400, label: "Basic Supporter", description: "気軽に活動を応援" },
-  standard: { amount: 800, label: "Standard Supporter", description: "継続的な活動を支援" },
-  premium: { amount: 1_500, label: "Premium Supporter", description: "活動を力強く支援" },
+  basic: { amount: 400, label: "Basic Supporter", benefits: ["Basic Supporterバッジ（非表示設定可）", "メンバー一覧でサポーターとして表示", "地図の時系列比較を利用可能"] },
+  standard: { amount: 800, label: "Standard Supporter", benefits: ["Standard Supporterバッジ（非表示設定可）", "メンバー一覧でサポーターとして表示", "地図の時系列比較を利用可能"] },
+  premium: { amount: 1_500, label: "Premium Supporter", benefits: ["Premium Supporterバッジ（非表示設定可）", "メンバー一覧でサポーターとして表示", "地図の時系列比較を利用可能"] },
 } as const;
 export type MonthlySupporterTier = keyof typeof MONTHLY_SUPPORTER_PLANS;
 

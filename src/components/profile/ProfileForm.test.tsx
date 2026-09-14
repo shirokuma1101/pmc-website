@@ -31,5 +31,15 @@ describe("ProfileForm", () => {
     const request = fetchMock.mock.calls[0]?.[1];
     expect(request?.body).toBeInstanceOf(FormData);
     expect((request?.body as FormData).get("xboxGamertag")).toBe("ExamplePlayer");
+    expect((request?.body as FormData).get("supporterBadgeVisible")).toBe("true");
+  });
+
+  it("allows the supporter badge to be hidden", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: { id: "profile", displayName: "Player", bio: "", supporterBadgeVisible: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<ProfileForm profile={{ id: "profile", displayName: "Player", bio: "", supporterBadgeVisible: true }} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: /サポーターバッジを公開する/ }));
+    fireEvent.click(screen.getByRole("button", { name: "変更を保存" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect((fetchMock.mock.calls[0]?.[1]?.body as FormData).get("supporterBadgeVisible")).toBe("false");
   });
 });

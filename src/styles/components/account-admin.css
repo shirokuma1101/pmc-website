@@ -266,6 +266,10 @@
 .profile-form__skin-field { display: grid; gap: 0.75rem; margin: 0; padding: 1rem; border: 1px solid var(--color-line); }
 .profile-form__skin-field legend { padding: 0 0.4rem; font-weight: 700; }
 .profile-form__skin-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+.profile-form__supporter-visibility { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 0.7rem; padding: 1rem; border: 1px solid var(--color-line); border-radius: var(--radius-sm); cursor: pointer; }
+.profile-form__supporter-visibility input { width: 1rem; height: 1rem; margin-top: 0.15rem; accent-color: var(--color-primary); }
+.profile-form__supporter-visibility span { display: grid; gap: 0.2rem; }
+.profile-form__supporter-visibility small { color: var(--color-ink-faint); line-height: 1.45; }
 
 .profile-security-link {
   display: flex;

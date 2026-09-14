@@ -149,6 +149,7 @@ export function SiteHeader({
                           <Link href="/admin/reviews" onClick={() => setMenuOpen(false)}>レビュー</Link>
                           <Link href="/admin/registrations" onClick={() => setMenuOpen(false)}>アカウント承認</Link>
                           <Link href="/admin/worlds" onClick={() => setMenuOpen(false)}>過去ワールド説明文</Link>
+                          <Link href="/admin/supporters" onClick={() => setMenuOpen(false)}>サポーター運用</Link>
                           <Link href="/organization?edit=1" onClick={() => setMenuOpen(false)}>メンバー管理</Link>
                         </div>
                       </details>

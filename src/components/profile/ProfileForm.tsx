@@ -41,6 +41,7 @@ export function ProfileForm({
   const [minecraftSkinName, setMinecraftSkinName] = useState(profile.minecraftSkinUrl ? "登録済み" : "未設定");
   const [minecraftSkinModel, setMinecraftSkinModel] = useState(profile.minecraftSkinModel ?? "classic");
   const [removeMinecraftSkin, setRemoveMinecraftSkin] = useState(false);
+  const [supporterBadgeVisible, setSupporterBadgeVisible] = useState(profile.supporterBadgeVisible !== false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -126,6 +127,7 @@ export function ProfileForm({
       if (avatar) formData.append("avatar", avatar);
       if (removeAvatar) formData.append("removeAvatar", "true");
       formData.append("minecraftSkinModel", minecraftSkinModel);
+      formData.append("supporterBadgeVisible", String(supporterBadgeVisible));
       if (minecraftSkin) formData.append("minecraftSkin", minecraftSkin);
       if (removeMinecraftSkin) formData.append("removeMinecraftSkin", "true");
 
@@ -192,6 +194,11 @@ export function ProfileForm({
         disabled={submitting}
         onChange={(event) => { setDisplayName(event.target.value); setFieldError(null); }}
       />
+
+      <label className="profile-form__supporter-visibility">
+        <input type="checkbox" checked={supporterBadgeVisible} onChange={(event) => setSupporterBadgeVisible(event.target.checked)} disabled={submitting} />
+        <span><strong>サポーターバッジを公開する</strong><small>オフにすると、メンバー一覧とプロフィール詳細でプラン名を表示しません。契約や特典の状態には影響しません。</small></span>
+      </label>
 
       <fieldset className="profile-form__skin-field">
         <legend>Minecraftスキン</legend>

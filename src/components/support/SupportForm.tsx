@@ -29,7 +29,9 @@ export function SupportForm({ checkoutEnabled, loggedIn }: SupportFormProps) {
                 <span className="donation-amount__surface">
                   <strong>{plan.label}</strong>
                   <span className="support-plan__price"><b>¥{plan.amount.toLocaleString("ja-JP")}</b><small>/ 月</small></span>
-                  <span className="support-plan__description">{plan.description}</span>
+                  <ul className="support-plan__benefits">
+                    {plan.benefits.map((benefit) => <li key={benefit}>{benefit}</li>)}
+                  </ul>
                   <span className="support-plan__check" aria-hidden="true">✓</span>
                 </span>
               </label>

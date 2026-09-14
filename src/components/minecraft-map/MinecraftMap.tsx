@@ -151,7 +151,7 @@ function createDynmapTileLayer(
   return tileLayer;
 }
 
-export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null }) {
+export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { currentUser: SessionUser | null; mapHistoryEnabled?: boolean }) {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<LeafletMap | null>(null);
   const tileLayerRef = useRef<TileLayer | null>(null);
@@ -1094,7 +1094,7 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
         {markerMessage ? <p className={styles.markerMessage}>{markerMessage} <button type="button" onClick={() => setMarkerMessage(null)}>閉じる</button></p> : null}
         {pathMessage ? <p className={styles.markerMessage}>{pathMessage} <button type="button" onClick={() => setPathMessage(null)}>閉じる</button></p> : null}
         <div className={styles.timelineOverlay}>
-          {timelineOpen ? (
+          {mapHistoryEnabled && timelineOpen ? (
             <MapTimeline
               snapshots={snapshots}
               selectedId={snapshotId}
@@ -1107,10 +1107,12 @@ export function MinecraftMap({ currentUser }: { currentUser: SessionUser | null 
                 window.history.replaceState(null, "", url);
               }}
             />
-          ) : (
+          ) : mapHistoryEnabled ? (
             <button className={styles.timelineOpen} type="button" aria-expanded="false" onClick={() => setTimelineOpen(true)}>
               ◷ 地図のタイムライン
             </button>
+          ) : (
+            <a className={styles.timelineOpen} href="/supporters" title="月額サポーター特典">◷ 地図履歴は月額サポーター限定</a>
           )}
         </div>
       </div>

@@ -573,6 +573,9 @@ function ensureProfileSkinColumns(database) {
     if (!await database.schema.hasColumn("profiles", "minecraft_skin_model")) {
       await database.schema.alterTable("profiles", (table) => table.string("minecraft_skin_model", 16).notNullable().defaultTo("classic"));
     }
+    if (!await database.schema.hasColumn("profiles", "supporter_badge_visible")) {
+      await database.schema.alterTable("profiles", (table) => table.boolean("supporter_badge_visible").notNullable().defaultTo(true));
+    }
   })();
   return profileSkinColumnsPromise;
 }
@@ -580,8 +583,8 @@ function ensureProfileSkinColumns(database) {
 async function attachProfileSkin(database, profile) {
   if (!profile) return profile;
   await ensureProfileSkinColumns(database);
-  const skin = await database("profiles").select("minecraft_skin", "minecraft_skin_model").where({ id: profile.id }).first();
-  return { ...profile, minecraft_skin: skin?.minecraft_skin ?? null, minecraft_skin_model: skin?.minecraft_skin_model ?? "classic" };
+  const skin = await database("profiles").select("minecraft_skin", "minecraft_skin_model", "supporter_badge_visible").where({ id: profile.id }).first();
+  return { ...profile, minecraft_skin: skin?.minecraft_skin ?? null, minecraft_skin_model: skin?.minecraft_skin_model ?? "classic", supporter_badge_visible: skin?.supporter_badge_visible !== false };
 }
 
 let organizationLayoutTablePromise;
@@ -1112,7 +1115,8 @@ function articleInput(request, { partial = false } = {}) {
 
 function profileInput(request) {
   const body = objectBody(request);
-  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar", "minecraft_skin", "minecraft_skin_model"]));
+  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar", "minecraft_skin", "minecraft_skin_model", "supporter_badge_visible"]));
+  if (body.supporter_badge_visible !== undefined && typeof body.supporter_badge_visible !== "boolean") throw new EndpointError(400, "INVALID_PAYLOAD", "supporter_badge_visible must be a boolean");
   return {
     display_name: requiredText(body.display_name, "display_name", 80),
     bio: optionalText(body.bio, "bio", 1_000) ?? "",
@@ -1120,6 +1124,7 @@ function profileInput(request) {
     avatar: body.avatar === undefined ? undefined : uuid(body.avatar, "avatar", { nullable: true }),
     minecraft_skin: body.minecraft_skin === undefined ? undefined : uuid(body.minecraft_skin, "minecraft_skin", { nullable: true }),
     minecraft_skin_model: body.minecraft_skin_model === undefined ? undefined : skinModel(body.minecraft_skin_model),
+    supporter_badge_visible: body.supporter_badge_visible,
   };
 }
 
@@ -1228,6 +1233,17 @@ export default {
       const userId = routeId(request);
       const payment = await database("supporter_payments").select("stripe_customer_id").where({ user: userId, frequency: "monthly" }).whereNotNull("stripe_customer_id").orderBy("created_at", "desc").first();
       response.json({ data: { customer: payment?.stripe_customer_id ?? null } });
+    }));
+
+    router.get("/supporter-status", route(async (request, response) => {
+      const userId = currentUser(request);
+      await Promise.all([ensureOrganizationMembersTable(database), ensureProfileEntitlementsTable(database)]);
+      const member = await database("organization_members").select("id").where({ user: userId }).first();
+      if (!member) return response.json({ data: { tier: null } });
+      const entitlements = await database("profile_entitlements")
+        .select("variant", "valid_until")
+        .where({ member: member.id, feature: "profile_highlight", status: "active" });
+      response.json({ data: { tier: effectiveSupporterTier(entitlements) ?? null } });
     }));
 
     router.post("/register", route(async (request, response) => {
@@ -1571,7 +1587,7 @@ export default {
       response.status(204).send();
     }));
 
-    router.get("/organization", route(async (_request, response) => {
+    router.get("/organization", route(async (request, response) => {
       await Promise.all([ensureOrganizationLayoutTable(database), ensureProfileEntitlementsTable(database), ensureProfileSkinColumns(database)]);
       const rows = await database("organization_members as member")
         .leftJoin("directus_users as users", "users.id", "member.user")
@@ -1579,7 +1595,7 @@ export default {
         .where((query) => query.whereNull("member.user").orWhere("users.status", "active"))
         .select(
           "member.id as profile_id", "member.user as user_id", "member.display_name", "member.bio",
-          "profile.display_name as account_display_name", "profile.bio as account_bio", "profile.avatar as account_avatar", "profile.xbox_gamertag as account_xbox_gamertag", "profile.minecraft_skin as account_minecraft_skin", "profile.minecraft_skin_model as account_minecraft_skin_model",
+          "profile.display_name as account_display_name", "profile.bio as account_bio", "profile.avatar as account_avatar", "profile.xbox_gamertag as account_xbox_gamertag", "profile.minecraft_skin as account_minecraft_skin", "profile.minecraft_skin_model as account_minecraft_skin_model", "profile.supporter_badge_visible as supporter_badge_visible",
           "member.avatar", "member.minecraft_skin", "member.minecraft_skin_model", "member.organization_role", "member.organization_team",
           "member.organization_parent", "member.xbox_gamertag", "member.organization_group",
         )
@@ -1590,7 +1606,12 @@ export default {
         const member = String(entitlement.member);
         entitlementsByMember.set(member, [...(entitlementsByMember.get(member) ?? []), entitlement]);
       }
-      response.json({ data: rows.map((row) => ({
+      const canSeePrivateSupporterState = request.accountability?.admin === true;
+      response.json({ data: rows.map((row) => {
+        const publicTier = canSeePrivateSupporterState || row.supporter_badge_visible !== false
+          ? effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? [])
+          : null;
+        return {
         profile_id: row.profile_id,
         user_id: row.user_id,
         display_name: row.user_id ? row.account_display_name || row.display_name : row.display_name,
@@ -1603,9 +1624,10 @@ export default {
         team: row.organization_team ?? "",
         parent_id: row.organization_parent ?? null,
         group_id: row.organization_group ?? null,
-        highlighted: Boolean(effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? [])),
-        supporterTier: effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? []) ?? null,
-      })) });
+        highlighted: Boolean(publicTier),
+        supporterTier: publicTier ?? null,
+      };
+      }) });
     }));
 
     router.get("/organization/layout", route(async (_request, response) => {

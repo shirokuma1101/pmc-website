@@ -34,4 +34,10 @@ describe("SupportPage", () => {
     render(await SupportPage());
     expect(screen.queryByRole("button", { name: "支払い方法・月額プランを管理" })).not.toBeInTheDocument();
   });
+
+  it("shows usage and policy details before the plan selector", async () => {
+    render(await SupportPage());
+    const sectionHeadings = screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
+    expect(sectionHeadings).toEqual(["支援金の主な用途", "お申し込み前にご確認ください", "支援方法を選ぶ"]);
+  });
 });

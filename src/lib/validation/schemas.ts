@@ -98,6 +98,7 @@ export const profileSchema = z.object({
   avatarId: z.string().uuid().nullable().optional(),
   minecraftSkinId: z.string().uuid().nullable().optional(),
   minecraftSkinModel: z.enum(["classic", "slim"]).optional(),
+  supporterBadgeVisible: z.boolean().optional(),
 }).strict();
 
 export const reviewSchema = z.object({

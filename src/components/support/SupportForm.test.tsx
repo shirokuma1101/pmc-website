@@ -29,5 +29,10 @@ describe("SupportForm", () => {
     expect(form.getByRole("radio", { name: /Basic Supporter.*¥400/ })).toBeInTheDocument();
     expect(form.getByRole("radio", { name: /Standard Supporter.*¥800/ })).toBeInTheDocument();
     expect(form.getByRole("radio", { name: /Premium Supporter.*¥1,500/ })).toBeInTheDocument();
+    expect(form.getByText("Basic Supporterバッジ（非表示設定可）")).toBeInTheDocument();
+    expect(form.getByText("Standard Supporterバッジ（非表示設定可）")).toBeInTheDocument();
+    expect(form.getByText("Premium Supporterバッジ（非表示設定可）")).toBeInTheDocument();
+    expect(form.getAllByText("地図の時系列比較を利用可能")).toHaveLength(3);
+    expect(form.queryByText("活動をそっと応援")).not.toBeInTheDocument();
   });
 });

@@ -22,6 +22,7 @@ export interface Profile {
   avatarUrl?: string;
   minecraftSkinUrl?: string;
   minecraftSkinModel?: MinecraftSkinModel;
+  supporterBadgeVisible?: boolean;
   user?: UserSummary;
   createdAt?: string;
   updatedAt?: string;
