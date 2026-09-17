@@ -7,7 +7,7 @@ import { useCloseDetailsOnOutsideClick } from "./useCloseDetailsOnOutsideClick";
 
 interface AdminNotification {
   id: string;
-  kind: "review" | "registration";
+  kind: "review" | "registration" | "join-application";
   title: string;
   detail: string;
   createdAt: string;
@@ -103,10 +103,6 @@ export function AdminNotificationTray({ onNavigate }: { onNavigate?: () => void 
             ))}
           </ul>
         ) : null}
-        <div className="notification-tray__footer">
-          <Link href="/admin/reviews" onClick={onNavigate}>レビュー</Link>
-          <Link href="/admin/registrations" onClick={onNavigate}>アカウント承認</Link>
-        </div>
       </div>
     </details>
   );

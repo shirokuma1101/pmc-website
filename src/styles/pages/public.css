@@ -1022,6 +1022,12 @@
   font-size: 0.88rem;
 }
 
+.join-review-actions {
+  display: grid;
+  gap: 1rem;
+  min-width: min(100%, 24rem);
+}
+
 .review-grid__item {
   display: flex;
   min-width: 0;

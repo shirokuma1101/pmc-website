@@ -147,6 +147,7 @@ export function SiteHeader({
                         <div className="admin-navigation__menu">
                           <Link href="/admin/reviews" onClick={() => setMenuOpen(false)}>レビュー</Link>
                           <Link href="/admin/registrations" onClick={() => setMenuOpen(false)}>アカウント承認</Link>
+                          <Link href="/admin/join-applications" onClick={() => setMenuOpen(false)}>参加申請管理</Link>
                           <Link href="/admin/worlds" onClick={() => setMenuOpen(false)}>過去ワールド説明文</Link>
                           <Link href="/organization?edit=1" onClick={() => setMenuOpen(false)}>メンバー管理</Link>
                         </div>

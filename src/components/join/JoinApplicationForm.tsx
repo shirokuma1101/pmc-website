@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { getApiErrorMessage } from "@/components/apiResponse";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
 import { Alert, Button, Input, Textarea } from "@/components/ui";
 
 interface JoinApplication {
@@ -24,6 +26,12 @@ const EMPTY_APPLICATION: JoinApplication = {
 export function JoinApplicationForm() {
   const [application, setApplication] = useState(EMPTY_APPLICATION);
   const [confirming, setConfirming] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const submissionId = useRef(crypto.randomUUID());
 
   function update<K extends keyof JoinApplication>(key: K, value: JoinApplication[K]) {
     setApplication((current) => ({ ...current, [key]: value }));
@@ -35,13 +43,58 @@ export function JoinApplicationForm() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  async function submitApplication() {
+    if (!turnstileToken) {
+      setError("セキュリティ確認を完了してください。");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...application,
+          submissionId: submissionId.current,
+          ageRequirement: true,
+          minecraftRequirement: true,
+          policyConsent: true,
+          turnstileToken,
+        }),
+      });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "参加申請を送信できませんでした。"));
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "参加申請を送信できませんでした。");
+      setTurnstileResetKey((value) => value + 1);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (submitted) {
+    return (
+      <section className="join-form-card" aria-labelledby="join-complete-title">
+        <div className="join-form-card__heading">
+          <p className="eyebrow">Submitted</p>
+          <h2 id="join-complete-title">参加申請を受け付けました</h2>
+          <p>内容を確認後、入力したメールアドレスへ参加可否をご連絡します。</p>
+        </div>
+        <Alert tone="success">申請が送信されました。ご連絡までしばらくお待ちください。</Alert>
+      </section>
+    );
+  }
+
   if (confirming) {
     return (
       <section className="join-form-card" aria-labelledby="join-confirmation-title">
         <div className="join-form-card__heading">
           <p className="eyebrow">Confirm</p>
           <h2 id="join-confirmation-title">申請内容の確認</h2>
-          <p>以下の内容で間違いがないか確認してください。この画面ではまだ送信されません。</p>
+          <p>以下の内容で間違いがないか確認してください。</p>
         </div>
         <dl className="join-confirmation">
           <div><dt>表示名</dt><dd>{application.displayName}</dd></div>
@@ -50,12 +103,14 @@ export function JoinApplicationForm() {
           <div><dt>Discordユーザー名</dt><dd>{application.discordUsername}</dd></div>
           <div className="join-confirmation__wide"><dt>参加したい理由・やってみたいこと</dt><dd>{application.motivation}</dd></div>
         </dl>
-        <Alert tone="info" title="送信機能は準備中です">
-          Resendとの接続と申請保存機能を実装するまでは、申請を確定できません。
-        </Alert>
+        <TurnstileWidget action="join-application" onTokenChange={setTurnstileToken} resetKey={turnstileResetKey} />
+        {error ? <Alert tone="error">{error}</Alert> : null}
         <div className="join-form-actions">
-          <Button variant="secondary" onClick={() => setConfirming(false)}>入力内容を修正</Button>
-          <Button disabled>申請を送信</Button>
+          <Button variant="secondary" disabled={submitting} onClick={() => {
+            setError(null);
+            setConfirming(false);
+          }}>入力内容を修正</Button>
+          <Button loading={submitting} disabled={!turnstileToken} onClick={submitApplication}>申請を送信</Button>
         </div>
       </section>
     );
@@ -149,9 +204,6 @@ export function JoinApplicationForm() {
         </label>
       </fieldset>
 
-      <Alert tone="info">
-        入力内容は確認画面へ進んでも外部へ送信されません。送信機能は次の実装段階で追加します。
-      </Alert>
       <div className="join-form-actions">
         <Button type="submit" size="lg">入力内容を確認</Button>
       </div>

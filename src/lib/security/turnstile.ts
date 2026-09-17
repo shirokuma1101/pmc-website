@@ -6,10 +6,12 @@ import { ApiRouteError } from "@/lib/api/route";
 const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const MAX_TOKEN_LENGTH = 2048;
 const ALWAYS_PASS_TEST_SECRET = "1x0000000000000000000000000000000AA";
+const LOCAL_TEST_TOKEN = "XXXX.DUMMY.TOKEN.XXXX";
 
 export type TurnstileAction =
   | "login"
   | "registration"
+  | "join-application"
   | "google-sso"
   | "x-sso"
   | "password-reset-request";
@@ -53,6 +55,7 @@ export async function verifyTurnstile(
   if (typeof token !== "string" || !token || token.length > MAX_TOKEN_LENGTH) throw verificationError();
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) throw verificationError();
+  if (secret === ALWAYS_PASS_TEST_SECRET && token === LOCAL_TEST_TOKEN) return;
 
   const body = new URLSearchParams({ secret, response: token });
   const remoteip = clientIp(request);

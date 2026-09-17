@@ -13,7 +13,7 @@ export default function JoinPage() {
         <p className="eyebrow">Join Us</p>
         <h1>PostMineClanに参加する</h1>
         <p>
-          参加条件と規約をご確認のうえ、申請内容を入力してください。現在はフォーム内容の確認のみ利用できます。
+          参加条件と規約をご確認のうえ、申請内容を入力してください。
         </p>
       </header>
       <JoinApplicationForm />

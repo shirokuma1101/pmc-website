@@ -22,6 +22,23 @@ export const registrationSchema = z.object({
   password: z.string().min(12).max(128),
 }).strict();
 
+export const joinApplicationSchema = z.object({
+  submissionId: z.string().uuid(),
+  displayName: z.string().trim().min(1).max(50),
+  email: z.string().trim().email().max(254),
+  minecraftGamertag: z.string().trim().min(1).max(32),
+  discordUsername: z.string().trim().min(1).max(64),
+  motivation: z.string().trim().min(1).max(1_000),
+  ageRequirement: z.literal(true),
+  minecraftRequirement: z.literal(true),
+  policyConsent: z.literal(true),
+}).strict();
+
+export const joinDecisionSchema = z.object({
+  status: z.enum(["accepted", "rejected"]),
+  message: z.string().trim().max(1_000).default(""),
+}).strict();
+
 export const passwordResetRequestSchema = z.object({
   email: z.string().trim().email().max(254),
 }).strict();

@@ -347,8 +347,7 @@ html[data-theme="dark"] .theme-toggle__sun {
   box-shadow: var(--shadow-lg);
 }
 
-.notification-tray__heading,
-.notification-tray__footer {
+.notification-tray__heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -442,18 +441,6 @@ html[data-theme="dark"] .theme-toggle__sun {
 .notification-tray__kind--registration {
   color: var(--color-success);
   background: var(--color-success-soft);
-}
-
-.notification-tray__footer {
-  justify-content: flex-end;
-  border-top: 1px solid var(--color-line);
-}
-
-.notification-tray__footer a {
-  color: var(--color-primary);
-  font-size: 0.76rem;
-  font-weight: 700;
-  text-decoration: none;
 }
 
 .account-link:hover {
