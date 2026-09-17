@@ -15,7 +15,7 @@ import { adminArticleFieldsSchema, idSchema, updateArticleSchema } from "@/lib/v
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type RouteContext = { params: Promise<{ id: string }> | { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
 async function routeId(context: RouteContext): Promise<string> {
   return idSchema.parse((await context.params).id);
