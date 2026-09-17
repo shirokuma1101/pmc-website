@@ -51,11 +51,11 @@
 
 ## コミット規則
 
-- Conventional Commits形式の `type(scope): summary` を使用します。`scope` は省略可能です。
+- Conventional Commits形式の `type: summary` を使用します。`feat(scope): ...` のような括弧付きのscopeは使用しません。
 - 主なtype: `feat`（機能追加）、`fix`（不具合修正）、`docs`（文書）、`refactor`（挙動を変えない整理）、`test`（テスト）、`ci`（CI）、`build`（ビルド・依存関係）、`perf`（性能改善）、`style`（コード書式のみ）、`chore`（その他保守）。
 - 新機能は `add:` ではなく `feat:` に統一します。画面レイアウトの不具合修正は `style:` ではなく `fix:` を使います。
 - 要約は原則として短い英語の命令形で、変更目的が分かる内容にします。
-- 例: `fix(upload): handle mismatched image MIME types`、`docs: document agent contribution workflow`。
+- 例: `fix: handle mismatched image MIME types`、`docs: document agent contribution workflow`。
 - 1コミットには論理的にまとまった変更だけを含めます。必要に応じて本文で理由と `Refs #73` のようなIssue参照を記載します。
 - 対象パスを明示してステージし、`git diff --cached` と `git diff --cached --check` で内容・秘密情報・無関係な変更を確認してからコミットします。
 - ユーザーから明示されない限り、amend、rebaseによる既存履歴の変更、force pushを行いません。
@@ -74,7 +74,7 @@
 ## PR作成と報告
 
 - 作業ブランチを同名のリモートブランチへpushし、原則 `main` 宛てにPRを作成します。作成前に同じブランチのPRがないか確認します。
-- PRタイトルもコミット同様の `type(scope): summary` 形式とします。
+- PRタイトルもコミット同様の `type: summary` 形式とし、括弧付きのscopeは使用しません。
 - PRテンプレートが存在する場合はそれを使用します。ない場合は「概要」「変更内容」「確認内容」「影響・注意点」「関連Issue」を記載します。
 - Issueを完全に解決するPRは `Closes #番号`、部分対応は `Refs #番号` を使います。未完了のIssueを自動クローズさせません。
 - 環境変数、コンテナ再作成、schema適用、データ移行などの追加手順が必要ならPRに明記します。
