@@ -110,7 +110,7 @@ export default async function HomePage() {
         <ArticleGrid articles={articles.data.slice(0, 3)} />
       </section>
 
-      <Link className={styles.joinButton} href="/about">
+      <Link className={styles.joinButton} href="/join">
         <span>参加申請はこちらから</span>
         <span aria-hidden="true">→</span>
       </Link>

@@ -58,14 +58,9 @@ export default async function AboutPage({ searchParams }: { searchParams: Promis
           <h2 id="about-join-title">PostMineClanに参加する</h2>
         </div>
         <div className="about-cta__actions">
-          <a
-            className="button button--primary"
-            href="https://forms.gle/nAfeagxWa9JFMWHw5"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <Link className="button button--primary" href="/join">
             参加フォームを開く
-          </a>
+          </Link>
         </div>
       </section>
     </main>
