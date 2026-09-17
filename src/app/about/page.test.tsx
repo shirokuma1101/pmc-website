@@ -41,7 +41,7 @@ describe("About Us Markdown rendering", () => {
     expect(screen.getByRole("img", { name: "safe image" })).toHaveAttribute("src", "https://images.example.com/example.png");
     expect(screen.getByRole("link", { name: "参加フォームを開く" })).toHaveAttribute(
       "href",
-      "https://forms.gle/nAfeagxWa9JFMWHw5",
+      "/join",
     );
     const joinHeading = screen.getByRole("heading", { name: "PostMineClanに参加する" });
     expect(joinHeading).toHaveTextContent("PostMineClanに参加する");

@@ -98,6 +98,7 @@ services:
       EXTENSIONS_MUST_LOAD: "true"
       TELEMETRY: "false"
       WEBSOCKETS_ENABLED: "false"
+      PMC_INTERNAL_API_TOKEN: ${PMC_INTERNAL_API_TOKEN:?Run npm run env:setup first}
       FILES_MAX_UPLOAD_SIZE: ${DIRECTUS_FILES_MAX_UPLOAD_SIZE:-2gb}
       # Windows browsers can report .mcworld files with an empty MIME type.
       # The trailing empty entry lets Directus Studio accept those files.
@@ -169,6 +170,9 @@ services:
       NEXT_PUBLIC_APP_URL: http://localhost:${FRONTEND_DEV_PORT:-3001}
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-1x00000000000000000000AA}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-1x0000000000000000000000000000000AA}
+      PMC_INTERNAL_API_TOKEN: ${PMC_INTERNAL_API_TOKEN:?Run npm run env:setup first}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
       GOOGLE_SSO_AUTH_URL: ${GOOGLE_SSO_AUTH_URL:-}
       X_SSO_AUTH_URL: ${X_SSO_AUTH_URL:-}
       NEXT_PUBLIC_MINECRAFT_MAP_URL: /minecraft-map

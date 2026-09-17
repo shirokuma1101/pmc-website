@@ -1,5 +1,5 @@
 import { Readable } from "node:stream";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 
 const UPLOAD_FOLDER_ID = "0ebf4c62-1014-4a72-99db-2b1198c59f1f";
 const WORLD_DOWNLOAD_FOLDER_ID = "a5c3b26e-2b4b-4a2e-9f65-37b925f0cdea";
@@ -13,6 +13,7 @@ const DELETABLE_ARTICLE_STATUSES = new Set(["draft", "rejected"]);
 const SUBMITTABLE_ARTICLE_STATUSES = new Set(["draft", "rejected"]);
 const STORED_ASSET_PATTERN = /\/pmc-website\/assets\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/gi;
 const MEMBER_ROLE_NAME = "pmc-website Member";
+const JOIN_APPLICATION_STATUSES = new Set(["pending", "accepted", "rejected"]);
 const MAP_MARKER_FIELDS = [
   "id", "name", "description", "world", "x", "y", "z", "icon", "color",
   "image", "related_type", "related_id",
@@ -21,6 +22,65 @@ const MAP_MARKER_FIELDS = [
 
 let mapMarkerTablePromise;
 let mapPathTablePromise;
+let joinApplicationsTablePromise;
+
+function ensureJoinApplicationsTable(database) {
+  joinApplicationsTablePromise ??= database.schema.hasTable("join_applications").then(async (exists) => {
+    if (exists) return;
+    await database.schema.createTable("join_applications", (table) => {
+      table.uuid("id").primary();
+      table.string("display_name", 50).notNullable();
+      table.string("email", 254).notNullable().index();
+      table.string("minecraft_gamertag", 32).notNullable();
+      table.string("discord_username", 64).notNullable();
+      table.text("motivation").notNullable();
+      table.string("status", 16).notNullable().defaultTo("pending").index();
+      table.text("decision_message").nullable();
+      table.uuid("decided_by").nullable().references("id").inTable("directus_users").onDelete("SET NULL");
+      table.timestamp("created_at", { useTz: true }).notNullable().defaultTo(database.fn.now());
+      table.timestamp("decided_at", { useTz: true }).nullable();
+    });
+  }).catch((error) => {
+    joinApplicationsTablePromise = undefined;
+    throw error;
+  });
+  return joinApplicationsTablePromise;
+}
+
+function joinApplicationInput(request) {
+  const body = objectBody(request);
+  strictKeys(body, new Set(["id", "displayName", "email", "minecraftGamertag", "discordUsername", "motivation"]));
+  const email = requiredText(body.email, "email", 254).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new EndpointError(400, "INVALID_PAYLOAD", "email is invalid");
+  return {
+    id: uuid(body.id, "id"),
+    display_name: requiredText(body.displayName, "displayName", 50),
+    email,
+    minecraft_gamertag: requiredText(body.minecraftGamertag, "minecraftGamertag", 32),
+    discord_username: requiredText(body.discordUsername, "discordUsername", 64),
+    motivation: requiredText(body.motivation, "motivation", 1_000),
+  };
+}
+
+function requireInternalToken(request) {
+  const expected = process.env.PMC_INTERNAL_API_TOKEN;
+  const supplied = request.headers["x-pmc-internal-token"];
+  if (!expected || typeof supplied !== "string") throw new EndpointError(403, "FORBIDDEN", "Internal access is required");
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(supplied);
+  if (expectedBuffer.length !== suppliedBuffer.length || !timingSafeEqual(expectedBuffer, suppliedBuffer)) {
+    throw new EndpointError(403, "FORBIDDEN", "Internal access is required");
+  }
+}
+
+function joinDecisionInput(request) {
+  const body = objectBody(request);
+  strictKeys(body, new Set(["status", "message"]));
+  if (!JOIN_APPLICATION_STATUSES.has(body.status) || body.status === "pending") {
+    throw new EndpointError(400, "INVALID_PAYLOAD", "status is invalid");
+  }
+  return { status: body.status, decision_message: optionalText(body.message ?? "", "message", 1_000) || null };
+}
 
 function ensureMapMarkerTable(database) {
   mapMarkerTablePromise ??= database.schema.hasTable("minecraft_map_markers").then(async (exists) => {
@@ -1148,6 +1208,47 @@ export default {
         });
       });
       response.status(201).json({ data: { registered: true } });
+    }));
+
+    router.post("/join-applications", route(async (request, response) => {
+      requireInternalToken(request);
+      await ensureJoinApplicationsTable(database);
+      const input = joinApplicationInput(request);
+      const existing = await database("join_applications").select("id").where({ id: input.id }).first();
+      if (!existing) await database("join_applications").insert(input);
+      response.status(existing ? 200 : 201).json({ data: { id: input.id } });
+    }));
+
+    router.get("/join-applications", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureJoinApplicationsTable(database);
+      const data = await database("join_applications")
+        .select("id", "display_name", "email", "minecraft_gamertag", "discord_username", "motivation", "status", "decision_message", "created_at", "decided_at")
+        .orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+        .orderBy("created_at", "desc")
+        .limit(200);
+      response.json({ data });
+    }));
+
+    router.get("/join-applications/:id", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureJoinApplicationsTable(database);
+      const data = await database("join_applications").select("*").where({ id: routeId(request) }).first();
+      if (!data) throw new EndpointError(404, "RECORD_NOT_FOUND", "The application was not found");
+      response.json({ data });
+    }));
+
+    router.post("/join-applications/:id/decision", route(async (request, response) => {
+      requireAdmin(request);
+      await ensureJoinApplicationsTable(database);
+      const id = routeId(request);
+      const input = joinDecisionInput(request);
+      const updated = await database("join_applications")
+        .where({ id, status: "pending" })
+        .update({ ...input, decided_by: currentUser(request), decided_at: database.fn.now() });
+      if (!updated) throw new EndpointError(409, "APPLICATION_ALREADY_DECIDED", "The application has already been decided");
+      const data = await database("join_applications").select("*").where({ id }).first();
+      response.json({ data });
     }));
 
     router.get("/registrations", route(async (request, response) => {

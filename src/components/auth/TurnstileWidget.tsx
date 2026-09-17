@@ -2,7 +2,9 @@
 
 import Script from "next/script";
 import { useEffect, useId, useRef, useState } from "react";
-type TurnstileAction = "login" | "registration" | "google-sso" | "x-sso" | "password-reset-request";
+type TurnstileAction = "login" | "registration" | "join-application" | "google-sso" | "x-sso" | "password-reset-request";
+const ALWAYS_PASS_TEST_SITE_KEY = "1x00000000000000000000AA";
+const LOCAL_TEST_TOKEN = "XXXX.DUMMY.TOKEN.XXXX";
 
 declare global {
   interface Window {
@@ -27,6 +29,7 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
   const [widgetError, setWidgetError] = useState(false);
   const id = useId();
   const sitekey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const isLocalTestMode = sitekey === ALWAYS_PASS_TEST_SITE_KEY;
 
   useEffect(() => {
     callbackRef.current = onTokenChange;
@@ -67,6 +70,10 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
   }
 
   useEffect(() => {
+    if (isLocalTestMode) {
+      callbackRef.current(LOCAL_TEST_TOKEN);
+      return () => callbackRef.current(null);
+    }
     let attempts = 0;
     const tryRender = () => {
       attempts += 1;
@@ -88,30 +95,36 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
     };
   // `action` and `sitekey` define the lifetime of the external widget instance.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, sitekey]);
+  }, [action, isLocalTestMode, sitekey]);
 
   useEffect(() => {
+    if (resetKey > 0 && isLocalTestMode) {
+      callbackRef.current(LOCAL_TEST_TOKEN);
+      return;
+    }
     if (resetKey > 0 && widgetIdRef.current && window.turnstile) {
       window.turnstile.reset(widgetIdRef.current);
       callbackRef.current(null);
     }
-  }, [resetKey]);
+  }, [isLocalTestMode, resetKey]);
 
   return (
     <div className="turnstile-field" aria-labelledby={`${id}-label`}>
       <span className="sr-only" id={`${id}-label`}>セキュリティ確認</span>
-      <Script
-        id="cloudflare-turnstile"
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-        strategy="afterInteractive"
-        onReady={() => undefined}
-        onError={() => {
-          setWidgetError(true);
-          callbackRef.current(null);
-        }}
-      />
-      <div ref={containerRef} />
-      {!sitekey || widgetError ? <p className="field__error">セキュリティ確認を読み込めませんでした。ページを再読み込みしてください。</p> : null}
+      {isLocalTestMode ? <p className="field__hint">ローカルテスト用のセキュリティ確認を使用しています。</p> : <>
+        <Script
+          id="cloudflare-turnstile"
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+          onReady={() => undefined}
+          onError={() => {
+            setWidgetError(true);
+            callbackRef.current(null);
+          }}
+        />
+        <div ref={containerRef} />
+      </>}
+      {!sitekey || (!isLocalTestMode && widgetError) ? <p className="field__error">セキュリティ確認を読み込めませんでした。ページを再読み込みしてください。</p> : null}
     </div>
   );
 }

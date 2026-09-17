@@ -314,6 +314,127 @@
   list-style: none;
 }
 
+.join-page {
+  max-width: 760px;
+}
+
+.join-form-card {
+  display: grid;
+  gap: 2rem;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.join-form-card__heading h2 {
+  margin-block: 0.2rem 0.6rem;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+}
+
+.join-form-card__heading p:last-child {
+  margin: 0;
+  color: var(--color-ink-soft);
+  line-height: 1.75;
+}
+
+.join-form-section {
+  display: grid;
+  gap: 1.35rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.join-form-section > legend {
+  width: 100%;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0.8rem;
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-ink);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.join-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.35rem;
+}
+
+.join-form-consents {
+  gap: 0.85rem;
+}
+
+.join-checkbox {
+  display: grid;
+  grid-template-columns: 1.15rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.9rem 1rem;
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  line-height: 1.65;
+}
+
+.join-checkbox input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.25rem;
+  accent-color: var(--color-primary);
+}
+
+.join-checkbox:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(36 75 156 / 14%);
+}
+
+.join-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.join-confirmation {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  padding: 1px;
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-line);
+  border-radius: var(--radius-md);
+}
+
+.join-confirmation > div {
+  min-width: 0;
+  padding: 1rem;
+  background: var(--color-surface-soft);
+}
+
+.join-confirmation__wide {
+  grid-column: 1 / -1;
+}
+
+.join-confirmation dt {
+  margin-bottom: 0.35rem;
+  color: var(--color-ink-faint);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.join-confirmation dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .about-history__timeline li {
   position: relative;
   display: grid;
@@ -899,6 +1020,12 @@
   margin: 0;
   color: var(--color-ink-soft);
   font-size: 0.88rem;
+}
+
+.join-review-actions {
+  display: grid;
+  gap: 1rem;
+  min-width: min(100%, 24rem);
 }
 
 .review-grid__item {

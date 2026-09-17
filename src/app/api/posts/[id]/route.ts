@@ -10,7 +10,7 @@ import { adminPostFieldsSchema, idSchema, updatePostSchema } from "@/lib/validat
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type RouteContext = { params: Promise<{ id: string }> | { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
 async function routeId(context: RouteContext): Promise<string> {
   return idSchema.parse((await context.params).id);
