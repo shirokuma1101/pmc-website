@@ -22,6 +22,7 @@ RUN apt-get update \
     && chown -R mapgen:mapgen /input /work /output
 
 COPY --chmod=755 render-map.sh /usr/local/bin/render-map
+COPY --chmod=644 render-log.sh /usr/local/lib/render-log.sh
 COPY --chmod=755 extract_archive.py /usr/local/bin/extract_archive.py
 COPY --chmod=755 update_catalog.py /usr/local/bin/update_catalog.py
 

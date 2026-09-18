@@ -402,6 +402,9 @@ request bodyを許可し、設定変更後はDirectusコンテナを再作成し
 - `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID`: Google Analytics 4の測定ID（`G-`から始まる値）。未設定時は解析を無効化
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`: Browserへ公開するCloudflare TurnstileのSite Key
 - `TURNSTILE_SECRET_KEY`: BFFだけで使用するCloudflare TurnstileのSecret Key（Browserへ公開しない）
+- `RESEND_API_KEY`: 参加申請メールを送信するResend APIキー（Browserへ公開しない）
+- `RESEND_FROM_EMAIL`: Resendで検証済みのドメインを使う送信元（例: `PostMineClan <no-reply@postmineclan.com>`）
+- `PMC_INTERNAL_API_TOKEN`: FrontendからDirectusの内部APIを呼び出すための十分に長いランダム値（両コンテナへ同じ値を設定）
 - `GOOGLE_SSO_AUTH_URL` / `X_SSO_AUTH_URL`: 任意のSSO認証開始URL。未設定のproviderはログイン画面に表示しない
 - `AUTH_RATE_LIMIT_TRUST_PROXY`: 信頼するreverse proxyが`X-Forwarded-For`を上書きする本番構成でのみ`true`
 - `DIRECTUS_RATE_LIMITER_*`: Directus API全体の補助的なIP制限。複数instance構成ではmemoryではなくRedisを使用

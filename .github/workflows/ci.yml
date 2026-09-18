@@ -60,5 +60,10 @@ jobs:
           bash -n scripts/production-update.sh
           bash scripts/production-update.sh --help
 
+      - name: Validate map generator scripts
+        run: |
+          bash -n minecraft-map/generator/render-map.sh minecraft-map/generator/render-log.sh
+          bash minecraft-map/tests/render-log.sh
+
       - name: Build container
         run: docker compose --env-file .env.example build frontend

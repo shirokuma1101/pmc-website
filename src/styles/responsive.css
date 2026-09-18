@@ -534,6 +534,20 @@
     width: min(calc(100% - 2rem), var(--content-width));
   }
 
+  .join-form-grid,
+  .join-confirmation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .join-confirmation__wide {
+    grid-column: auto;
+  }
+
+  .join-form-actions,
+  .join-form-actions .button {
+    width: 100%;
+  }
+
   .home-hero__copy h1 {
     font-size: clamp(2.35rem, 14vw, 3.8rem);
   }

@@ -6,7 +6,7 @@ import { idSchema } from "@/lib/validation/schemas";
 
 export const runtime = "nodejs";
 
-type RouteContext = { params: Promise<{ id: string }> | { id: string } };
+type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   return withRouteErrors(async () => {
