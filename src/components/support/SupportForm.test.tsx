@@ -12,6 +12,7 @@ describe("SupportForm", () => {
     expect(form.getByText(/Supporterバッジのみ/)).toBeInTheDocument();
     expect(form.queryByRole("spinbutton", { name: "有効月数" })).not.toBeInTheDocument();
     expect(form.queryByText(/Standard Supporter特典/)).not.toBeInTheDocument();
+    expect(form.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
   });
 
   it("requires login for monthly supporter plans", () => {

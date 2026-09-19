@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SUPPORTER_POLICY } from "@/lib/organization/supporter-policy";
 
 export const metadata = { title: "PostMineClan 規約" };
 
@@ -8,7 +9,7 @@ export default function TermsPage() {
       <header className="legal-page__header">
         <p className="eyebrow">COMMUNITY RULES</p>
         <h1>PostMineClan 規約</h1>
-        <p>発行日：2026年8月23日</p>
+        <p>発行日：2026年8月23日／最終更新日：2026年9月20日</p>
       </header>
 
       <section>
@@ -154,13 +155,14 @@ export default function TermsPage() {
         <h3>5-6. サービスの変更・停止</h3>
         <p>保守・障害・セキュリティ対応その他の事情により、予告なく機能を変更または停止する場合があります。データの永続的な保存を保証しないため、必要なデータは利用者ご自身でも保管してください。</p>
         <h3>5-7. サポーター制度</h3>
-        <p>サポーター制度では、金額・継続課金・解約・返金・決済事業者および支援金の用途に関する条件を申込画面に表示します。1回の支援は、特段の明示がない限り、商品購入や特典の対価ではありません。</p>
+        <p>支援金はPMCの活動に活用します。プランの金額・特典・支払条件は<Link href="/supporters">申込画面</Link>に表示します。決済はStripeで処理します。</p>
+        <ul>{SUPPORTER_POLICY.map((condition) => <li key={condition}>{condition}</li>)}</ul>
         <h3>5-8. 免責・責任制限</h3>
         <p>当サイトは現状有姿で提供され、完全性・継続性・特定目的への適合性を保証しません。運営の故意または重大な過失による場合、その他法令上責任を制限できない場合を除き、利用によって生じた間接的・付随的な損害について責任を負いません。</p>
         <h3>5-9. 規約の変更</h3>
         <p>必要に応じて本章を変更します。重要な変更は当サイト上で告知し、変更後の利用には変更後の内容が適用されます。</p>
         <h3>5-10. お問い合わせ</h3>
-        <p><Link href="https://x.com/PostMineClan">PMC公式X</Link>または<Link href="https://github.com/shirokuma1101/pmc-website">GitHubリポジトリ</Link>からご連絡ください。</p>
+        <p><Link href="/contact">お問い合わせフォーム</Link>からご連絡ください。</p>
       </section>
     </main>
   );

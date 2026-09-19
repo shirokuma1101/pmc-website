@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { MONTHLY_SUPPORTER_PLANS, ONE_TIME_SUPPORT, type MonthlySupporterTier } from "@/lib/organization/supporter";
 
@@ -50,7 +51,7 @@ export function SupportForm({ checkoutEnabled, loggedIn }: SupportFormProps) {
         </fieldset>
       )}
 
-      <label className="donation-consent"><input name="consent" required type="checkbox" value="accepted" /><span>支援金の用途と返金方針を確認し、Stripeの決済画面へ移動することに同意します。</span></label>
+      <label className="donation-consent"><input name="consent" required type="checkbox" value="accepted" /><span>上記の支払・特典・返金・解約条件と<Link href="/terms" target="_blank">利用規約</Link>を確認し、Stripeの決済画面へ移動することに同意します。</span></label>
       <button className="button button--primary button--lg button--full" disabled={!checkoutEnabled || submitting || !loggedIn} type="submit">{submitting ? "Stripeへ移動しています…" : frequency === "monthly" ? "サポーターになる" : "Supporterとして支援する"}</button>
       {!checkoutEnabled ? <p className="donation-form__notice" role="status">現在、決済機能を準備しています。Stripeの設定完了後にご利用いただけます。</p> : null}
       <p className="donation-form__secure-note">カード情報はPostMineClanでは保持せず、Stripeの安全な決済画面で入力します。{frequency === "monthly" ? " 月額プランは解約するまで自動で継続します。" : null}</p>
