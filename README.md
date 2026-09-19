@@ -92,6 +92,8 @@ npm run stripe:trigger:checkout
 ```
 
 test modeとlive modeではAPI Key、Webhook endpoint、signing secret、商品・価格を分離してください。
+支払いメールを送信する場合は、Webhook endpointで既存イベントに加えて`invoice.paid`と
+`invoice.payment_failed`を有効にします。通知はFrontendからResend APIへ直接送信し、Directus SMTPは使用しません。
 
 `pmc_`付きcollectionを使用していた旧ローカル環境から切り替える場合は、先に旧projectを停止します。
 
@@ -402,7 +404,7 @@ request bodyを許可し、設定変更後はDirectusコンテナを再作成し
 - `NEXT_PUBLIC_GOOGLE_ANALYTICS_ID`: Google Analytics 4の測定ID（`G-`から始まる値）。未設定時は解析を無効化
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`: Browserへ公開するCloudflare TurnstileのSite Key
 - `TURNSTILE_SECRET_KEY`: BFFだけで使用するCloudflare TurnstileのSecret Key（Browserへ公開しない）
-- `RESEND_API_KEY`: 参加申請メールを送信するResend APIキー（Browserへ公開しない）
+- `RESEND_API_KEY`: 参加申請・判定結果・Stripe支払い通知を送信するResend APIキー（Browserへ公開しない）
 - `RESEND_FROM_EMAIL`: Resendで検証済みのドメインを使う送信元（例: `PostMineClan <no-reply@postmineclan.com>`）
 - `PMC_INTERNAL_API_TOKEN`: FrontendからDirectusの内部APIを呼び出すための十分に長いランダム値（両コンテナへ同じ値を設定）
 - `GOOGLE_SSO_AUTH_URL` / `X_SSO_AUTH_URL`: 任意のSSO認証開始URL。未設定のproviderはログイン画面に表示しない

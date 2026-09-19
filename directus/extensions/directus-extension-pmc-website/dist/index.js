@@ -722,18 +722,25 @@ export function stripeSupportEvent(body) {
   const eventType = requiredText(body.type, "type", 80);
   const object = body.object;
   if (!object || typeof object !== "object" || Array.isArray(object)) throw new EndpointError(400, "INVALID_PAYLOAD", "Invalid Stripe event");
-  const metadata = object.metadata && typeof object.metadata === "object" ? object.metadata : {};
+  const invoiceSubscriptionDetails = object.parent?.subscription_details ?? object.subscription_details;
+  const metadata = object.metadata && typeof object.metadata === "object" && Object.keys(object.metadata).length
+    ? object.metadata
+    : invoiceSubscriptionDetails?.metadata && typeof invoiceSubscriptionDetails.metadata === "object"
+      ? invoiceSubscriptionDetails.metadata
+      : {};
   const userId = typeof metadata.user_id === "string" && UUID_PATTERN.test(metadata.user_id) ? metadata.user_id : null;
-  const frequency = metadata.frequency === "monthly" || eventType.startsWith("customer.subscription") ? "monthly" : "one_time";
+  const frequency = metadata.frequency === "monthly" || eventType.startsWith("customer.subscription") || eventType.startsWith("invoice.") ? "monthly" : "one_time";
   const tier = SUPPORTER_TIER_PRIORITY.has(metadata.tier) ? metadata.tier : frequency === "one_time" ? "supporter" : null;
   if (!tier) throw new EndpointError(400, "INVALID_PAYLOAD", "Supporter tier is missing");
   const quantity = frequency === "one_time" ? Number(metadata.quantity) : 1;
   if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 12) throw new EndpointError(400, "INVALID_PAYLOAD", "Support quantity is invalid");
   const checkoutSucceeded = eventType === "checkout.session.completed" || eventType === "checkout.session.async_payment_succeeded";
   const checkoutFailed = eventType === "checkout.session.async_payment_failed";
-  const active = checkoutSucceeded
+  const invoicePaid = eventType === "invoice.paid";
+  const invoiceFailed = eventType === "invoice.payment_failed";
+  const active = invoicePaid || (checkoutSucceeded
     ? object.payment_status === "paid" || object.payment_status === "no_payment_required"
-    : eventType === "customer.subscription.updated" && ["active", "trialing"].includes(object.status);
+    : eventType === "customer.subscription.updated" && ["active", "trialing"].includes(object.status));
   return {
     eventType,
     object,
@@ -742,8 +749,8 @@ export function stripeSupportEvent(body) {
     tier,
     quantity,
     active,
-    status: eventType === "customer.subscription.deleted" || checkoutFailed ? "revoked" : active ? "active" : String(object.status ?? "pending").slice(0, 24),
-    externalReference: String(object.subscription ?? object.id ?? "").slice(0, 255),
+    status: eventType === "customer.subscription.deleted" || checkoutFailed || invoiceFailed ? "revoked" : active ? "active" : String(object.status ?? "pending").slice(0, 24),
+    externalReference: String(invoiceSubscriptionDetails?.subscription ?? object.subscription ?? object.id ?? "").slice(0, 255),
     entitlementSource: frequency === "monthly" ? "stripe_subscription" : "stripe_one_time",
   };
 }
@@ -1269,7 +1276,8 @@ export default {
       const member = userId ? await database("organization_members").select("id").where({ user: userId }).first() : null;
 
       await database.transaction(async (transaction) => {
-        await transaction("supporter_payments").insert({ id: randomUUID(), stripe_event_id: eventId, stripe_object_id: String(object.id ?? eventId).slice(0, 255), stripe_customer_id: typeof object.customer === "string" ? object.customer.slice(0, 255) : null, user: userId, member: member?.id ?? null, frequency, tier, amount: Number.isSafeInteger(object.amount_total) ? object.amount_total : null, quantity, currency: typeof object.currency === "string" ? object.currency.slice(0, 3) : null, status, livemode: body.livemode, created_at: new Date(), updated_at: new Date() });
+        const amount = [object.amount_total, object.amount_paid, object.amount_due].find((value) => Number.isSafeInteger(value));
+        await transaction("supporter_payments").insert({ id: randomUUID(), stripe_event_id: eventId, stripe_object_id: String(object.id ?? eventId).slice(0, 255), stripe_customer_id: typeof object.customer === "string" ? object.customer.slice(0, 255) : null, user: userId, member: member?.id ?? null, frequency, tier, amount: amount ?? null, quantity, currency: typeof object.currency === "string" ? object.currency.slice(0, 3) : null, status, livemode: body.livemode, created_at: new Date(), updated_at: new Date() });
         if (member && (frequency === "monthly" || active)) {
           const existing = await transaction("profile_entitlements").where({ member: member.id, feature: "profile_highlight", source: entitlementSource }).first();
           let validUntil = null;

@@ -133,4 +133,29 @@ const canceledSubscription = stripeSupportEvent({
 assert.equal(canceledSubscription.active, false);
 assert.equal(canceledSubscription.status, "revoked");
 
+const paidRenewal = stripeSupportEvent({
+  type: "invoice.paid",
+  object: {
+    id: "in_test_paid",
+    status: "paid",
+    amount_paid: 1500,
+    parent: { subscription_details: { subscription: "sub_test", metadata: { tier: "premium", user_id: supporterUserId } } },
+  },
+});
+assert.equal(paidRenewal.active, true);
+assert.equal(paidRenewal.userId, supporterUserId);
+assert.equal(paidRenewal.externalReference, "sub_test");
+
+const failedRenewal = stripeSupportEvent({
+  type: "invoice.payment_failed",
+  object: {
+    id: "in_test_failed",
+    status: "open",
+    amount_due: 1500,
+    parent: { subscription_details: { subscription: "sub_test", metadata: { tier: "premium", user_id: supporterUserId } } },
+  },
+});
+assert.equal(failedRenewal.active, false);
+assert.equal(failedRenewal.status, "revoked");
+
 console.log("Discord article payload tests passed");

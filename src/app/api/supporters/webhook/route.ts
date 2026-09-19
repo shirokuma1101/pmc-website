@@ -1,5 +1,6 @@
 import { ApiRouteError, withRouteErrors } from "@/lib/api/route";
 import { directusRequest } from "@/lib/directus/client";
+import { sendSupporterPaymentEmail, type StripeSupportEmailEvent } from "@/lib/email/resend";
 import { verifyStripeSignature } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -9,6 +10,8 @@ const ACCEPTED_EVENTS = new Set([
   "checkout.session.completed",
   "checkout.session.async_payment_succeeded",
   "checkout.session.async_payment_failed",
+  "invoice.paid",
+  "invoice.payment_failed",
   "customer.subscription.updated",
   "customer.subscription.deleted",
 ]);
@@ -28,6 +31,7 @@ export async function POST(request: Request): Promise<Response> {
       headers: { "X-PMC-Stripe-Secret": process.env.STRIPE_INTERNAL_SECRET ?? "" },
       body: { id: event.id, type: event.type, livemode: event.livemode, object: event.data?.object },
     });
+    await sendSupporterPaymentEmail({ id: event.id, type: event.type, object: event.data?.object } as StripeSupportEmailEvent);
     return new Response(null, { status: 204 });
   });
 }
