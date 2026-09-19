@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useId, useRef, useState } from "react";
-type TurnstileAction = "login" | "registration" | "join-application" | "google-sso" | "x-sso" | "password-reset-request";
+type TurnstileAction = "login" | "registration" | "join-application" | "contact-inquiry" | "google-sso" | "x-sso" | "password-reset-request";
 // Cloudflare's documented local-development test credentials. The matching
 // server-side secret accepts this token without contacting the live challenge.
 const LOCAL_TEST_SITE_KEY = "1x00000000000000000000AA";

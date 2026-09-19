@@ -47,6 +47,47 @@ export interface JoinApplicationEmail {
   motivation: string;
 }
 
+export interface ContactInquiryEmail {
+  submissionId: string;
+  category: "supporter" | "account" | "community" | "other";
+  displayName: string;
+  email: string;
+  subject: string;
+  message: string;
+}
+
+const CONTACT_CATEGORY_LABELS: Record<ContactInquiryEmail["category"], string> = {
+  supporter: "サポーター・決済",
+  account: "アカウント",
+  community: "コミュニティ",
+  other: "その他",
+};
+
+export async function sendContactInquiryEmail(input: ContactInquiryEmail, recipient: string): Promise<string> {
+  const category = CONTACT_CATEGORY_LABELS[input.category];
+  const safeSubject = input.subject.replace(/[\r\n]+/g, " ");
+  const text = [
+    "PostMineClanへお問い合わせが届きました。",
+    `受付番号: ${input.submissionId}`,
+    `種別: ${category}`,
+    `お名前: ${input.displayName}`,
+    `返信先: ${input.email}`,
+    `件名: ${safeSubject}`,
+    "",
+    input.message,
+  ].join("\n");
+  return sendResendEmail({
+    to: recipient,
+    replyTo: input.email,
+    subject: `お問い合わせ（${category}）: ${safeSubject}`,
+    text,
+    html: `<h1>お問い合わせ</h1><p>受付番号: ${htmlEscape(input.submissionId)}</p><p>種別: ${htmlEscape(category)}</p><p>お名前: ${htmlEscape(input.displayName)}</p><p>返信先: ${htmlEscape(input.email)}</p><p>件名: ${htmlEscape(safeSubject)}</p><p style="white-space:pre-wrap">${htmlEscape(input.message)}</p>`,
+    idempotencyKey: `contact-inquiry/${input.submissionId}`,
+    unavailableMessage: "現在、お問い合わせを送信できません。",
+    failureMessage: "お問い合わせを送信できませんでした。",
+  });
+}
+
 function htmlEscape(value: string): string {
   return value
     .replaceAll("&", "&amp;")

@@ -16,6 +16,7 @@ export interface AuthRateLimitPolicy {
     | "login"
     | "registration"
     | "join-application"
+    | "contact-inquiry"
     | "sso"
     | "tfa"
     | "password-reset-request"
@@ -30,6 +31,7 @@ export const AUTH_RATE_LIMITS = {
   login: { action: "login", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   registration: { action: "registration", accountLimit: 3, ipLimit: 5, windowMs: 60 * 60_000 },
   joinApplication: { action: "join-application", accountLimit: 3, ipLimit: 5, windowMs: 60 * 60_000 },
+  contactInquiry: { action: "contact-inquiry", accountLimit: 3, ipLimit: 8, windowMs: 60 * 60_000 },
   sso: { action: "sso", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   tfa: { action: "tfa", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   passwordResetRequest: {

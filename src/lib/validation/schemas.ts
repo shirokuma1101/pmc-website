@@ -34,6 +34,17 @@ export const joinApplicationSchema = z.object({
   policyConsent: z.literal(true),
 }).strict();
 
+export const contactInquirySchema = z.object({
+  submissionId: z.string().uuid(),
+  recipientId: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  category: z.enum(["supporter", "account", "community", "other"]),
+  displayName: z.string().trim().min(1).max(80),
+  email: z.email().trim().max(254),
+  subject: z.string().trim().min(1).max(160),
+  message: z.string().trim().min(10).max(5_000),
+  policyConsent: z.literal(true),
+}).strict();
+
 export const joinDecisionSchema = z.object({
   status: z.enum(["accepted", "rejected"]),
   message: z.string().trim().max(1_000).default(""),

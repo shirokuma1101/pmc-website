@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { sendJoinApplicationEmail, sendJoinDecisionEmail, sendSupporterPaymentEmail } from "./resend";
+import { sendContactInquiryEmail, sendJoinApplicationEmail, sendJoinDecisionEmail, sendSupporterPaymentEmail } from "./resend";
 
 const input = {
   displayName: "<script>alert(1)</script>\r\nBcc: other@example.com",
@@ -56,6 +56,25 @@ describe("sendJoinApplicationEmail", () => {
     expect(body.reply_to).toBe("support@postmineclan.com");
     expect(body.subject).toContain("承認");
     expect(new Headers(options?.headers).get("Idempotency-Key")).toContain("/accepted");
+  });
+
+  it("sends contact mail to the resolved recipient with an escaped body and reply-to", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "contact-email-id" }), { status: 200 }));
+    await sendContactInquiryEmail({
+      submissionId: "7e06c851-552d-45e7-8d3e-a8f07636213c",
+      category: "other",
+      displayName: "Tester",
+      email: "user@example.com",
+      subject: "質問\r\nBcc: bad@example.com",
+      message: "<script>test</script>について教えてください",
+    }, "owner@example.com");
+    const [, options] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(options?.body));
+    expect(body.to).toEqual(["owner@example.com"]);
+    expect(body.reply_to).toBe("user@example.com");
+    expect(body.html).not.toContain("<script>");
+    expect(body.subject).not.toContain("\n");
+    expect(new Headers(options?.headers).get("Idempotency-Key")).toBe("contact-inquiry/7e06c851-552d-45e7-8d3e-a8f07636213c");
   });
 
   it("sends an idempotent one-time payment confirmation to the Stripe customer", async () => {

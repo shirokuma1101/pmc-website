@@ -406,6 +406,7 @@ request bodyを許可し、設定変更後はDirectusコンテナを再作成し
 - `TURNSTILE_SECRET_KEY`: BFFだけで使用するCloudflare TurnstileのSecret Key（Browserへ公開しない）
 - `RESEND_API_KEY`: 参加申請・判定結果・Stripe支払い通知を送信するResend APIキー（Browserへ公開しない）
 - `RESEND_FROM_EMAIL`: Resendで検証済みのドメインを使う送信元（例: `PostMineClan <no-reply@postmineclan.com>`）
+- `CONTACT_PERSONAL_RECIPIENTS`: 個人宛問い合わせの送信先を設定する任意のJSON配列。例: `[{"id":"owner","label":"運営代表","email":"owner@example.com"}]`。個人アドレスはサーバー側にのみ保持し、画面には`label`だけ表示する。未設定でも共通窓口への送信は利用可能
 - `PMC_INTERNAL_API_TOKEN`: FrontendからDirectusの内部APIを呼び出すための十分に長いランダム値（両コンテナへ同じ値を設定）
 - `GOOGLE_SSO_AUTH_URL` / `X_SSO_AUTH_URL`: 任意のSSO認証開始URL。未設定のproviderはログイン画面に表示しない
 - `AUTH_RATE_LIMIT_TRUST_PROXY`: 信頼するreverse proxyが`X-Forwarded-For`を上書きする本番構成でのみ`true`
