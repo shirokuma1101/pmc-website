@@ -6,6 +6,7 @@ import { MONTHLY_SUPPORTER_PLANS, ONE_TIME_SUPPORT } from "@/lib/organization/su
 import { assertSameOrigin } from "@/lib/security/csrf";
 import { AUTH_RATE_LIMITS, enforceAuthRateLimit } from "@/lib/security/rate-limit";
 import { createCheckoutSession, stripeEnabled } from "@/lib/stripe";
+import { findSupporterSubscriptionCustomer } from "@/lib/supporter-subscriptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,9 @@ export async function POST(request: Request): Promise<Response> {
     let tier: "supporter" | "basic" | "standard" | "premium";
     if (parsed.frequency === "monthly") {
       if (!session) throw new ApiRouteError("Login is required for monthly support", 401, "AUTH_REQUIRED");
+      if (await findSupporterSubscriptionCustomer(session.user.id, true)) {
+        throw new ApiRouteError("月額契約またはお支払い手続き中の契約があります。支払い方法・月額プランの管理画面をご確認ください。", 409, "SUBSCRIPTION_EXISTS");
+      }
       tier = parsed.tier;
       amount = MONTHLY_SUPPORTER_PLANS[tier].amount;
     } else {
@@ -36,7 +40,9 @@ export async function POST(request: Request): Promise<Response> {
       tier = ONE_TIME_SUPPORT.tier;
       amount = ONE_TIME_SUPPORT.amount;
     }
-    const url = await createCheckoutSession({ frequency: parsed.frequency, amount, tier, userId: session?.user.id, email: session?.user.email, quantity: 1 });
+    const requestId = z.uuid().optional().parse(form.get("requestId") ?? undefined);
+    const url = await createCheckoutSession({ frequency: parsed.frequency, amount, tier, userId: session?.user.id, email: session?.user.email, quantity: 1, ...(requestId ? { requestId } : {}) });
+    if (request.headers.get("accept")?.includes("application/json")) return NextResponse.json({ data: { url } });
     return NextResponse.redirect(url, 303);
   });
 }

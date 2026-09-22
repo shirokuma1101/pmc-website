@@ -34,6 +34,7 @@ export async function createCheckoutSession(input: {
   userId?: string;
   email?: string;
   quantity?: number;
+  requestId?: string;
 }): Promise<string> {
   const body = new URLSearchParams({
     mode: input.frequency === "monthly" ? "subscription" : "payment",
@@ -62,9 +63,11 @@ export async function createCheckoutSession(input: {
     headers: {
       Authorization: `Bearer ${requiredEnvironment("STRIPE_SECRET_KEY")}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      ...(input.requestId ? { "Idempotency-Key": `support-checkout/${input.userId}/${input.requestId}` } : {}),
     },
     body,
     cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
   });
   const payload = await response.json() as { url?: string; error?: { message?: string } };
   if (!response.ok || !payload.url) throw new Error(payload.error?.message ?? "Stripe Checkout session creation failed");
@@ -88,20 +91,37 @@ export async function createCustomerPortalSession(customer: string): Promise<str
 const MANAGEABLE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "paused"]);
 
 export async function hasManageableStripeSubscription(customer: string): Promise<boolean> {
+  return hasSubscriptionWithStatus(customer, MANAGEABLE_SUBSCRIPTION_STATUSES);
+}
+
+export async function hasOpenStripeSubscription(customer: string): Promise<boolean> {
+  return hasSubscriptionWithStatus(customer, new Set([...MANAGEABLE_SUBSCRIPTION_STATUSES, "incomplete"]));
+}
+
+async function hasSubscriptionWithStatus(customer: string, statuses: ReadonlySet<string>): Promise<boolean> {
   const query = new URLSearchParams({ customer, status: "all", limit: "100" });
-  const response = await fetch(`https://api.stripe.com/v1/subscriptions?${query}`, {
-    headers: { Authorization: `Bearer ${requiredEnvironment("STRIPE_SECRET_KEY")}` },
-    cache: "no-store",
-  });
-  const payload = await response.json() as {
-    data?: Array<{ status?: string }>;
-    error?: { code?: string; message?: string };
-  };
-  if (!response.ok) {
-    if (payload.error?.code === "resource_missing") return false;
-    throw new StripeApiError(payload.error?.message ?? "Stripe subscriptions lookup failed", payload.error?.code);
+  while (true) {
+    const response = await fetch(`https://api.stripe.com/v1/subscriptions?${query}`, {
+      headers: { Authorization: `Bearer ${requiredEnvironment("STRIPE_SECRET_KEY")}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const payload = await response.json() as {
+      data?: Array<{ id?: string; status?: string }>;
+      has_more?: boolean;
+      error?: { code?: string; message?: string };
+    };
+    if (!response.ok) {
+      if (payload.error?.code === "resource_missing") return false;
+      throw new StripeApiError(payload.error?.message ?? "Stripe subscriptions lookup failed", payload.error?.code);
+    }
+    if (!Array.isArray(payload.data)) throw new StripeApiError("Invalid Stripe subscriptions response");
+    if (payload.data.some((subscription) => statuses.has(subscription.status ?? ""))) return true;
+    if (!payload.has_more) return false;
+    const cursor = payload.data.at(-1)?.id;
+    if (!cursor || cursor === query.get("starting_after")) throw new StripeApiError("Invalid Stripe subscriptions cursor");
+    query.set("starting_after", cursor);
   }
-  return payload.data?.some((subscription) => MANAGEABLE_SUBSCRIPTION_STATUSES.has(subscription.status ?? "")) ?? false;
 }
 
 export function verifyStripeSignature(payload: string, signature: string, now = Math.floor(Date.now() / 1_000)): void {

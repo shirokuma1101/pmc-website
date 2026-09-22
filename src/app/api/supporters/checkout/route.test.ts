@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/auth/session", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/auth/session")>(), getSession: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/security/rate-limit")>();
   return { ...actual, enforceAuthRateLimit: vi.fn() };
 });
 vi.mock("@/lib/stripe", () => ({ createCheckoutSession: vi.fn(), stripeEnabled: vi.fn() }));
+vi.mock("@/lib/supporter-subscriptions", () => ({ findSupporterSubscriptionCustomer: vi.fn() }));
 
 import { getSession } from "@/lib/auth/session";
 import { createCheckoutSession, stripeEnabled } from "@/lib/stripe";
 import { POST } from "./route";
+import { findSupporterSubscriptionCustomer } from "@/lib/supporter-subscriptions";
 
 const session = { accessToken: "token", user: { id: "user-id", displayName: "Member", isAdmin: false, tfaEnabled: false, email: "member@example.com" } };
 
@@ -25,6 +27,7 @@ describe("POST /api/supporters/checkout", () => {
     vi.mocked(stripeEnabled).mockReset().mockReturnValue(true);
     vi.mocked(getSession).mockReset().mockResolvedValue(session);
     vi.mocked(createCheckoutSession).mockReset().mockResolvedValue("https://checkout.stripe.test/session");
+    vi.mocked(findSupporterSubscriptionCustomer).mockReset().mockResolvedValue(null);
   });
 
   it("uses server-side monthly plan pricing", async () => {
@@ -70,5 +73,25 @@ describe("POST /api/supporters/checkout", () => {
     const response = await POST(crossOrigin);
     expect(response.status).toBe(403);
     expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("blocks another monthly contract even if the client bypasses the disabled button", async () => {
+    vi.mocked(findSupporterSubscriptionCustomer).mockResolvedValue("cus_existing");
+    const response = await POST(request({ frequency: "monthly", tier: "premium", consent: "accepted" }));
+    expect(response.status).toBe(409);
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("does not create a checkout when contract lookup fails", async () => {
+    vi.mocked(findSupporterSubscriptionCustomer).mockRejectedValue(new Error("Stripe unavailable"));
+    const response = await POST(request({ frequency: "monthly", tier: "basic", consent: "accepted" }));
+    expect(response.status).toBe(500);
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("allows an existing subscriber to make one-time support", async () => {
+    vi.mocked(findSupporterSubscriptionCustomer).mockResolvedValue("cus_existing");
+    expect((await POST(request({ frequency: "one_time", tier: "supporter", consent: "accepted" }))).status).toBe(303);
+    expect(findSupporterSubscriptionCustomer).not.toHaveBeenCalled();
   });
 });

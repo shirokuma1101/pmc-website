@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/directus/client", () => ({ directusRequest: vi.fn() }));
-vi.mock("@/lib/email/resend", () => ({ sendSupporterPaymentEmail: vi.fn() }));
+vi.mock("@/lib/email/resend", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/email/resend")>(), sendSupporterPaymentEmail: vi.fn() }));
 
 import { directusRequest } from "@/lib/directus/client";
 import { sendSupporterPaymentEmail } from "@/lib/email/resend";
@@ -11,7 +11,7 @@ import { ApiRouteError } from "@/lib/api/route";
 import { POST } from "./route";
 
 function signedRequest(event: unknown, secret = "whsec_test"): Request {
-  const payload = JSON.stringify(event);
+  const payload = JSON.stringify({ created: 1_800_000_000, ...(event as Record<string, unknown>) });
   const timestamp = Math.floor(Date.now() / 1_000);
   const signature = createHmac("sha256", secret).update(`${timestamp}.${payload}`).digest("hex");
   return new Request("http://localhost:3001/api/supporters/webhook", { method: "POST", headers: { "Stripe-Signature": `t=${timestamp},v1=${signature}` }, body: payload });
@@ -23,12 +23,12 @@ describe("POST /api/supporters/webhook", () => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     process.env.STRIPE_INTERNAL_SECRET = "internal-test";
     process.env.DIRECTUS_URL = "http://directus.test";
-    vi.mocked(directusRequest).mockReset().mockResolvedValue(undefined);
+    vi.mocked(directusRequest).mockReset().mockResolvedValue({ data: { notificationSent: false } });
     vi.mocked(sendSupporterPaymentEmail).mockReset().mockResolvedValue("email-id");
   });
 
   it("forwards accepted signed events to Directus", async () => {
-    const event = { id: "evt_test", type: "checkout.session.async_payment_succeeded", livemode: false, data: { object: { id: "cs_test" } } };
+    const event = { id: "evt_test", type: "checkout.session.async_payment_succeeded", livemode: false, data: { object: { id: "cs_test", payment_status: "paid" } } };
     const response = await POST(signedRequest(event));
     expect(response.status).toBe(204);
     expect(directusRequest).toHaveBeenCalledWith("/pmc-website/support-events", expect.objectContaining({ method: "POST", body: expect.objectContaining({ id: "evt_test" }) }));
@@ -65,9 +65,32 @@ describe("POST /api/supporters/webhook", () => {
   });
 
   it("acknowledges unsupported signed events without forwarding", async () => {
-    const response = await POST(signedRequest({ id: "evt_other", type: "product.created", livemode: false, data: { object: {} } }));
+    const response = await POST(signedRequest({ id: "evt_other", type: "product.created", livemode: false, data: { object: { id: "prod_other" } } }));
     expect(response.status).toBe(204);
     expect(directusRequest).not.toHaveBeenCalled();
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not resend a notification already recorded as sent", async () => {
+    vi.mocked(directusRequest).mockResolvedValue({ data: { notificationSent: true } });
+    expect((await POST(signedRequest({ id: "evt_replayed", type: "invoice.paid", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(204);
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+
+  it("records delivery only after Resend accepts the email", async () => {
+    expect((await POST(signedRequest({ id: "evt_sent", type: "invoice.paid", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(204);
+    expect(directusRequest).toHaveBeenLastCalledWith("/pmc-website/support-email-sent", expect.objectContaining({ body: expect.objectContaining({ emailId: "email-id", id: "evt_sent" }) }));
+  });
+
+  it("does not send without durable payment storage acknowledgement", async () => {
+    vi.mocked(directusRequest).mockResolvedValue(undefined);
+    expect((await POST(signedRequest({ id: "evt_old_extension", type: "invoice.paid", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(503);
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not send an old failure notification after payment recovered", async () => {
+    vi.mocked(directusRequest).mockResolvedValue({ data: { notificationSent: false, notificationObsolete: true } });
+    expect((await POST(signedRequest({ id: "evt_old_failure", type: "invoice.payment_failed", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(204);
     expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
   });
 });

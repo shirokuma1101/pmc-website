@@ -7,6 +7,7 @@ import {
   publicArticleView,
   shouldNotifyDiscordForArticleApproval,
   stripeSupportEvent,
+  monthlySupporterState,
   storedImageIdsInMarkdown,
 } from "../src/index.js";
 
@@ -157,5 +158,15 @@ const failedRenewal = stripeSupportEvent({
 });
 assert.equal(failedRenewal.active, false);
 assert.equal(failedRenewal.status, "revoked");
+
+const canceled = { external_reference: "sub_old", stripe_created: 200, event_type: "customer.subscription.deleted", status: "revoked", tier: "premium" };
+const oldPaid = { external_reference: "sub_old", stripe_created: 100, event_type: "invoice.paid", status: "active", tier: "premium" };
+const newPaid = { external_reference: "sub_new", stripe_created: 150, event_type: "invoice.paid", status: "active", tier: "basic" };
+assert.equal(monthlySupporterState([canceled, oldPaid], null), null);
+assert.equal(monthlySupporterState([oldPaid, canceled], null), null);
+assert.equal(monthlySupporterState([newPaid, canceled, oldPaid], null).tier, "basic");
+assert.equal(monthlySupporterState([canceled, { ...oldPaid, stripe_created: 300 }], null), null);
+assert.equal(monthlySupporterState([{ ...oldPaid, stripe_created: 200 }, canceled], null), null);
+assert.equal(monthlySupporterState([canceled], { external_reference: "sub_legacy", status: "active", variant: "standard" }).tier, "standard");
 
 console.log("Discord article payload tests passed");

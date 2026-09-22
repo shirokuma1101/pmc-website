@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { createCheckoutSession, hasManageableStripeSubscription, verifyStripeSignature } from "./stripe";
+import { createCheckoutSession, hasManageableStripeSubscription, hasOpenStripeSubscription, verifyStripeSignature } from "./stripe";
 
 describe("Stripe helpers", () => {
   beforeEach(() => {
@@ -54,6 +54,20 @@ describe("Stripe helpers", () => {
   it("hides portal access for canceled subscriptions", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: [{ status: "canceled" }] }), { status: 200 }));
     await expect(hasManageableStripeSubscription("cus_current")).resolves.toBe(false);
+  });
+
+  it("blocks incomplete subscriptions when starting a new monthly checkout", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ data: [{ status: "incomplete" }] })));
+    expect(await hasOpenStripeSubscription("cus_test")).toBe(true);
+    expect(await hasManageableStripeSubscription("cus_test")).toBe(false);
+  });
+
+  it("checks subsequent subscription pages", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: "sub_old", status: "canceled" }], has_more: true })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: "sub_active", status: "active" }], has_more: false })));
+    expect(await hasOpenStripeSubscription("cus_test")).toBe(true);
+    expect(String(fetchMock.mock.calls[1][0])).toContain("starting_after=sub_old");
   });
 
   it("hides portal access for customer IDs from another Stripe environment", async () => {

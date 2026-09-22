@@ -1,8 +1,9 @@
 import { fireEvent, render, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SupportForm } from "./SupportForm";
 
 describe("SupportForm", () => {
+  afterEach(() => vi.restoreAllMocks());
   it("offers one-time Supporter badge support for 300 JPY", () => {
     const { container } = render(<SupportForm checkoutEnabled loggedIn />);
     const form = within(container.querySelector("form")!);
@@ -35,5 +36,23 @@ describe("SupportForm", () => {
     expect(form.getByText("Premium Supporterバッジ（非表示設定可）")).toBeInTheDocument();
     expect(form.getAllByText("地図の時系列比較を利用可能")).toHaveLength(3);
     expect(form.queryByText("活動をそっと応援")).not.toBeInTheDocument();
+  });
+
+  it("blocks a monthly resubscription but allows one-time support", () => {
+    const { container } = render(<SupportForm checkoutEnabled loggedIn monthlyStatus="existing" />);
+    const form = within(container.querySelector("form")!);
+    expect(form.getByRole("button", { name: "サポーターになる" })).toBeDisabled();
+    fireEvent.click(form.getByRole("button", { name: "1回の支援" }));
+    expect(form.getByRole("button", { name: "Supporterとして支援する" })).toBeEnabled();
+  });
+
+  it("retains selection and shows checkout errors on the form", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: { code: "SUBSCRIPTION_EXISTS", message: "既に契約があります。" } }), { status: 409 }));
+    const { container } = render(<SupportForm checkoutEnabled loggedIn />);
+    const form = within(container.querySelector("form")!);
+    fireEvent.submit(container.querySelector("form")!);
+    expect(await form.findByRole("alert")).toHaveTextContent("既に契約があります。");
+    expect(form.getByRole("radio", { name: /Standard Supporter.*¥800/ })).toBeChecked();
+    expect(form.getByRole("button", { name: "サポーターになる" })).toBeEnabled();
   });
 });

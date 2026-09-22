@@ -755,6 +755,31 @@ export function stripeSupportEvent(body) {
   };
 }
 
+/** Rebuild subscription entitlements from event time, not webhook arrival order. */
+export function monthlySupporterState(payments, existing) {
+  const latest = new Map();
+  const priority = (payment) => payment.event_type === "customer.subscription.deleted" || payment.status === "canceled" ? 100
+    : payment.event_type === "invoice.paid" ? 30 : payment.event_type === "invoice.payment_failed" ? 20
+      : payment.event_type === "customer.subscription.updated" ? 10 : 0;
+  for (const payment of payments) {
+    if (!payment.external_reference || payment.stripe_created == null) continue;
+    const previous = latest.get(payment.external_reference);
+    // A canceled subscription ID cannot become active again; a new subscription has a different ID.
+    if (!previous || (priority(previous) !== 100 && (priority(payment) === 100
+      || Number(payment.stripe_created) > Number(previous.stripe_created)
+      || (Number(payment.stripe_created) === Number(previous.stripe_created) && priority(payment) > priority(previous))))) {
+      latest.set(payment.external_reference, payment);
+    }
+  }
+  // Keep a pre-migration subscription until an event for that subscription supplies its state.
+  if (existing?.external_reference && !latest.has(existing.external_reference)) {
+    latest.set(existing.external_reference, { ...existing, tier: existing.variant });
+  }
+  const active = [...latest.values()].filter((payment) => payment.status === "active")
+    .sort((left, right) => (SUPPORTER_TIER_PRIORITY.get(right.tier) ?? 0) - (SUPPORTER_TIER_PRIORITY.get(left.tier) ?? 0));
+  return active[0] ?? null;
+}
+
 function ensureProfileEntitlementsTable(database) {
   profileEntitlementsTablePromise ??= (async () => {
     await ensureOrganizationMembersTable(database);
@@ -807,6 +832,12 @@ function ensureSupporterPaymentsTable(database) {
     }
     if (!await database.schema.hasColumn("supporter_payments", "stripe_customer_id")) await database.schema.alterTable("supporter_payments", (table) => table.string("stripe_customer_id", 255).nullable().index());
     if (!await database.schema.hasColumn("supporter_payments", "quantity")) await database.schema.alterTable("supporter_payments", (table) => table.integer("quantity").notNullable().defaultTo(1));
+    if (!await database.schema.hasColumn("supporter_payments", "notification_key")) await database.schema.alterTable("supporter_payments", (table) => table.string("notification_key", 512).nullable().index());
+    if (!await database.schema.hasColumn("supporter_payments", "email_sent_at")) await database.schema.alterTable("supporter_payments", (table) => table.timestamp("email_sent_at", { useTz: true }).nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "email_id")) await database.schema.alterTable("supporter_payments", (table) => table.string("email_id", 255).nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "stripe_created")) await database.schema.alterTable("supporter_payments", (table) => table.bigInteger("stripe_created").nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "event_type")) await database.schema.alterTable("supporter_payments", (table) => table.string("event_type", 80).nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "external_reference")) await database.schema.alterTable("supporter_payments", (table) => table.string("external_reference", 255).nullable().index());
   })();
   return supporterPaymentsTablePromise;
 }
@@ -1266,18 +1297,28 @@ export default {
       const expectedSecret = process.env.STRIPE_INTERNAL_SECRET;
       if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
       const body = objectBody(request);
-      strictKeys(body, new Set(["id", "type", "livemode", "object"]));
+      strictKeys(body, new Set(["id", "type", "livemode", "object", "notificationKey", "created"]));
       const eventId = requiredText(body.id, "id", 255);
+      if (!Number.isSafeInteger(body.created) || body.created < 0) throw new EndpointError(400, "INVALID_PAYLOAD", "Stripe event creation time is required");
+      const notificationKey = body.notificationKey == null ? null : requiredText(body.notificationKey, "notificationKey", 512);
       if (typeof body.livemode !== "boolean" || !body.object || typeof body.object !== "object" || Array.isArray(body.object)) throw new EndpointError(400, "INVALID_PAYLOAD", "Invalid Stripe event");
       await ensureSupporterPaymentsTable(database);
-      if (await database("supporter_payments").where({ stripe_event_id: eventId }).first()) { response.status(204).send(); return; }
 
       const { eventType, object, userId, frequency, tier, quantity, active, status, externalReference, entitlementSource } = stripeSupportEvent(body);
       const member = userId ? await database("organization_members").select("id").where({ user: userId }).first() : null;
 
       await database.transaction(async (transaction) => {
+        // Serialize entitlement updates for this member and atomically ignore duplicate deliveries.
+        if (member) await transaction("organization_members").where({ id: member.id }).forUpdate().first();
         const amount = [object.amount_total, object.amount_paid, object.amount_due].find((value) => Number.isSafeInteger(value));
-        await transaction("supporter_payments").insert({ id: randomUUID(), stripe_event_id: eventId, stripe_object_id: String(object.id ?? eventId).slice(0, 255), stripe_customer_id: typeof object.customer === "string" ? object.customer.slice(0, 255) : null, user: userId, member: member?.id ?? null, frequency, tier, amount: amount ?? null, quantity, currency: typeof object.currency === "string" ? object.currency.slice(0, 3) : null, status, livemode: body.livemode, created_at: new Date(), updated_at: new Date() });
+        const inserted = await transaction("supporter_payments").insert({ id: randomUUID(), stripe_event_id: eventId, stripe_object_id: String(object.id ?? eventId).slice(0, 255), stripe_customer_id: typeof object.customer === "string" ? object.customer.slice(0, 255) : null, user: userId, member: member?.id ?? null, frequency, tier, amount: amount ?? null, quantity, currency: typeof object.currency === "string" ? object.currency.slice(0, 3) : null, status, livemode: body.livemode, notification_key: notificationKey, stripe_created: body.created, event_type: eventType, external_reference: externalReference, created_at: new Date(), updated_at: new Date() }).onConflict("stripe_event_id").ignore().returning("id");
+        if (!inserted.length) {
+          const existingPayment = await transaction("supporter_payments").where({ stripe_event_id: eventId }).first();
+          if (notificationKey && !existingPayment.notification_key) {
+            throw new EndpointError(409, "NOTIFICATION_HISTORY_UNKNOWN", "Verify legacy email delivery before replaying this event");
+          }
+          return;
+        }
         if (member && (frequency === "monthly" || active)) {
           const existing = await transaction("profile_entitlements").where({ member: member.id, feature: "profile_highlight", source: entitlementSource }).first();
           let validUntil = null;
@@ -1287,10 +1328,42 @@ export default {
             validUntil = addUtcMonths(currentExpiry && currentExpiry > now ? currentExpiry : now, quantity);
           }
           const record = { status: active ? "active" : "revoked", variant: tier, valid_until: validUntil, external_reference: externalReference, updated_at: new Date() };
+          if (frequency === "monthly") {
+            const history = await transaction("supporter_payments").where({ member: member.id, frequency: "monthly", livemode: body.livemode }).whereNotNull("stripe_created");
+            const current = monthlySupporterState(history, existing);
+            record.status = current ? "active" : "revoked";
+            record.variant = current?.tier ?? tier;
+            record.external_reference = current?.external_reference ?? externalReference;
+          }
           if (existing) await transaction("profile_entitlements").where({ id: existing.id }).update(record);
           else await transaction("profile_entitlements").insert({ id: randomUUID(), member: member.id, feature: "profile_highlight", source: entitlementSource, ...record, created_at: new Date() });
         }
       });
+      const sent = notificationKey ? await database("supporter_payments").where({ notification_key: notificationKey }).whereNotNull("email_sent_at").first() : null;
+      if (notificationKey && !sent) {
+        const firstAttempt = await database("supporter_payments").where({ notification_key: notificationKey }).orderBy("created_at", "asc").first();
+        // Resend retains idempotency keys for 24 hours. Do not blindly repeat an ambiguous older send.
+        if (firstAttempt && Date.now() - new Date(firstAttempt.created_at).getTime() >= 23 * 60 * 60 * 1000) {
+          throw new EndpointError(409, "NOTIFICATION_RETRY_WINDOW_EXPIRED", "Verify Resend delivery before manually retrying this notification");
+        }
+      }
+      const recovered = eventType === "invoice.payment_failed" || eventType === "checkout.session.async_payment_failed"
+        ? await database("supporter_payments").where({ stripe_object_id: String(object.id), livemode: body.livemode, status: "active" }).first()
+        : null;
+      response.json({ data: { notificationSent: Boolean(sent), notificationObsolete: Boolean(recovered) } });
+    }));
+
+    router.post("/support-email-sent", route(async (request, response) => {
+      const expectedSecret = process.env.STRIPE_INTERNAL_SECRET;
+      if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
+      const body = objectBody(request);
+      strictKeys(body, new Set(["id", "notificationKey", "emailId"]));
+      const eventId = requiredText(body.id, "id", 255);
+      const notificationKey = requiredText(body.notificationKey, "notificationKey", 512);
+      const emailId = requiredText(body.emailId, "emailId", 255);
+      await ensureSupporterPaymentsTable(database);
+      const updated = await database("supporter_payments").where({ stripe_event_id: eventId, notification_key: notificationKey }).update({ email_sent_at: new Date(), email_id: emailId });
+      if (!updated) throw new EndpointError(404, "NOT_FOUND", "Payment notification not found");
       response.status(204).send();
     }));
 
@@ -1299,8 +1372,9 @@ export default {
       if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
       await ensureSupporterPaymentsTable(database);
       const userId = routeId(request);
-      const payment = await database("supporter_payments").select("stripe_customer_id").where({ user: userId, frequency: "monthly" }).whereNotNull("stripe_customer_id").orderBy("created_at", "desc").first();
-      response.json({ data: { customer: payment?.stripe_customer_id ?? null } });
+      const payments = await database("supporter_payments").select("stripe_customer_id").where({ user: userId, frequency: "monthly" }).whereNotNull("stripe_customer_id").orderBy("created_at", "desc");
+      const customers = [...new Set(payments.map((payment) => payment.stripe_customer_id))];
+      response.json({ data: { customer: customers[0] ?? null, customers } });
     }));
 
     router.get("/supporter-status", route(async (request, response) => {

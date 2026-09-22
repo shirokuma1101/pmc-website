@@ -1,18 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import { getApiErrorMessage } from "@/components/apiResponse";
+import { Alert } from "@/components/ui";
 import { MONTHLY_SUPPORTER_PLANS, ONE_TIME_SUPPORT, type MonthlySupporterTier } from "@/lib/organization/supporter";
 
-export interface SupportFormProps { checkoutEnabled: boolean; loggedIn: boolean }
+export interface SupportFormProps { checkoutEnabled: boolean; loggedIn: boolean; monthlyStatus?: "none" | "existing" | "unknown" }
 
-export function SupportForm({ checkoutEnabled, loggedIn }: SupportFormProps) {
+export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none" }: SupportFormProps) {
   const [frequency, setFrequency] = useState<"one_time" | "monthly">("monthly");
   const [tier, setTier] = useState<MonthlySupporterTier>("standard");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const attempt = useRef<{ selection: string; id: string } | null>(null);
+  const monthlyBlocked = frequency === "monthly" && monthlyStatus !== "none";
+  const selectedPlan = frequency === "monthly" ? MONTHLY_SUPPORTER_PLANS[tier] : ONE_TIME_SUPPORT;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting || monthlyBlocked) return;
+    const body = new FormData(event.currentTarget);
+    const selection = `${frequency}/${tier}`;
+    if (attempt.current?.selection !== selection) attempt.current = { selection, id: crypto.randomUUID() };
+    body.set("requestId", attempt.current.id);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/supporters/checkout", { method: "POST", body, headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error(await getApiErrorMessage(response, "決済画面を開けませんでした。時間をおいて再度お試しください。"));
+      const result = await response.json() as { data?: { url?: string } };
+      if (!result.data?.url) throw new Error("決済画面を開けませんでした。");
+      window.location.assign(result.data.url);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "決済画面を開けませんでした。");
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <form className="donation-form" action="/api/supporters/checkout" method="post" onSubmit={() => setSubmitting(true)}>
+    <form className="donation-form" action="/api/supporters/checkout" method="post" onSubmit={submit}>
       <div className="donation-frequency" role="group" aria-label="支援方法">
         <button aria-pressed={frequency === "monthly"} className={frequency === "monthly" ? "is-active" : undefined} onClick={() => setFrequency("monthly")} type="button">月額サポーター</button>
         <button aria-pressed={frequency === "one_time"} className={frequency === "one_time" ? "is-active" : undefined} onClick={() => setFrequency("one_time")} type="button">1回の支援</button>
@@ -51,8 +78,11 @@ export function SupportForm({ checkoutEnabled, loggedIn }: SupportFormProps) {
         </fieldset>
       )}
 
+      <p className="donation-form__notice" aria-live="polite">お申し込み内容：{frequency === "monthly" ? selectedPlan.label : "Supporter"} 1件・{frequency === "monthly" ? `初回・2回目以降とも毎月¥${selectedPlan.amount.toLocaleString("ja-JP")}（解約まで自動更新）` : `¥${selectedPlan.amount.toLocaleString("ja-JP")}の1回決済（自動更新なし）`}</p>
+      {monthlyBlocked ? <Alert>{monthlyStatus === "existing" ? "月額契約があります。下の「支払い方法・月額プランを管理」からお手続きください。" : "契約状況を確認できませんでした。時間をおいてページを再読み込みしてください。"}</Alert> : null}
+      {error ? <Alert tone="error">{error} <Link href="/contact">お問い合わせ</Link></Alert> : null}
       <label className="donation-consent"><input name="consent" required type="checkbox" value="accepted" /><span>上記の支払・特典・返金・解約条件と<Link href="/terms" target="_blank">利用規約</Link>を確認し、Stripeの決済画面へ移動することに同意します。</span></label>
-      <button className="button button--primary button--lg button--full" disabled={!checkoutEnabled || submitting || !loggedIn} type="submit">{submitting ? "Stripeへ移動しています…" : frequency === "monthly" ? "サポーターになる" : "Supporterとして支援する"}</button>
+      <button className="button button--primary button--lg button--full" disabled={!checkoutEnabled || submitting || !loggedIn || monthlyBlocked} type="submit">{submitting ? "Stripeへ移動しています…" : frequency === "monthly" ? "サポーターになる" : "Supporterとして支援する"}</button>
       {!checkoutEnabled ? <p className="donation-form__notice" role="status">現在、決済機能を準備しています。Stripeの設定完了後にご利用いただけます。</p> : null}
       <p className="donation-form__secure-note">カード情報はPostMineClanでは保持せず、Stripeの安全な決済画面で入力します。{frequency === "monthly" ? " 月額プランは解約するまで自動で継続します。" : null}</p>
     </form>

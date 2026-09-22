@@ -96,7 +96,7 @@ describe("sendJoinApplicationEmail", () => {
     expect(body.to).toEqual(["supporter@example.com"]);
     expect(body.subject).toContain("ありがとうございます");
     expect(body.text).toContain("¥300");
-    expect(new Headers(options?.headers).get("Idempotency-Key")).toBe("stripe-support/evt_support_paid/checkout.session.completed");
+    expect(new Headers(options?.headers).get("Idempotency-Key")).toBe("stripe-support/cs_test/checkout-paid");
   });
 
   it("uses the Stripe customer API for subscription cancellation mail", async () => {
@@ -122,5 +122,20 @@ describe("sendJoinApplicationEmail", () => {
       object: { id: "in_test", customer_email: "subscriber@example.com", billing_reason: "subscription_create" },
     })).resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses subscription metadata when invoice metadata is empty", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "email-id" })));
+    await sendSupporterPaymentEmail({ id: "evt_invoice", type: "invoice.paid", object: { id: "in_paid", metadata: {}, customer_email: "subscriber@example.com", parent: { subscription_details: { metadata: { tier: "basic" } } } } });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).text).toContain("Basic Supporter");
+  });
+
+  it("retries instead of silently acknowledging a missing recipient", async () => {
+    await expect(sendSupporterPaymentEmail({ id: "evt_no_email", type: "invoice.paid", object: { id: "in_paid" } })).rejects.toMatchObject({ code: "EMAIL_RECIPIENT_MISSING" });
+  });
+
+  it("retries when the Stripe customer lookup fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 503 }));
+    await expect(sendSupporterPaymentEmail({ id: "evt_no_email", type: "invoice.paid", object: { id: "in_paid", customer: "cus_test" } })).rejects.toMatchObject({ code: "EMAIL_RECIPIENT_LOOKUP_FAILED" });
   });
 });

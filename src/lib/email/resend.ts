@@ -144,7 +144,7 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function supporterMetadata(object: StripeSupportObject): Record<string, unknown> {
-  return object.metadata
+  return (object.metadata && Object.keys(object.metadata).length ? object.metadata : undefined)
     ?? object.parent?.subscription_details?.metadata
     ?? object.subscription_details?.metadata
     ?? {};
@@ -182,21 +182,31 @@ async function stripeCustomerEmail(customer: unknown): Promise<string | undefine
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
-  if (!response?.ok) return undefined;
+  if (!response?.ok) throw new ApiRouteError("通知先の確認に失敗しました。", 502, "EMAIL_RECIPIENT_LOOKUP_FAILED");
   const result = await response.json().catch(() => null) as { email?: unknown } | null;
   return stringValue(result?.email);
 }
 
-export async function sendSupporterPaymentEmail(event: StripeSupportEmailEvent): Promise<string | null> {
+export function supporterPaymentNotificationKey(event: StripeSupportEmailEvent): string | null {
   const object = event.object;
   if (event.type === "customer.subscription.updated") return null;
   if (event.type === "invoice.paid" && object.billing_reason === "subscription_create") return null;
   if ((event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded")
     && object.payment_status !== "paid" && object.payment_status !== "no_payment_required") return null;
+  if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
+    return `stripe-support/${object.id}/checkout-paid`;
+  }
+  return `stripe-support/${event.id}/${event.type}`;
+}
+
+export async function sendSupporterPaymentEmail(event: StripeSupportEmailEvent): Promise<string | null> {
+  const notificationKey = supporterPaymentNotificationKey(event);
+  if (!notificationKey) return null;
+  const object = event.object;
   const email = stringValue(object.customer_details?.email)
     ?? stringValue(object.customer_email)
     ?? await stripeCustomerEmail(object.customer);
-  if (!email) return null;
+  if (!email) throw new ApiRouteError("支払い通知の送信先を確認できません。", 503, "EMAIL_RECIPIENT_MISSING");
 
   const displayName = stringValue(object.customer_details?.name);
   const greeting = displayName ? `${displayName} 様` : "サポーター様";
@@ -248,7 +258,7 @@ export async function sendSupporterPaymentEmail(event: StripeSupportEmailEvent):
     subject,
     text: lines.join("\n"),
     html: `<p>${htmlEscape(greeting)}</p><h1>${htmlEscape(heading)}</h1><p>${htmlEscape(message)}</p><table>${detailRows}</table>${invoiceUrl?.startsWith("https://") ? `<p><a href="${htmlEscape(invoiceUrl)}">請求内容を確認する</a></p>` : ""}<p><a href="${htmlEscape(supportersUrl)}">サポーター画面を開く</a></p><p>PostMineClan運営</p>`,
-    idempotencyKey: `stripe-support/${event.id}/${event.type}`,
+    idempotencyKey: notificationKey,
     unavailableMessage: "支払い通知メールを送信できません。",
     failureMessage: "支払い通知メールを送信できませんでした。",
   });

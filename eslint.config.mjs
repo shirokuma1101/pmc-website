@@ -15,6 +15,8 @@ export default defineConfig([
   globalIgnores([
     ".next/**",
     ".tmp/**",
+    ".worktrees/**",
+    ".pnpm-store/**",
     "node_modules/**",
     "directus/**",
     "coverage/**",

@@ -2331,6 +2331,47 @@ fields:
       foreign_key_table: directus_files
       foreign_key_column: id
   - collection: profiles
+    field: supporter_badge_visible
+    type: boolean
+    meta:
+      collection: profiles
+      conditions: null
+      display: boolean
+      display_options: null
+      field: supporter_badge_visible
+      group: null
+      hidden: false
+      interface: boolean
+      note: Whether the member chooses to display their supporter badge
+      options: null
+      readonly: false
+      required: false
+      searchable: true
+      sort: 12
+      special:
+        - cast-boolean
+      translations: null
+      validation: null
+      validation_message: null
+      width: half
+    schema:
+      name: supporter_badge_visible
+      table: profiles
+      data_type: boolean
+      default_value: true
+      max_length: null
+      numeric_precision: null
+      numeric_scale: null
+      is_nullable: false
+      is_unique: false
+      is_indexed: false
+      is_primary_key: false
+      is_generated: false
+      generation_expression: null
+      has_auto_increment: false
+      foreign_key_table: null
+      foreign_key_column: null
+  - collection: profiles
     field: organization_role
     type: string
     meta:
