@@ -110,7 +110,6 @@ export function LoginForm({
 
   return (
     <section className="auth-card" aria-labelledby="login-title">
-      <div className="auth-card__mark" aria-hidden="true">{requiresOtp ? "鍵" : "記"}</div>
       <div className="auth-card__heading">
         <p className="eyebrow">{requiresOtp ? "TWO-FACTOR AUTHENTICATION" : "SIGN IN"}</p>
         <h1 id="login-title">{requiresOtp ? "認証コードを入力" : title}</h1>

@@ -63,7 +63,6 @@ export function RegistrationForm() {
 
   return (
     <section className="auth-card" aria-labelledby="registration-title">
-      <div className="auth-card__mark" aria-hidden="true">新</div>
       <div className="auth-card__heading">
         <p className="eyebrow">CREATE ACCOUNT</p>
         <h1 id="registration-title">アカウントを作成</h1>

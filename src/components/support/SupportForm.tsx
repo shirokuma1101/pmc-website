@@ -8,9 +8,24 @@ import { MONTHLY_SUPPORTER_PLANS, ONE_TIME_SUPPORT, type MonthlySupporterTier } 
 
 export interface SupportFormProps { checkoutEnabled: boolean; loggedIn: boolean; monthlyStatus?: "none" | "existing" | "unknown"; currentTier?: MonthlySupporterTier }
 
+const monthlyBenefits = [
+  { label: "プロフィールに表示されるバッジ", match: "バッジ" },
+  { label: "メンバー一覧でサポーターとして表示", match: "メンバー一覧" },
+  { label: "地図の時系列比較を利用可能", match: "地図の時系列比較" },
+] as const;
+const plans = [
+  { key: ONE_TIME_SUPPORT.tier, label: "Supporter", amount: ONE_TIME_SUPPORT.amount, frequency: "one_time" as const, badge: "Supporterバッジ", benefits: [] as string[] },
+  ...Object.entries(MONTHLY_SUPPORTER_PLANS).map(([key, plan]) => ({
+    key: key as MonthlySupporterTier, label: plan.label, amount: plan.amount,
+    frequency: "monthly" as const,
+    badge: plan.benefits.find((item) => item.includes("バッジ"))?.replace("（非表示設定可）", "") ?? "—",
+    benefits: [...plan.benefits],
+  })),
+];
+
 export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none", currentTier }: SupportFormProps) {
-  const [frequency, setFrequency] = useState<"one_time" | "monthly">("monthly");
-  const [tier, setTier] = useState<MonthlySupporterTier>("standard");
+  const [tier, setTier] = useState<MonthlySupporterTier | typeof ONE_TIME_SUPPORT.tier>("standard");
+  const frequency = tier === ONE_TIME_SUPPORT.tier ? "one_time" : "monthly";
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adultConfirmed, setAdultConfirmed] = useState(false);
@@ -18,7 +33,7 @@ export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none",
   const attempt = useRef<{ selection: string; id: string } | null>(null);
   const switching = frequency === "monthly" && monthlyStatus === "existing";
   const monthlyBlocked = frequency === "monthly" && (monthlyStatus === "unknown" || (switching && (!currentTier || tier === currentTier)));
-  const selectedPlan = frequency === "monthly" ? MONTHLY_SUPPORTER_PLANS[tier] : ONE_TIME_SUPPORT;
+  const selectedPlan = tier === ONE_TIME_SUPPORT.tier ? ONE_TIME_SUPPORT : MONTHLY_SUPPORTER_PLANS[tier];
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,43 +58,66 @@ export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none",
 
   return (
     <form className="donation-form" action="/api/supporters/checkout" method="post" onSubmit={submit}>
-      <div className="donation-frequency" role="group" aria-label="支援方法">
-        <button aria-pressed={frequency === "monthly"} className={frequency === "monthly" ? "is-active" : undefined} onClick={() => setFrequency("monthly")} type="button">月額サポーター</button>
-        <button aria-pressed={frequency === "one_time"} className={frequency === "one_time" ? "is-active" : undefined} onClick={() => setFrequency("one_time")} type="button">1回の支援</button>
-      </div>
       <input name="frequency" type="hidden" value={frequency} />
 
-      {frequency === "monthly" ? (
         <fieldset className="donation-form__fieldset">
-          <legend>月額プランを選ぶ</legend>
-          <p className="support-plan-lead">毎月の支援額に合わせて、プロフィールにサポーターバッジが表示されます。PayPayをご希望の場合は、1回支援をご利用ください。</p>
-          <div className="donation-amounts donation-amounts--plans">
-            {Object.entries(MONTHLY_SUPPORTER_PLANS).map(([key, plan]) => (
-              <label className="donation-amount support-plan" key={key}>
-                <input checked={tier === key} name="tier" onChange={() => setTier(key as MonthlySupporterTier)} type="radio" value={key} />
-                <span className="donation-amount__surface">
+          <legend>サポートプランを選ぶ</legend>
+          <p className="support-plan-lead">プランごとの支払い方式と特典を比較できます。PayPayは単発サポートでご利用いただけます。</p>
+          <div className="support-comparison-scroll">
+            <table className="support-comparison">
+              <caption>サポートプランの比較と選択</caption>
+              <thead><tr>
+                <th scope="col">項目</th>
+                {plans.map((plan) => (
+                  <th data-selected={tier === plan.key} key={plan.key} scope="col">
+                    <label className="support-comparison__choice">
+                      <input checked={tier === plan.key} name="tier" onChange={() => setTier(plan.key)} type="radio" value={plan.key} />
+                      <strong>{plan.label}</strong>
+                      <span>¥{plan.amount.toLocaleString("ja-JP")} <small>（税込）{plan.frequency === "monthly" ? "/ 月" : ""}</small></span>
+                      <span className="support-comparison__select">{tier === plan.key ? "選択中" : "選択する"}</span>
+                    </label>
+                  </th>
+                ))}
+              </tr></thead>
+              <tbody>
+                <tr><th scope="row">支払い方式</th>{plans.map((plan) => <td data-selected={tier === plan.key} key={plan.key}>{plan.frequency === "monthly" ? "月額・自動更新" : "単発・自動更新なし"}</td>)}</tr>
+                {monthlyBenefits.map((benefit) => (
+                  <tr key={benefit.label}>
+                    <th scope="row">{benefit.label}</th>
+                    {plans.map((plan) => {
+                      if (benefit.match === "バッジ") {
+                        return <td data-selected={tier === plan.key} key={plan.key}><span className="support-comparison__badge">{plan.badge}</span></td>;
+                      }
+                      const available = plan.benefits.some((item) => item.includes(benefit.match));
+                      return <td data-selected={tier === plan.key} key={plan.key}><span aria-label={available ? "利用可能" : "対象外"} className={available ? "support-comparison__yes" : "support-comparison__no"}>{available ? "✓" : "—"}</span></td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="support-comparison-mobile">
+            <div className="support-comparison-mobile__plans" role="group" aria-label="サポートプラン">
+              {plans.map((plan) => (
+                <button aria-pressed={tier === plan.key} className="support-comparison-mobile__plan" key={plan.key} onClick={() => setTier(plan.key)} type="button">
                   <strong>{plan.label}</strong>
-                  <span className="support-plan__price"><b>¥{plan.amount.toLocaleString("ja-JP")}</b><small>（税込）/ 月</small></span>
-                  <ul className="support-plan__benefits">
-                    {plan.benefits.map((benefit) => <li key={benefit}>{benefit}</li>)}
-                  </ul>
-                  <span className="support-plan__check" aria-hidden="true">✓</span>
-                </span>
-              </label>
-            ))}
+                  <span>¥{plan.amount.toLocaleString("ja-JP")}{plan.frequency === "monthly" ? " / 月" : " / 回"}</span>
+                  <span>{plan.frequency === "monthly" ? "月額" : "単発"}</span>
+                  {tier === plan.key ? <span aria-hidden="true" className="support-comparison-mobile__check">✓</span> : null}
+                </button>
+              ))}
+            </div>
+            <dl className="support-comparison-mobile__details">
+              <div><dt>支払い方式</dt><dd>{frequency === "monthly" ? "月額・自動更新" : "単発・自動更新なし"}</dd></div>
+              <div><dt>プロフィールに表示されるバッジ</dt><dd>{plans.find((plan) => plan.key === tier)?.badge}</dd></div>
+              {monthlyBenefits.filter((benefit) => benefit.match !== "バッジ").map((benefit) => {
+                const available = plans.find((plan) => plan.key === tier)?.benefits.some((item) => item.includes(benefit.match));
+                return <div key={benefit.label}><dt>{benefit.label}</dt><dd>{available ? "✓ 利用可能" : "— 対象外"}</dd></div>;
+              })}
+            </dl>
           </div>
-          {!loggedIn ? <p className="donation-form__notice" role="status">月額サポーターへの加入にはログインが必要です。</p> : null}
+          {!loggedIn ? <p className="donation-form__notice" role="status">サポーターバッジ・特典の付与にはログインが必要です。</p> : null}
         </fieldset>
-      ) : (
-        <fieldset className="donation-form__fieldset">
-          <legend>1回支援プラン</legend>
-          <p className="support-plan-lead">300円（税込）で活動を支援し、プロフィールにSupporterバッジを表示できます。追加特典や自動更新はありません。</p>
-          <div className="donation-amounts donation-amounts--one-time">
-            <label className="donation-amount support-plan support-plan--one-time"><input defaultChecked name="tier" type="radio" value={ONE_TIME_SUPPORT.tier} /><span className="donation-amount__surface"><strong>Supporter</strong><span className="support-plan__price"><b>¥{ONE_TIME_SUPPORT.amount.toLocaleString("ja-JP")}</b><small>（税込）</small></span><span className="support-plan__description">{ONE_TIME_SUPPORT.description}</span><span className="support-plan__check" aria-hidden="true">✓</span></span></label>
-          </div>
-          {!loggedIn ? <p className="donation-form__notice" role="status">Supporterバッジ・特典の付与にはログインが必要です。</p> : null}
-        </fieldset>
-      )}
 
       <p className="donation-form__notice" aria-live="polite">お申し込み内容：{frequency === "monthly" ? selectedPlan.label : "Supporter"} 1件・{frequency === "monthly" ? `初回・2回目以降とも毎月¥${selectedPlan.amount.toLocaleString("ja-JP")}（税込・解約まで自動更新）` : `¥${selectedPlan.amount.toLocaleString("ja-JP")}（税込）の1回決済（自動更新なし）`}</p>
       {switching && currentTier ? <Alert>現在の{MONTHLY_SUPPORTER_PLANS[currentTier].label}から切り替えます。新プランは申込日に全額を請求し、旧プランは現在の支払済み期間の終了日に解約します。重複期間の返金はなく、上位プランの特典を適用します。決済を完了しない場合は旧プランを維持します。</Alert> : null}

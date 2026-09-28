@@ -599,7 +599,10 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
         const markerPin = document.createElement("span");
         markerPin.className = styles.markerPin;
         markerPin.style.setProperty("--marker-color", marker.color);
-        markerPin.textContent = markerSymbol(marker.icon);
+        const markerSymbolElement = document.createElement("span");
+        markerSymbolElement.className = styles.markerPinSymbol;
+        markerSymbolElement.textContent = markerSymbol(marker.icon);
+        markerPin.append(markerSymbolElement);
         markerVisual.append(markerLabel, markerPin);
         const leafletMarker = L.marker([projected.lat, projected.lng], {
           icon: L.divIcon({
@@ -662,7 +665,10 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
       const pin = document.createElement("span");
       pin.className = styles.draftMarkerPin;
       pin.style.setProperty("--marker-color", activeDraft.color);
-      pin.textContent = markerSymbol(activeDraft.icon);
+      const symbol = document.createElement("span");
+      symbol.className = styles.markerPinSymbol;
+      symbol.textContent = markerSymbol(activeDraft.icon);
+      pin.append(symbol);
       visual.append(label, pin);
       const previewMarker = L.marker([projected.lat, projected.lng], {
         icon: L.divIcon({ className: styles.draftMarkerIcon, html: visual, iconSize: [36, 42], iconAnchor: [18, 40] }),

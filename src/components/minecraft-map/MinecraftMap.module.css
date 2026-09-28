@@ -144,6 +144,7 @@
   box-shadow: 0 3px 10px rgb(0 0 0 / 45%); font-size: 0.9rem; font-weight: 900;
   transform: rotate(-45deg);
 }
+.markerPinSymbol { display: inline-block; transform: rotate(45deg); }
 .markerLabel {
   position: absolute; left: 50%; bottom: 39px; overflow: hidden; max-width: 12rem;
   padding: 0.18rem 0.45rem; color: #fff; background: rgb(20 28 38 / 88%);
