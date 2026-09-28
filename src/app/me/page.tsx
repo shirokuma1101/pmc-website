@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArticleGrid } from "@/components/article";
+import { MarkdownContent } from "@/components/markdown";
 import { ProfileForm } from "@/components/profile";
+import { MyPageNavigation } from "@/components/profile/MyPageNavigation";
 import { PostCard } from "@/components/timeline";
-import { Avatar, EmptyState } from "@/components/ui";
+import { EmptyState } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
 import { getOwnArticles } from "@/lib/directus/articles";
 import { getPosts } from "@/lib/directus/posts";
 import { getProfileByUserId } from "@/lib/directus/profiles";
+import { getWorldsPage } from "@/lib/directus/worlds";
 import { stripeEnabled } from "@/lib/stripe";
 import { findSupporterSubscriptionCustomer } from "@/lib/supporter-subscriptions";
 import type { ArticleStatus, Profile } from "@/types";
@@ -27,6 +30,13 @@ function selectedStatus(value: string | string[] | undefined): ArticleStatus | u
     : undefined;
 }
 
+function selectedTab(value: string | string[] | undefined): "profile" | "activity" | "worlds" {
+  const tab = Array.isArray(value) ? value[0] : value;
+  return tab === "activity" || tab === "worlds" ? tab : "profile";
+}
+
+const dateFormatter = new Intl.DateTimeFormat("ja-JP", { dateStyle: "long", timeStyle: "short" });
+
 export const metadata = { title: "マイプロフィール" };
 
 async function canManageMonthlySupport(userId: string): Promise<boolean> {
@@ -41,11 +51,13 @@ async function canManageMonthlySupport(userId: string): Promise<boolean> {
 export default async function MyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; status?: string | string[] }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login?next=/me");
-  const status = selectedStatus((await searchParams).status);
+  const query = await searchParams;
+  const tab = selectedTab(query.tab);
+  const status = selectedStatus(query.status);
   const [storedProfile, articles, posts, canManageSupport] = await Promise.all([
     getProfileByUserId(session.user.id, session.accessToken),
     getOwnArticles(session.user.id, session.accessToken, { status, limit: 50 }),
@@ -59,31 +71,19 @@ export default async function MyPage({
     ...(session.user.avatarUrl ? { avatarUrl: session.user.avatarUrl } : {}),
     user: session.user,
   };
+  const worlds = tab === "worlds" ? await getWorldsPage(session.accessToken) : null;
 
   return (
-    <main id="main-content" className="page-shell">
-      <header className="profile-hero profile-hero--mine">
-        <Avatar user={{ ...session.user, displayName: profile.displayName, avatarUrl: profile.avatarUrl }} size="lg" eager />
-        <div>
-          <p className="eyebrow">My PostMineClan</p>
-          <h1>{profile.displayName}</h1>
-          <p className="profile-hero__bio">{profile.bio || "プロフィールを整えて、活動について紹介しましょう。"}</p>
-          {profile.xboxGamertag ? <p className="profile-hero__gamertag"><span>Xbox</span>{profile.xboxGamertag}</p> : null}
-        </div>
-        <Link className="button button--primary" href="/article/new">新しい記事を書く</Link>
-      </header>
-
-      <div className="profile-layout">
+    <main id="main-content" className="page-shell my-page-shell">
+      <h1 className="sr-only">マイページ</h1>
+      <MyPageNavigation canManageSupport={canManageSupport} tab={tab} />
+      {tab === "profile" ? (
+      <div className="my-page-panel my-page-panel--profile">
         <aside className="profile-settings" aria-labelledby="profile-settings-title">
           <div className="section-heading section-heading--compact">
             <div><p className="eyebrow">Profile</p><h2 id="profile-settings-title">プロフィール編集</h2></div>
           </div>
           <ProfileForm profile={profile} />
-          {canManageSupport ? <section className="profile-supporter-management" aria-label="月額サポーター契約">
-            <form action="/api/supporters/portal" method="post">
-              <button className="button button--ghost button--full" type="submit">支払い方法・月額契約を管理</button>
-            </form>
-          </section> : null}
           <Link className="profile-security-link" href="/settings/security">
             <span className="profile-security-link__copy">
               <strong>2段階認証</strong>
@@ -94,17 +94,19 @@ export default async function MyPage({
             </span>
           </Link>
         </aside>
-
+      </div>
+      ) : null}
+      {tab === "activity" ? (
+      <div className="my-page-panel">
         <div className="profile-activity">
           <section aria-labelledby="my-articles-title">
             <div className="section-heading">
               <div><p className="eyebrow">My articles</p><h2 id="my-articles-title">自分の記事</h2></div>
-              <Link className="text-link" href="/article/new">新規作成 <span aria-hidden="true">＋</span></Link>
             </div>
             <nav className="status-tabs" aria-label="記事の状態で絞り込む">
               {statusOptions.map((option) => {
                 const active = option.value === (status ?? "all");
-                const href = option.value === "all" ? "/me" : `/me?status=${option.value}`;
+                const href = option.value === "all" ? "/me?tab=activity" : `/me?tab=activity&status=${option.value}`;
                 return <Link key={option.value} href={href} aria-current={active ? "page" : undefined}>{option.label}</Link>;
               })}
             </nav>
@@ -130,6 +132,21 @@ export default async function MyPage({
           </section>
         </div>
       </div>
+      ) : null}
+      {tab === "worlds" && worlds ? (
+        <div className="my-page-panel worlds-page">
+          <header className="section-heading"><div><p className="eyebrow">World Archive</p><h2>過去ワールド</h2></div>{session.user.isAdmin ? <Link className="button button--secondary" href="/admin/worlds">説明文を編集</Link> : null}</header>
+          <article className="prose worlds-page__description"><MarkdownContent>{worlds.content.markdown}</MarkdownContent></article>
+          <section aria-labelledby="my-world-files-title">
+            <header className="section-heading section-heading--compact"><p className="eyebrow">Downloads</p><h2 id="my-world-files-title">ワールドファイル</h2></header>
+            {worlds.files.length === 0 ? <EmptyState title="公開中のワールドはありません" description="管理者がファイルを追加すると、ここに表示されます。" /> : (
+              <ul className="world-download-list">{worlds.files.map((file) => (
+                <li key={file.id} className="world-download-card"><div><h3>{file.filename}</h3>{file.description ? <p>{file.description}</p> : <p className="world-download-card__empty">詳細は登録されていません。</p>}{file.uploadedAt ? <time dateTime={file.uploadedAt}>{dateFormatter.format(new Date(file.uploadedAt))}</time> : null}</div><a className="button button--primary" href={`/api/worlds/${file.id}/download`}>ダウンロード</a></li>
+              ))}</ul>
+            )}
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CookieSettingsButton } from "@/components/privacy";
+import { ThemeSelector } from "./ThemeSelector";
 
 export interface SiteFooterProps {
   brandName?: string;
@@ -20,6 +21,16 @@ export function SiteFooter({ brandName = "PostMineClan" }: SiteFooterProps) {
         <div>
           <p className="site-footer__brand">{brandName}</p>
           <p className="site-footer__copy">好きなものが創れるMinecraftコミュニティ</p>
+        </div>
+        <nav className="site-footer__links" aria-label="フッターナビゲーション">
+          <Link href="/terms">利用規約</Link>
+          <Link href="/privacy">プライバシーポリシー</Link>
+          <Link href="/commercial-transactions">特定商取引法に基づく表記</Link>
+          <Link href="/contact">お問い合わせ</Link>
+          <Link href="/about">About Us</Link>
+          <CookieSettingsButton />
+        </nav>
+        <div className="site-footer__controls">
           <div className="site-footer__socials" aria-label="ソーシャルリンク">
             <a href="https://x.com/PostMineClan" target="_blank" rel="noreferrer" aria-label="PostMineClanのXを開く" title="X">
               <XIcon />
@@ -28,15 +39,8 @@ export function SiteFooter({ brandName = "PostMineClan" }: SiteFooterProps) {
               <GitHubIcon />
             </a>
           </div>
+          <ThemeSelector />
         </div>
-        <nav className="site-footer__links" aria-label="フッターナビゲーション">
-          <Link href="/terms">利用規約</Link>
-          <Link href="/privacy">プライバシーポリシー</Link>
-          <Link href="/contact">お問い合わせ</Link>
-          <Link href="/about">About Us</Link>
-          <Link href="/supporters">サポーター</Link>
-          <CookieSettingsButton />
-        </nav>
         <p className="site-footer__copyright">
           <span aria-hidden="true">©</span> {new Date().getFullYear()} {brandName}
         </p>

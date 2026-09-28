@@ -3,6 +3,7 @@ import { ArticleArchive } from "@/components/article/ArticleArchive";
 import { ArticleGrid } from "@/components/article/ArticleGrid";
 import { Pagination } from "@/components/ui";
 import { getPublishedArticles, getPublishedArticleTags } from "@/lib/directus/articles";
+import { getSession } from "@/lib/auth/session";
 
 const PAGE_SIZE = 12;
 const ARCHIVE_PAGE_SIZE = 50;
@@ -45,9 +46,10 @@ export default async function ArticlesPage({
   const page = pageNumber(params.page);
   const view = articleView(params.view);
   const tag = singleValue(params.tag);
-  const [result, availableTags] = await Promise.all([
+  const [result, availableTags, session] = await Promise.all([
     getPublishedArticles({ page, limit: view === "archive" ? ARCHIVE_PAGE_SIZE : PAGE_SIZE, tag }),
     getPublishedArticleTags(),
+    getSession(),
   ]);
   const totalPages = result.pagination.total
     ? Math.max(1, Math.ceil(result.pagination.total / result.pagination.limit))
@@ -63,6 +65,7 @@ export default async function ArticlesPage({
         </div>
         <div className="articles-heading__aside">
           <p>ニュース</p>
+          {session ? <Link className="button button--primary" href="/article/new">記事を書く</Link> : null}
           <nav className="article-view-toggle" aria-label="記事の表示方法">
             <Link href={articlesHref("grid", tag)} aria-current={view === "grid" ? "page" : undefined}>
               <span className="article-view-toggle__grid" aria-hidden="true">

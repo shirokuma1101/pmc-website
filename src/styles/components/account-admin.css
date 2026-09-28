@@ -5,6 +5,64 @@
   padding: clamp(2rem, 7vw, 5rem) 1.25rem;
 }
 
+.auth-page--with-benefits {
+  width: 100%;
+}
+
+.auth-onboarding {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(0, 460px);
+  width: min(100%, 820px);
+  overflow: hidden;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-top: 4px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.auth-onboarding .auth-card {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.auth-benefits {
+  width: 100%;
+  padding: clamp(1.5rem, 4vw, 2rem);
+  background: var(--color-surface-soft);
+  border-right: 1px solid var(--color-line);
+}
+
+.auth-benefits h2 {
+  margin-bottom: 0.75rem;
+  font-size: clamp(1.35rem, 2vw, 1.5rem);
+}
+
+.auth-benefits > p:not(.eyebrow),
+.auth-benefits__item p {
+  color: var(--color-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.auth-benefits__item {
+  padding-block: 1rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.auth-benefits__item strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-ink);
+}
+
+.auth-benefits__item p {
+  margin: 0;
+}
+
 .auth-card {
   position: relative;
   width: min(100%, 460px);
@@ -161,6 +219,103 @@
   grid-template-columns: minmax(14rem, 260px) minmax(0, 1fr);
   align-items: start;
   gap: clamp(1.5rem, 4vw, 3rem);
+}
+
+.my-page-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.my-page-navigation__toggle { display: none; }
+.my-page-tabs a,
+.my-page-tabs__management button {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+  color: var(--color-ink-soft);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.my-page-tabs a:hover,
+.my-page-tabs__management button:hover { color: var(--color-primary-strong); background: var(--color-primary-soft); }
+.my-page-tabs a[aria-current="page"] { color: #fff; background: var(--color-primary); }
+.my-page-tabs a:focus-visible,
+.my-page-tabs__management button:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.my-page-tabs__management { flex: 0 0 auto; }
+.my-page-tabs__management button { display: inline-flex; min-height: 42px; align-items: center; gap: 0.4rem; cursor: pointer; }
+.my-page-tabs__management svg { flex: 0 0 auto; }
+.my-page-panel { min-width: 0; }
+.my-page-panel--profile { max-width: 760px; }
+.my-page-panel--profile .profile-settings { position: static; }
+
+@media (max-width: 899px) {
+  .my-page-navigation__toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    color: var(--color-ink);
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+  .my-page-navigation__toggle:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+  .my-page-navigation__icon { display: grid; gap: 3px; }
+  .my-page-navigation__icon span { width: 19px; height: 2px; background: currentColor; border-radius: 2px; }
+  .my-page-navigation { margin-bottom: 2rem; }
+  .my-page-tabs {
+    display: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    margin: 0.5rem 0 0;
+    padding: 0.5rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+  }
+  .my-page-tabs[data-open="true"] { display: grid; }
+  .my-page-tabs a,
+  .my-page-tabs__management button {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    white-space: normal;
+    line-height: 1.4;
+  }
+  .my-page-tabs__management button { text-align: left; }
+}
+
+@media (min-width: 900px) {
+  .my-page-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(1.5rem, 4vw, 3rem);
+  }
+  .my-page-navigation { position: sticky; top: 100px; }
+  .my-page-tabs {
+    flex-direction: column;
+    overflow: visible;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0 1rem 0 0;
+    border-right: 1px solid var(--color-line);
+    border-bottom: 0;
+  }
+  .my-page-tabs a { flex: none; }
+  .my-page-tabs__management button { width: 100%; white-space: normal; text-align: left; }
 }
 
 .profile-card {

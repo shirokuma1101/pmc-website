@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { UserSummary } from "@/types";
 
 import { Alert } from "../ui/Alert";
@@ -22,14 +22,10 @@ export interface SiteHeaderProps {
 const publicNavigation = [
   { href: "/timeline", label: "タイムライン" },
   { href: "/articles", label: "記事" },
-  { href: "/map", label: "マップ" },
   { href: "/organization", label: "メンバー" },
+  { href: "/map", label: "マップ" },
   { href: "/about", label: "About Us" },
   { href: "/supporters", label: "サポーター" },
-];
-
-const memberNavigation = [
-  { href: "/worlds", label: "過去ワールド" },
 ];
 
 export function SiteHeader({
@@ -44,20 +40,6 @@ export function SiteHeader({
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useCloseDetailsOnOutsideClick(adminNavigationRef);
-
-  useLayoutEffect(() => {
-    const storedTheme = localStorage.getItem("pmc-theme");
-    const theme = storedTheme === "light" || storedTheme === "dark"
-      ? storedTheme
-      : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-  }, []);
-
-  function toggleTheme() {
-    const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", nextTheme);
-    localStorage.setItem("pmc-theme", nextTheme);
-  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -116,7 +98,7 @@ export function SiteHeader({
             aria-label="メインナビゲーション"
           >
             <div className="site-navigation__links">
-              {[...publicNavigation, ...(currentUser ? memberNavigation : [])].map((item) => (
+              {publicNavigation.map((item) => (
                 <Link
                   key={item.href}
                   className={classNames(
@@ -135,9 +117,6 @@ export function SiteHeader({
             <div className="site-navigation__account">
               {currentUser ? (
                 <>
-                  <Link className="button button--secondary button--sm" href="/article/new" onClick={() => setMenuOpen(false)}>
-                    記事を書く
-                  </Link>
                   {isAdmin ? (
                     <>
                       <div className="site-header__desktop-notifications">
@@ -178,22 +157,6 @@ export function SiteHeader({
                 <AdminNotificationTray onNavigate={() => setMenuOpen(false)} />
               </div>
             ) : null}
-            <button
-              className="theme-toggle"
-              type="button"
-              aria-label="ライトモードとダークモードを切り替える"
-              title="表示テーマを切り替える"
-              onClick={toggleTheme}
-            >
-              <svg className="theme-toggle__moon" aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M20.4 15.3A8.7 8.7 0 0 1 8.7 3.6 8.8 8.8 0 1 0 20.4 15.3Z" />
-              </svg>
-              <svg className="theme-toggle__sun" aria-hidden="true" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3.6" />
-                <path d="M12 2.2v2.1M12 19.7v2.1M2.2 12h2.1M19.7 12h2.1M5.1 5.1l1.5 1.5M17.4 17.4l1.5 1.5M18.9 5.1l-1.5 1.5M6.6 17.4l-1.5 1.5" />
-              </svg>
-            </button>
-
             <button
               className="site-header__menu-button"
               type="button"

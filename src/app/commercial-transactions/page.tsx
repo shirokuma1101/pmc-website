@@ -26,10 +26,10 @@ export default function CommercialTransactionsPage() {
       <section aria-labelledby="commercial-conditions-title">
         <h2 id="commercial-conditions-title">サポーター制度の条件</h2>
         <dl className="legal-disclosure-list">
-          <div><dt>料金</dt><dd>1回支援：{ONE_TIME_SUPPORT.amount}円（税込）。月額：Basic {MONTHLY_SUPPORTER_PLANS.basic.amount}円（税込）、Standard {MONTHLY_SUPPORTER_PLANS.standard.amount}円（税込）、Premium {MONTHLY_SUPPORTER_PLANS.premium.amount.toLocaleString("ja-JP")}円（税込）。</dd></div>
+          <div><dt>料金</dt><dd>単発サポート：{ONE_TIME_SUPPORT.amount}円（税込）。月額：Basic {MONTHLY_SUPPORTER_PLANS.basic.amount}円（税込）、Standard {MONTHLY_SUPPORTER_PLANS.standard.amount}円（税込）、Premium {MONTHLY_SUPPORTER_PLANS.premium.amount.toLocaleString("ja-JP")}円（税込）。</dd></div>
           <div><dt>料金以外の費用</dt><dd>表示額以外に当方から請求する費用はありません。</dd></div>
-          <div><dt>お支払い方法</dt><dd>Stripeで有効化されている方法のうち、選択したプランで利用できる方法が決済画面に表示されます。1回支援と月額では利用可能な方法が異なります。</dd></div>
-          <div><dt>お支払い時期</dt><dd>1回支援はお申し込み時に1回決済します。月額はお申し込み時と、解約するまで毎月請求します。プラン切替時は新プランをお申し込み日に全額請求します。</dd></div>
+          <div><dt>お支払い方法</dt><dd>Stripeで有効化されている方法のうち、選択したプランで利用できる方法が決済画面に表示されます。単発サポートと月額では利用可能な方法が異なります。</dd></div>
+          <div><dt>お支払い時期</dt><dd>単発サポートはお申し込み時に1回決済します。月額はお申し込み時と、解約するまで毎月請求します。プラン切替時は新プランをお申し込み日に全額請求します。</dd></div>
           <div><dt>提供時期</dt><dd>決済完了をStripeから確認した後、対象のバッジ・特典をアカウントに反映します。</dd></div>
           <div><dt>解約・返金</dt><dd>下記の条件をご確認ください。月額契約の解約と支払い方法の変更は、マイページからStripeの管理画面へ進んでお手続きいただけます。</dd></div>
         </dl>

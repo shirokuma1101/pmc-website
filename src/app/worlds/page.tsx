@@ -36,7 +36,7 @@ export default async function WorldsPage({ searchParams }: { searchParams: Promi
           <h2 id="world-files-title">ワールドファイル</h2>
         </header>
         {page.files.length === 0 ? (
-          <EmptyState title="公開中のワールドはありません" description="管理者がCMSへファイルを追加すると、ここに表示されます。" />
+          <EmptyState title="公開中のワールドはありません" description="管理者がファイルを追加すると、ここに表示されます。" />
         ) : (
           <ul className="world-download-list">
             {page.files.map((file) => (

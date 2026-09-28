@@ -26,12 +26,14 @@ describe("SupportForm", () => {
   it("offers one-time Supporter badge support for 300 JPY", () => {
     const { container } = render(<SupportForm checkoutEnabled loggedIn />);
     const form = within(container.querySelector("form")!);
-    fireEvent.click(form.getByRole("button", { name: "1回の支援" }));
+    fireEvent.click(form.getByRole("radio", { name: /Supporter.*¥300/ }));
     acceptRequiredConditions(form);
     expect(form.getByRole("button", { name: "Supporterとして支援する" })).toBeEnabled();
-    expect(form.getByRole("radio", { name: /^Supporter.*¥300.*Supporterバッジのみ/ })).toBeChecked();
     expect(form.getByRole("radio", { name: /Supporter.*¥300.*税込/ })).toBeChecked();
-    expect(form.getByText(/Supporterバッジのみ/)).toBeInTheDocument();
+    expect(new FormData(container.querySelector("form")!).get("frequency")).toBe("one_time");
+    expect(new FormData(container.querySelector("form")!).get("tier")).toBe("supporter");
+    expect(within(form.getByRole("table")).getByText("Supporterバッジ")).toBeInTheDocument();
+    expect(within(form.getByRole("table")).getByRole("rowheader", { name: "支払い方式" }).closest("tr")).toHaveTextContent("単発・自動更新なし");
     expect(form.queryByRole("spinbutton", { name: "有効月数" })).not.toBeInTheDocument();
     expect(form.queryByText(/Standard Supporter特典/)).not.toBeInTheDocument();
     expect(form.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
@@ -41,10 +43,10 @@ describe("SupportForm", () => {
   it("requires login for monthly supporter plans", () => {
     const { container } = render(<SupportForm checkoutEnabled loggedIn={false} />);
     const form = within(container.querySelector("form")!);
-    expect(form.getByRole("button", { name: "月額サポーター" })).toHaveAttribute("aria-pressed", "true");
+    expect(form.getByRole("radio", { name: /Standard Supporter.*¥800/ })).toBeChecked();
     expect(form.getByRole("button", { name: "サポーターになる" })).toBeDisabled();
-    expect(form.getByText("月額サポーターへの加入にはログインが必要です。")).toBeInTheDocument();
-    expect(form.getByText(/PayPayをご希望の場合は、1回支援をご利用ください/)).toBeInTheDocument();
+    expect(form.getByText("サポーターバッジ・特典の付与にはログインが必要です。")).toBeInTheDocument();
+    expect(form.getByText(/PayPayは単発サポートでご利用いただけます/)).toBeInTheDocument();
   });
 
   it("shows the configured monthly prices", () => {
@@ -54,18 +56,35 @@ describe("SupportForm", () => {
     expect(form.getByRole("radio", { name: /Standard Supporter.*¥800/ })).toBeInTheDocument();
     expect(form.getByRole("radio", { name: /Premium Supporter.*¥1,500/ })).toBeInTheDocument();
     expect(form.getAllByText("（税込）/ 月")).toHaveLength(3);
-    expect(form.getByText("Basic Supporterバッジ（非表示設定可）")).toBeInTheDocument();
-    expect(form.getByText("Standard Supporterバッジ（非表示設定可）")).toBeInTheDocument();
-    expect(form.getByText("Premium Supporterバッジ（非表示設定可）")).toBeInTheDocument();
-    expect(form.getAllByText("地図の時系列比較を利用可能")).toHaveLength(3);
+    const table = form.getByRole("table", { name: "サポートプランの比較と選択" });
+    const badgeRow = within(table).getByRole("rowheader", { name: "プロフィールに表示されるバッジ" }).closest("tr")!;
+    expect(within(badgeRow).getByText("Supporterバッジ")).toBeInTheDocument();
+    expect(within(badgeRow).getByText("Basic Supporterバッジ")).toBeInTheDocument();
+    expect(within(badgeRow).getByText("Standard Supporterバッジ")).toBeInTheDocument();
+    expect(within(badgeRow).getByText("Premium Supporterバッジ")).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: "メンバー一覧でサポーターとして表示" })).toBeInTheDocument();
+    expect(within(table).getByRole("rowheader", { name: "地図の時系列比較を利用可能" })).toBeInTheDocument();
+    expect(within(table).getAllByLabelText("利用可能")).toHaveLength(6);
+    expect(within(table).getAllByLabelText("対象外")).toHaveLength(2);
     expect(form.queryByText("活動をそっと応援")).not.toBeInTheDocument();
+  });
+
+  it("updates mobile plan details and checkout fields when a plan card is selected", () => {
+    const { container } = render(<SupportForm checkoutEnabled loggedIn />);
+    const form = within(container.querySelector("form")!);
+    const mobile = container.querySelector(".support-comparison-mobile")!;
+    fireEvent.click(within(mobile as HTMLElement).getByRole("button", { name: /Supporter.*¥300/ }));
+    expect(within(mobile as HTMLElement).getByText("単発・自動更新なし")).toBeInTheDocument();
+    expect(within(mobile as HTMLElement).getByText("Supporterバッジ")).toBeInTheDocument();
+    expect(new FormData(container.querySelector("form")!).get("frequency")).toBe("one_time");
+    expect(form.getByRole("radio", { name: /Supporter.*¥300/ })).toBeChecked();
   });
 
   it("blocks a monthly resubscription but allows one-time support", () => {
     const { container } = render(<SupportForm checkoutEnabled loggedIn monthlyStatus="existing" />);
     const form = within(container.querySelector("form")!);
     expect(form.getByRole("button", { name: "新プランに申し込む" })).toBeDisabled();
-    fireEvent.click(form.getByRole("button", { name: "1回の支援" }));
+    fireEvent.click(form.getByRole("radio", { name: /Supporter.*¥300/ }));
     acceptRequiredConditions(form);
     expect(form.getByRole("button", { name: "Supporterとして支援する" })).toBeEnabled();
   });

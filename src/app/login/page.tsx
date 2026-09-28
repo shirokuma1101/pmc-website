@@ -24,10 +24,10 @@ export default async function LoginPage({
           ? "パスワードを変更しました。新しいパスワードでログインしてください。"
         : undefined;
   if (await getSession()) redirect(next);
+  const registrationEnabled = process.env.REGISTRATION_ENABLED === "true";
 
   return (
     <main id="main-content" className="auth-page">
-      <div className="auth-page__backdrop" aria-hidden="true" />
       <LoginForm
         redirectTo={next}
         notice={notice}
@@ -35,7 +35,7 @@ export default async function LoginPage({
           ...(process.env.GOOGLE_SSO_AUTH_URL ? ["google" as const] : []),
           ...(process.env.X_SSO_AUTH_URL ? ["x" as const] : []),
         ]}
-        footer={process.env.REGISTRATION_ENABLED === "true"
+        footer={registrationEnabled
           ? <><Link href="/forgot-password">パスワードを忘れた方</Link><span aria-hidden="true"> ・ </span><Link href="/register">新しいアカウントを作成</Link></>
           : <Link href="/forgot-password">パスワードを忘れた方</Link>}
       />
