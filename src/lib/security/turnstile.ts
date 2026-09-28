@@ -12,6 +12,7 @@ export type TurnstileAction =
   | "login"
   | "registration"
   | "join-application"
+  | "contact-inquiry"
   | "google-sso"
   | "x-sso"
   | "password-reset-request";

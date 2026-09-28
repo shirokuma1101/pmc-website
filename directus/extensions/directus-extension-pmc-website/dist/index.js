@@ -633,6 +633,9 @@ function ensureProfileSkinColumns(database) {
     if (!await database.schema.hasColumn("profiles", "minecraft_skin_model")) {
       await database.schema.alterTable("profiles", (table) => table.string("minecraft_skin_model", 16).notNullable().defaultTo("classic"));
     }
+    if (!await database.schema.hasColumn("profiles", "supporter_badge_visible")) {
+      await database.schema.alterTable("profiles", (table) => table.boolean("supporter_badge_visible").notNullable().defaultTo(true));
+    }
   })();
   return profileSkinColumnsPromise;
 }
@@ -640,8 +643,8 @@ function ensureProfileSkinColumns(database) {
 async function attachProfileSkin(database, profile) {
   if (!profile) return profile;
   await ensureProfileSkinColumns(database);
-  const skin = await database("profiles").select("minecraft_skin", "minecraft_skin_model").where({ id: profile.id }).first();
-  return { ...profile, minecraft_skin: skin?.minecraft_skin ?? null, minecraft_skin_model: skin?.minecraft_skin_model ?? "classic" };
+  const skin = await database("profiles").select("minecraft_skin", "minecraft_skin_model", "supporter_badge_visible").where({ id: profile.id }).first();
+  return { ...profile, minecraft_skin: skin?.minecraft_skin ?? null, minecraft_skin_model: skin?.minecraft_skin_model ?? "classic", supporter_badge_visible: skin?.supporter_badge_visible !== false };
 }
 
 let organizationLayoutTablePromise;
@@ -705,6 +708,97 @@ function effectiveSupporterTier(entitlements, now = new Date()) {
   return effective;
 }
 
+function addUtcMonths(date, months) {
+  const result = new Date(date);
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
+
+export function stripeSupportEvent(body) {
+  const eventType = requiredText(body.type, "type", 80);
+  const object = body.object;
+  if (!object || typeof object !== "object" || Array.isArray(object)) throw new EndpointError(400, "INVALID_PAYLOAD", "Invalid Stripe event");
+  const invoiceSubscriptionDetails = object.parent?.subscription_details ?? object.subscription_details;
+  const metadata = object.metadata && typeof object.metadata === "object" && Object.keys(object.metadata).length
+    ? object.metadata
+    : invoiceSubscriptionDetails?.metadata && typeof invoiceSubscriptionDetails.metadata === "object"
+      ? invoiceSubscriptionDetails.metadata
+      : {};
+  const userId = typeof metadata.user_id === "string" && UUID_PATTERN.test(metadata.user_id) ? metadata.user_id : null;
+  const frequency = metadata.frequency === "monthly" || eventType.startsWith("customer.subscription") || eventType.startsWith("invoice.") ? "monthly" : "one_time";
+  const tier = SUPPORTER_TIER_PRIORITY.has(metadata.tier) ? metadata.tier : frequency === "one_time" ? "supporter" : null;
+  if (!tier) throw new EndpointError(400, "INVALID_PAYLOAD", "Supporter tier is missing");
+  const quantity = frequency === "one_time" ? Number(metadata.quantity) : 1;
+  if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 12) throw new EndpointError(400, "INVALID_PAYLOAD", "Support quantity is invalid");
+  const checkoutSucceeded = eventType === "checkout.session.completed" || eventType === "checkout.session.async_payment_succeeded";
+  const checkoutFailed = eventType === "checkout.session.async_payment_failed";
+  const invoicePaid = eventType === "invoice.paid";
+  const invoiceFailed = eventType === "invoice.payment_failed";
+  const active = invoicePaid || (checkoutSucceeded
+    ? object.payment_status === "paid" || object.payment_status === "no_payment_required"
+    : eventType === "customer.subscription.updated" && ["active", "trialing"].includes(object.status));
+  return {
+    eventType,
+    object,
+    userId,
+    frequency,
+    tier,
+    quantity,
+    active,
+    status: eventType === "customer.subscription.deleted" || checkoutFailed || invoiceFailed ? "revoked" : active ? "active" : String(object.status ?? "pending").slice(0, 24),
+    externalReference: String(invoiceSubscriptionDetails?.subscription ?? object.subscription ?? object.id ?? "").slice(0, 255),
+    entitlementSource: frequency === "monthly" ? "stripe_subscription" : "stripe_one_time",
+  };
+}
+
+/** Rebuild subscription entitlements from event time, not webhook arrival order. */
+export function monthlySupporterState(payments, existing) {
+  const latest = new Map();
+  const priority = (payment) => payment.event_type === "customer.subscription.deleted" || payment.status === "canceled" ? 100
+    : payment.event_type === "invoice.paid" ? 30 : payment.event_type === "invoice.payment_failed" ? 20
+      : payment.event_type === "customer.subscription.updated" ? 10 : 0;
+  for (const payment of payments) {
+    if (!payment.external_reference || payment.stripe_created == null) continue;
+    const previous = latest.get(payment.external_reference);
+    // A canceled subscription ID cannot become active again; a new subscription has a different ID.
+    if (!previous || (priority(previous) !== 100 && (priority(payment) === 100
+      || Number(payment.stripe_created) > Number(previous.stripe_created)
+      || (Number(payment.stripe_created) === Number(previous.stripe_created) && priority(payment) > priority(previous))))) {
+      latest.set(payment.external_reference, payment);
+    }
+  }
+  // Keep a pre-migration subscription until an event for that subscription supplies its state.
+  if (existing?.external_reference && !latest.has(existing.external_reference)) {
+    latest.set(existing.external_reference, { ...existing, tier: existing.variant });
+  }
+  const active = [...latest.values()].filter((payment) => payment.status === "active")
+    .sort((left, right) => (SUPPORTER_TIER_PRIORITY.get(right.tier) ?? 0) - (SUPPORTER_TIER_PRIORITY.get(left.tier) ?? 0));
+  return active[0] ?? null;
+}
+
+/** Restore subscription benefits when a paying account is linked to a member after checkout. */
+export async function reconcileLinkedSupporterSubscription(database, memberId, userId) {
+  await ensureSupporterPaymentsTable(database);
+  await database.transaction(async (transaction) => {
+    const member = await transaction("organization_members").where({ id: memberId, user: userId }).forUpdate().first();
+    if (!member) throw new EndpointError(409, "ACCOUNT_LINK_CHANGED", "The member account link changed");
+    await transaction("supporter_payments").where({ user: userId }).whereNull("member").update({ member: memberId });
+    const payments = await transaction("supporter_payments").where({ user: userId, frequency: "monthly" }).whereNotNull("stripe_created");
+    if (!payments.length) return;
+    // Sandbox and live events must never be combined when rebuilding a benefit.
+    const latest = payments.reduce((left, right) => Number(right.stripe_created) > Number(left.stripe_created) ? right : left);
+    const current = monthlySupporterState(payments.filter((payment) => payment.livemode === latest.livemode), null);
+    const existing = await transaction("profile_entitlements").where({ member: memberId, feature: "profile_highlight", source: "stripe_subscription" }).first();
+    const record = { status: current ? "active" : "revoked", variant: current?.tier ?? null, valid_until: null, external_reference: current?.external_reference ?? null, updated_at: new Date() };
+    if (existing) await transaction("profile_entitlements").where({ id: existing.id }).update(record);
+    else await transaction("profile_entitlements").insert({ id: randomUUID(), member: memberId, feature: "profile_highlight", source: "stripe_subscription", ...record, created_at: new Date() });
+  });
+}
+
 function ensureProfileEntitlementsTable(database) {
   profileEntitlementsTablePromise ??= (async () => {
     await ensureOrganizationMembersTable(database);
@@ -730,6 +824,41 @@ function ensureProfileEntitlementsTable(database) {
     }
   })();
   return profileEntitlementsTablePromise;
+}
+
+let supporterPaymentsTablePromise;
+function ensureSupporterPaymentsTable(database) {
+  supporterPaymentsTablePromise ??= (async () => {
+    await ensureProfileEntitlementsTable(database);
+    if (!await database.schema.hasTable("supporter_payments")) {
+      await database.schema.createTable("supporter_payments", (table) => {
+        table.uuid("id").primary();
+        table.string("stripe_event_id", 255).notNullable().unique();
+        table.string("stripe_object_id", 255).notNullable().index();
+        table.string("stripe_customer_id", 255).nullable().index();
+        table.uuid("user").nullable().references("id").inTable("directus_users").onDelete("SET NULL").index();
+        table.uuid("member").nullable().references("id").inTable("organization_members").onDelete("SET NULL").index();
+        table.string("frequency", 16).notNullable();
+        table.string("tier", 32).notNullable();
+        table.integer("amount").nullable();
+        table.integer("quantity").notNullable().defaultTo(1);
+        table.string("currency", 3).nullable();
+        table.string("status", 24).notNullable();
+        table.boolean("livemode").notNullable();
+        table.timestamp("created_at").notNullable().defaultTo(database.fn.now());
+        table.timestamp("updated_at").nullable();
+      });
+    }
+    if (!await database.schema.hasColumn("supporter_payments", "stripe_customer_id")) await database.schema.alterTable("supporter_payments", (table) => table.string("stripe_customer_id", 255).nullable().index());
+    if (!await database.schema.hasColumn("supporter_payments", "quantity")) await database.schema.alterTable("supporter_payments", (table) => table.integer("quantity").notNullable().defaultTo(1));
+    if (!await database.schema.hasColumn("supporter_payments", "notification_key")) await database.schema.alterTable("supporter_payments", (table) => table.string("notification_key", 512).nullable().index());
+    if (!await database.schema.hasColumn("supporter_payments", "email_sent_at")) await database.schema.alterTable("supporter_payments", (table) => table.timestamp("email_sent_at", { useTz: true }).nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "email_id")) await database.schema.alterTable("supporter_payments", (table) => table.string("email_id", 255).nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "stripe_created")) await database.schema.alterTable("supporter_payments", (table) => table.bigInteger("stripe_created").nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "event_type")) await database.schema.alterTable("supporter_payments", (table) => table.string("event_type", 80).nullable());
+    if (!await database.schema.hasColumn("supporter_payments", "external_reference")) await database.schema.alterTable("supporter_payments", (table) => table.string("external_reference", 255).nullable().index());
+  })();
+  return supporterPaymentsTablePromise;
 }
 
 function organizationLayoutInput(request) {
@@ -1103,7 +1232,8 @@ function articleInput(request, { partial = false } = {}) {
 
 function profileInput(request) {
   const body = objectBody(request);
-  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar", "minecraft_skin", "minecraft_skin_model"]));
+  strictKeys(body, new Set(["display_name", "bio", "xbox_gamertag", "avatar", "minecraft_skin", "minecraft_skin_model", "supporter_badge_visible"]));
+  if (body.supporter_badge_visible !== undefined && typeof body.supporter_badge_visible !== "boolean") throw new EndpointError(400, "INVALID_PAYLOAD", "supporter_badge_visible must be a boolean");
   return {
     display_name: requiredText(body.display_name, "display_name", 80),
     bio: optionalText(body.bio, "bio", 1_000) ?? "",
@@ -1111,6 +1241,7 @@ function profileInput(request) {
     avatar: body.avatar === undefined ? undefined : uuid(body.avatar, "avatar", { nullable: true }),
     minecraft_skin: body.minecraft_skin === undefined ? undefined : uuid(body.minecraft_skin, "minecraft_skin", { nullable: true }),
     minecraft_skin_model: body.minecraft_skin_model === undefined ? undefined : skinModel(body.minecraft_skin_model),
+    supporter_badge_visible: body.supporter_badge_visible,
   };
 }
 
@@ -1180,6 +1311,101 @@ export default {
   handler: (router, context) => {
     const { database, getSchema, services, logger } = context;
     const { AssetsService, FilesService, ItemsService, UsersService } = services;
+
+    router.post("/support-events", route(async (request, response) => {
+      const expectedSecret = process.env.STRIPE_INTERNAL_SECRET;
+      if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
+      const body = objectBody(request);
+      strictKeys(body, new Set(["id", "type", "livemode", "object", "notificationKey", "created"]));
+      const eventId = requiredText(body.id, "id", 255);
+      if (!Number.isSafeInteger(body.created) || body.created < 0) throw new EndpointError(400, "INVALID_PAYLOAD", "Stripe event creation time is required");
+      const notificationKey = body.notificationKey == null ? null : requiredText(body.notificationKey, "notificationKey", 512);
+      if (typeof body.livemode !== "boolean" || !body.object || typeof body.object !== "object" || Array.isArray(body.object)) throw new EndpointError(400, "INVALID_PAYLOAD", "Invalid Stripe event");
+      await ensureSupporterPaymentsTable(database);
+
+      const { eventType, object, userId, frequency, tier, quantity, active, status, externalReference, entitlementSource } = stripeSupportEvent(body);
+      const member = userId ? await database("organization_members").select("id").where({ user: userId }).first() : null;
+
+      await database.transaction(async (transaction) => {
+        // Serialize entitlement updates for this member and atomically ignore duplicate deliveries.
+        if (member) await transaction("organization_members").where({ id: member.id }).forUpdate().first();
+        const amount = [object.amount_total, object.amount_paid, object.amount_due].find((value) => Number.isSafeInteger(value));
+        const inserted = await transaction("supporter_payments").insert({ id: randomUUID(), stripe_event_id: eventId, stripe_object_id: String(object.id ?? eventId).slice(0, 255), stripe_customer_id: typeof object.customer === "string" ? object.customer.slice(0, 255) : null, user: userId, member: member?.id ?? null, frequency, tier, amount: amount ?? null, quantity, currency: typeof object.currency === "string" ? object.currency.slice(0, 3) : null, status, livemode: body.livemode, notification_key: notificationKey, stripe_created: body.created, event_type: eventType, external_reference: externalReference, created_at: new Date(), updated_at: new Date() }).onConflict("stripe_event_id").ignore().returning("id");
+        if (!inserted.length) {
+          const existingPayment = await transaction("supporter_payments").where({ stripe_event_id: eventId }).first();
+          if (notificationKey && !existingPayment.notification_key) {
+            throw new EndpointError(409, "NOTIFICATION_HISTORY_UNKNOWN", "Verify legacy email delivery before replaying this event");
+          }
+          return;
+        }
+        if (member && (frequency === "monthly" || active)) {
+          const existing = await transaction("profile_entitlements").where({ member: member.id, feature: "profile_highlight", source: entitlementSource }).first();
+          let validUntil = null;
+          if (frequency === "one_time" && active && tier !== "supporter") {
+            const now = new Date();
+            const currentExpiry = existing?.status === "active" && existing.valid_until ? new Date(existing.valid_until) : null;
+            validUntil = addUtcMonths(currentExpiry && currentExpiry > now ? currentExpiry : now, quantity);
+          }
+          const record = { status: active ? "active" : "revoked", variant: tier, valid_until: validUntil, external_reference: externalReference, updated_at: new Date() };
+          if (frequency === "monthly") {
+            const history = await transaction("supporter_payments").where({ member: member.id, frequency: "monthly", livemode: body.livemode }).whereNotNull("stripe_created");
+            const current = monthlySupporterState(history, existing);
+            record.status = current ? "active" : "revoked";
+            record.variant = current?.tier ?? tier;
+            record.external_reference = current?.external_reference ?? externalReference;
+          }
+          if (existing) await transaction("profile_entitlements").where({ id: existing.id }).update(record);
+          else await transaction("profile_entitlements").insert({ id: randomUUID(), member: member.id, feature: "profile_highlight", source: entitlementSource, ...record, created_at: new Date() });
+        }
+      });
+      const sent = notificationKey ? await database("supporter_payments").where({ notification_key: notificationKey }).whereNotNull("email_sent_at").first() : null;
+      if (notificationKey && !sent) {
+        const firstAttempt = await database("supporter_payments").where({ notification_key: notificationKey }).orderBy("created_at", "asc").first();
+        // Resend retains idempotency keys for 24 hours. Do not blindly repeat an ambiguous older send.
+        if (firstAttempt && Date.now() - new Date(firstAttempt.created_at).getTime() >= 23 * 60 * 60 * 1000) {
+          throw new EndpointError(409, "NOTIFICATION_RETRY_WINDOW_EXPIRED", "Verify Resend delivery before manually retrying this notification");
+        }
+      }
+      const recovered = eventType === "invoice.payment_failed" || eventType === "checkout.session.async_payment_failed"
+        ? await database("supporter_payments").where({ stripe_object_id: String(object.id), livemode: body.livemode, status: "active" }).first()
+        : null;
+      response.json({ data: { notificationSent: Boolean(sent), notificationObsolete: Boolean(recovered) } });
+    }));
+
+    router.post("/support-email-sent", route(async (request, response) => {
+      const expectedSecret = process.env.STRIPE_INTERNAL_SECRET;
+      if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
+      const body = objectBody(request);
+      strictKeys(body, new Set(["id", "notificationKey", "emailId"]));
+      const eventId = requiredText(body.id, "id", 255);
+      const notificationKey = requiredText(body.notificationKey, "notificationKey", 512);
+      const emailId = requiredText(body.emailId, "emailId", 255);
+      await ensureSupporterPaymentsTable(database);
+      const updated = await database("supporter_payments").where({ stripe_event_id: eventId, notification_key: notificationKey }).update({ email_sent_at: new Date(), email_id: emailId });
+      if (!updated) throw new EndpointError(404, "NOT_FOUND", "Payment notification not found");
+      response.status(204).send();
+    }));
+
+    router.get("/support-customer/:id", route(async (request, response) => {
+      const expectedSecret = process.env.STRIPE_INTERNAL_SECRET;
+      if (!expectedSecret || request.get("X-PMC-Stripe-Secret") !== expectedSecret) throw new EndpointError(401, "INVALID_SECRET", "Invalid internal secret");
+      await ensureSupporterPaymentsTable(database);
+      const userId = routeId(request);
+      const payments = await database("supporter_payments").select("stripe_customer_id").where({ user: userId, frequency: "monthly" }).whereNotNull("stripe_customer_id").orderBy("created_at", "desc");
+      const customers = [...new Set(payments.map((payment) => payment.stripe_customer_id))];
+      response.json({ data: { customer: customers[0] ?? null, customers } });
+    }));
+
+    router.get("/supporter-status", route(async (request, response) => {
+      const userId = currentUser(request);
+      await Promise.all([ensureOrganizationMembersTable(database), ensureProfileEntitlementsTable(database)]);
+      const member = await database("organization_members").select("id").where({ user: userId }).first();
+      if (!member) return response.json({ data: { tier: null } });
+      const entitlements = await database("profile_entitlements")
+        .select("variant", "valid_until")
+        .where({ member: member.id, feature: "profile_highlight", status: "active" });
+      response.json({ data: { tier: effectiveSupporterTier(entitlements) ?? null } });
+    }));
 
     router.post("/register", route(async (request, response) => {
       if (process.env.REGISTRATION_ENABLED !== "true") {
@@ -1563,7 +1789,7 @@ export default {
       response.status(204).send();
     }));
 
-    router.get("/organization", route(async (_request, response) => {
+    router.get("/organization", route(async (request, response) => {
       await Promise.all([ensureOrganizationLayoutTable(database), ensureProfileEntitlementsTable(database), ensureProfileSkinColumns(database)]);
       const rows = await database("organization_members as member")
         .leftJoin("directus_users as users", "users.id", "member.user")
@@ -1571,7 +1797,7 @@ export default {
         .where((query) => query.whereNull("member.user").orWhere("users.status", "active"))
         .select(
           "member.id as profile_id", "member.user as user_id", "member.display_name", "member.bio",
-          "profile.display_name as account_display_name", "profile.bio as account_bio", "profile.avatar as account_avatar", "profile.xbox_gamertag as account_xbox_gamertag", "profile.minecraft_skin as account_minecraft_skin", "profile.minecraft_skin_model as account_minecraft_skin_model",
+          "profile.display_name as account_display_name", "profile.bio as account_bio", "profile.avatar as account_avatar", "profile.xbox_gamertag as account_xbox_gamertag", "profile.minecraft_skin as account_minecraft_skin", "profile.minecraft_skin_model as account_minecraft_skin_model", "profile.supporter_badge_visible as supporter_badge_visible",
           "member.avatar", "member.minecraft_skin", "member.minecraft_skin_model", "member.organization_role", "member.organization_team",
           "member.organization_parent", "member.xbox_gamertag", "member.organization_group",
         )
@@ -1582,7 +1808,12 @@ export default {
         const member = String(entitlement.member);
         entitlementsByMember.set(member, [...(entitlementsByMember.get(member) ?? []), entitlement]);
       }
-      response.json({ data: rows.map((row) => ({
+      const canSeePrivateSupporterState = request.accountability?.admin === true;
+      response.json({ data: rows.map((row) => {
+        const publicTier = canSeePrivateSupporterState || row.supporter_badge_visible !== false
+          ? effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? [])
+          : null;
+        return {
         profile_id: row.profile_id,
         user_id: row.user_id,
         display_name: row.user_id ? row.account_display_name || row.display_name : row.display_name,
@@ -1595,9 +1826,10 @@ export default {
         team: row.organization_team ?? "",
         parent_id: row.organization_parent ?? null,
         group_id: row.organization_group ?? null,
-        highlighted: Boolean(effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? [])),
-        supporterTier: effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? []) ?? null,
-      })) });
+        highlighted: Boolean(publicTier),
+        supporterTier: publicTier ?? null,
+      };
+      }) });
     }));
 
     router.get("/organization/layout", route(async (_request, response) => {
@@ -1656,6 +1888,7 @@ export default {
       }
       const id = crypto.randomUUID();
       await database("organization_members").insert({ id, ...input, created_at: new Date() });
+      if (input.user) await reconcileLinkedSupporterSubscription(database, id, input.user);
       response.status(201).json({ data: { id, display_name: input.display_name, bio: input.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? "", avatar: input.avatar ?? null, minecraft_skin: input.minecraft_skin ?? null, minecraft_skin_model: input.minecraft_skin_model ?? "classic" } });
     }));
 
@@ -1729,6 +1962,7 @@ export default {
         input.xbox_gamertag = typeof profile?.xbox_gamertag === "string" ? profile.xbox_gamertag : "";
       }
       await database("organization_members").where({ id }).update({ ...input, updated_at: new Date() });
+      if (input.user) await reconcileLinkedSupporterSubscription(database, id, input.user);
       response.json({ data: { id, display_name: input.display_name ?? exists.display_name, bio: input.bio ?? exists.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? exists.xbox_gamertag ?? "", avatar: Object.prototype.hasOwnProperty.call(input, "avatar") ? input.avatar : exists.avatar ?? null, minecraft_skin: Object.prototype.hasOwnProperty.call(input, "minecraft_skin") ? input.minecraft_skin : exists.minecraft_skin ?? null, minecraft_skin_model: input.minecraft_skin_model ?? exists.minecraft_skin_model ?? "classic" } });
     }));
 

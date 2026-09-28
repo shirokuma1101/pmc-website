@@ -57,6 +57,7 @@ async function upsert(request: Request): Promise<Response> {
         ...(formString(form, "removeAvatar") === "true" ? { avatarId: null } : {}),
         ...(avatar ? { avatarId: crypto.randomUUID() } : {}),
         ...(form.has("minecraftSkinModel") ? { minecraftSkinModel: formString(form, "minecraftSkinModel") } : {}),
+        supporterBadgeVisible: formString(form, "supporterBadgeVisible") === "true",
         ...(formString(form, "removeMinecraftSkin") === "true" ? { minecraftSkinId: null } : {}),
         ...(minecraftSkin ? { minecraftSkinId: crypto.randomUUID() } : {}),
       };
@@ -88,6 +89,7 @@ async function upsert(request: Request): Promise<Response> {
       ...(avatarId !== undefined ? { avatarId } : {}),
       ...(minecraftSkinId !== undefined ? { minecraftSkinId } : {}),
       ...(validated.minecraftSkinModel !== undefined ? { minecraftSkinModel: validated.minecraftSkinModel } : {}),
+      ...(validated.supporterBadgeVisible !== undefined ? { supporterBadgeVisible: validated.supporterBadgeVisible } : {}),
     }, session.accessToken);
     return dataResponse(profile);
   });

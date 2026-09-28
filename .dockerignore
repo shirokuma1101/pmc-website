@@ -5,6 +5,8 @@
 .codex-tmp-*
 # Local worktrees and package caches can contain entire dependency trees.
 .codex-worktrees
+.worktrees
+SUPPORTER_RELEASE_CHECKLIST.md
 .pnpm-store
 .cache
 .turbo

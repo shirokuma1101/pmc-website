@@ -35,6 +35,7 @@ export interface SaveProfileInput {
   avatarId?: string | null;
   minecraftSkinId?: string | null;
   minecraftSkinModel?: "classic" | "slim";
+  supporterBadgeVisible?: boolean;
 }
 
 function profilePayload(input: Partial<SaveProfileInput>): Record<string, unknown> {
@@ -45,6 +46,7 @@ function profilePayload(input: Partial<SaveProfileInput>): Record<string, unknow
     ...(input.avatarId !== undefined ? { avatar: input.avatarId } : {}),
     ...(input.minecraftSkinId !== undefined ? { minecraft_skin: input.minecraftSkinId } : {}),
     ...(input.minecraftSkinModel !== undefined ? { minecraft_skin_model: input.minecraftSkinModel } : {}),
+    ...(input.supporterBadgeVisible !== undefined ? { supporter_badge_visible: input.supporterBadgeVisible } : {}),
   };
 }
 

@@ -45,6 +45,7 @@ describe("Directus domain mappers", () => {
       id: "profile",
       displayName: "Member",
       bio: "",
+      supporterBadgeVisible: true,
     });
   });
 

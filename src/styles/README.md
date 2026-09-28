@@ -11,7 +11,7 @@ Keep the import order stable unless a visual change is intentional.
 - `components/account-admin.css`: authentication, profile, security, and review UI
 - `pages/public.css`: route composition and public-facing pages
 - `responsive.css`: shared responsive and reduced-motion overrides
-- `pages/donation.css`: donation flow
+- `pages/donation.css`: supporter checkout flow (class names are retained for compatibility)
 - `pages/legal.css`: legal pages and cookie consent
 
 Add new rules to the narrowest matching file. Component-scoped styles that do not

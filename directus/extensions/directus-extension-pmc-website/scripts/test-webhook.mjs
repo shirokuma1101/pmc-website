@@ -6,6 +6,8 @@ import {
   newlyReferencedImageIds,
   publicArticleView,
   shouldNotifyDiscordForArticleApproval,
+  stripeSupportEvent,
+  monthlySupporterState,
   storedImageIdsInMarkdown,
 } from "../src/index.js";
 
@@ -92,5 +94,83 @@ assert.deepEqual(publicArticleView(revision), {
   status: "published",
 });
 assert.equal(publicArticleView({ id: "draft", status: "draft" }).status, "draft");
+
+const supporterUserId = "123e4567-e89b-42d3-a456-426614174099";
+const paidOneTime = stripeSupportEvent({
+  type: "checkout.session.completed",
+  object: {
+    id: "cs_test_paid",
+    payment_status: "paid",
+    metadata: { frequency: "one_time", tier: "standard", quantity: "3", user_id: supporterUserId },
+  },
+});
+assert.equal(paidOneTime.active, true);
+assert.equal(paidOneTime.quantity, 3);
+assert.equal(paidOneTime.entitlementSource, "stripe_one_time");
+
+const unpaidOneTime = stripeSupportEvent({
+  type: "checkout.session.completed",
+  object: {
+    id: "cs_test_unpaid",
+    status: "complete",
+    payment_status: "unpaid",
+    metadata: { frequency: "one_time", tier: "standard", quantity: "1", user_id: supporterUserId },
+  },
+});
+assert.equal(unpaidOneTime.active, false);
+
+const activeSubscription = stripeSupportEvent({
+  type: "customer.subscription.updated",
+  object: { id: "sub_test", status: "active", metadata: { tier: "premium", user_id: supporterUserId } },
+});
+assert.equal(activeSubscription.active, true);
+assert.equal(activeSubscription.frequency, "monthly");
+assert.equal(activeSubscription.entitlementSource, "stripe_subscription");
+
+const canceledSubscription = stripeSupportEvent({
+  type: "customer.subscription.deleted",
+  object: { id: "sub_test", status: "canceled", metadata: { tier: "premium", user_id: supporterUserId } },
+});
+assert.equal(canceledSubscription.active, false);
+assert.equal(canceledSubscription.status, "revoked");
+
+const paidRenewal = stripeSupportEvent({
+  type: "invoice.paid",
+  object: {
+    id: "in_test_paid",
+    status: "paid",
+    amount_paid: 1500,
+    parent: { subscription_details: { subscription: "sub_test", metadata: { tier: "premium", user_id: supporterUserId } } },
+  },
+});
+assert.equal(paidRenewal.active, true);
+assert.equal(paidRenewal.userId, supporterUserId);
+assert.equal(paidRenewal.externalReference, "sub_test");
+
+const failedRenewal = stripeSupportEvent({
+  type: "invoice.payment_failed",
+  object: {
+    id: "in_test_failed",
+    status: "open",
+    amount_due: 1500,
+    parent: { subscription_details: { subscription: "sub_test", metadata: { tier: "premium", user_id: supporterUserId } } },
+  },
+});
+assert.equal(failedRenewal.active, false);
+assert.equal(failedRenewal.status, "revoked");
+
+const canceled = { external_reference: "sub_old", stripe_created: 200, event_type: "customer.subscription.deleted", status: "revoked", tier: "premium" };
+const oldPaid = { external_reference: "sub_old", stripe_created: 100, event_type: "invoice.paid", status: "active", tier: "premium" };
+const newPaid = { external_reference: "sub_new", stripe_created: 150, event_type: "invoice.paid", status: "active", tier: "basic" };
+assert.equal(monthlySupporterState([canceled, oldPaid], null), null);
+assert.equal(monthlySupporterState([oldPaid, canceled], null), null);
+assert.equal(monthlySupporterState([newPaid, canceled, oldPaid], null).tier, "basic");
+assert.equal(monthlySupporterState([
+  { ...oldPaid, tier: "standard", status: "active" },
+  { ...newPaid, tier: "premium", status: "active" },
+], null).tier, "premium");
+assert.equal(monthlySupporterState([canceled, { ...oldPaid, stripe_created: 300 }], null), null);
+assert.equal(monthlySupporterState([{ ...oldPaid, stripe_created: 200 }, canceled], null), null);
+assert.equal(monthlySupporterState([canceled], { external_reference: "sub_legacy", status: "active", variant: "standard" }).tier, "standard");
 
 console.log("Discord article payload tests passed");

@@ -25,6 +25,7 @@ const publicNavigation = [
   { href: "/map", label: "マップ" },
   { href: "/organization", label: "メンバー" },
   { href: "/about", label: "About Us" },
+  { href: "/supporters", label: "サポーター" },
 ];
 
 const memberNavigation = [
@@ -149,6 +150,7 @@ export function SiteHeader({
                           <Link href="/admin/registrations" onClick={() => setMenuOpen(false)}>アカウント承認</Link>
                           <Link href="/admin/join-applications" onClick={() => setMenuOpen(false)}>参加申請管理</Link>
                           <Link href="/admin/worlds" onClick={() => setMenuOpen(false)}>過去ワールド説明文</Link>
+                          <Link href="/admin/supporters" onClick={() => setMenuOpen(false)}>サポーター運用</Link>
                           <Link href="/organization?edit=1" onClick={() => setMenuOpen(false)}>メンバー管理</Link>
                         </div>
                       </details>

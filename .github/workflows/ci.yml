@@ -35,6 +35,9 @@ jobs:
       - name: Validate local Directus Compose
         run: docker compose -f docker-compose.dev.yml --env-file .env.local.example config --quiet
 
+      - name: Test supporter storage in isolated Postgres
+        run: sh scripts/test-supporter-storage.sh
+
       - name: Typecheck
         run: npm run typecheck
 

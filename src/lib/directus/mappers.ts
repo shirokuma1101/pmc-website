@@ -65,6 +65,7 @@ export function mapProfile(raw: DirectusProfileRaw): Profile {
     ...(avatar ? { avatarUrl: directusAssetUrl(avatar) } : {}),
     ...(minecraftSkin ? { minecraftSkinUrl: directusAssetUrl(minecraftSkin) } : {}),
     ...(raw.minecraft_skin_model ? { minecraftSkinModel: raw.minecraft_skin_model } : {}),
+    supporterBadgeVisible: raw.supporter_badge_visible !== false,
     ...(user ? { user } : {}),
     ...(raw.created_at ? { createdAt: raw.created_at } : {}),
     ...(raw.updated_at ? { updatedAt: raw.updated_at } : {}),

@@ -1,0 +1,111 @@
+import { createHmac } from "node:crypto";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/directus/client", () => ({ directusRequest: vi.fn() }));
+vi.mock("@/lib/email/resend", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/email/resend")>(), sendSupporterPaymentEmail: vi.fn() }));
+vi.mock("@/lib/stripe", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/stripe")>(), scheduleSubscriptionCancellation: vi.fn() }));
+
+import { directusRequest } from "@/lib/directus/client";
+import { sendSupporterPaymentEmail } from "@/lib/email/resend";
+import { scheduleSubscriptionCancellation } from "@/lib/stripe";
+import { ApiRouteError } from "@/lib/api/route";
+import { POST } from "./route";
+
+function signedRequest(event: unknown, secret = "whsec_test"): Request {
+  const payload = JSON.stringify({ created: 1_800_000_000, ...(event as Record<string, unknown>) });
+  const timestamp = Math.floor(Date.now() / 1_000);
+  const signature = createHmac("sha256", secret).update(`${timestamp}.${payload}`).digest("hex");
+  return new Request("http://localhost:3001/api/supporters/webhook", { method: "POST", headers: { "Stripe-Signature": `t=${timestamp},v1=${signature}` }, body: payload });
+}
+
+describe("POST /api/supporters/webhook", () => {
+  beforeEach(() => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_example";
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
+    process.env.STRIPE_INTERNAL_SECRET = "internal-test";
+    process.env.DIRECTUS_URL = "http://directus.test";
+    vi.mocked(directusRequest).mockReset().mockResolvedValue({ data: { notificationSent: false } });
+    vi.mocked(sendSupporterPaymentEmail).mockReset().mockResolvedValue("email-id");
+    vi.mocked(scheduleSubscriptionCancellation).mockReset().mockResolvedValue(undefined);
+  });
+
+  it("forwards accepted signed events to Directus", async () => {
+    const event = { id: "evt_test", type: "checkout.session.async_payment_succeeded", livemode: false, data: { object: { id: "cs_test", payment_status: "paid" } } };
+    const response = await POST(signedRequest(event));
+    expect(response.status).toBe(204);
+    expect(directusRequest).toHaveBeenCalledWith("/pmc-website/support-events", expect.objectContaining({ method: "POST", body: expect.objectContaining({ id: "evt_test" }) }));
+    expect(sendSupporterPaymentEmail).toHaveBeenCalledWith(expect.objectContaining({ id: "evt_test", type: "checkout.session.async_payment_succeeded" }));
+  });
+
+  it("processes recurring invoice notifications", async () => {
+    const event = { id: "evt_invoice", type: "invoice.payment_failed", livemode: false, data: { object: { id: "in_test", customer_email: "member@example.com" } } };
+    const response = await POST(signedRequest(event));
+    expect(response.status).toBe(204);
+    expect(directusRequest).toHaveBeenCalledWith("/pmc-website/support-events", expect.objectContaining({ body: expect.objectContaining({ type: "invoice.payment_failed" }) }));
+    expect(sendSupporterPaymentEmail).toHaveBeenCalledWith(expect.objectContaining({ id: "evt_invoice" }));
+  });
+
+  it("schedules the old subscription to end only after a replacement payment succeeds", async () => {
+    const checkout = { id: "cs_switch", payment_status: "paid", customer: "cus_old", subscription: "sub_new", metadata: { user_id: "user-id", tier: "standard", switch_from_subscription: "sub_old" } };
+    expect((await POST(signedRequest({ id: "evt_switch", type: "checkout.session.completed", livemode: false, data: { object: checkout } }))).status).toBe(204);
+    expect(scheduleSubscriptionCancellation).toHaveBeenCalledWith("sub_old", "cus_old", "user-id");
+  });
+
+  it("keeps the old subscription when replacement checkout is not paid", async () => {
+    const checkout = { id: "cs_switch", payment_status: "unpaid", customer: "cus_old", subscription: "sub_new", metadata: { user_id: "user-id", tier: "standard", switch_from_subscription: "sub_old" } };
+    expect((await POST(signedRequest({ id: "evt_switch_unpaid", type: "checkout.session.completed", livemode: false, data: { object: checkout } }))).status).toBe(204);
+    expect(scheduleSubscriptionCancellation).not.toHaveBeenCalled();
+  });
+
+  it("returns an error after saving the payment when email delivery needs a retry", async () => {
+    vi.mocked(sendSupporterPaymentEmail).mockRejectedValueOnce(new ApiRouteError("Resend unavailable", 502, "EMAIL_SEND_FAILED"));
+    const event = { id: "evt_retry", type: "invoice.paid", livemode: false, data: { object: { id: "in_retry" } } };
+    const response = await POST(signedRequest(event));
+    expect(response.status).toBe(502);
+    expect(directusRequest).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an invalid signature", async () => {
+    const response = await POST(signedRequest({ id: "evt_test", type: "checkout.session.completed", livemode: false }, "wrong-secret"));
+    expect(response.status).toBe(400);
+    expect(directusRequest).not.toHaveBeenCalled();
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects live events while using a test key", async () => {
+    const response = await POST(signedRequest({ id: "evt_live", type: "checkout.session.completed", livemode: true, data: { object: {} } }));
+    expect(response.status).toBe(400);
+    expect(directusRequest).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges unsupported signed events without forwarding", async () => {
+    const response = await POST(signedRequest({ id: "evt_other", type: "product.created", livemode: false, data: { object: { id: "prod_other" } } }));
+    expect(response.status).toBe(204);
+    expect(directusRequest).not.toHaveBeenCalled();
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not resend a notification already recorded as sent", async () => {
+    vi.mocked(directusRequest).mockResolvedValue({ data: { notificationSent: true } });
+    expect((await POST(signedRequest({ id: "evt_replayed", type: "invoice.paid", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(204);
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+
+  it("records delivery only after Resend accepts the email", async () => {
+    expect((await POST(signedRequest({ id: "evt_sent", type: "invoice.paid", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(204);
+    expect(directusRequest).toHaveBeenLastCalledWith("/pmc-website/support-email-sent", expect.objectContaining({ body: expect.objectContaining({ emailId: "email-id", id: "evt_sent" }) }));
+  });
+
+  it("does not send without durable payment storage acknowledgement", async () => {
+    vi.mocked(directusRequest).mockResolvedValue(undefined);
+    expect((await POST(signedRequest({ id: "evt_old_extension", type: "invoice.paid", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(503);
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not send an old failure notification after payment recovered", async () => {
+    vi.mocked(directusRequest).mockResolvedValue({ data: { notificationSent: false, notificationObsolete: true } });
+    expect((await POST(signedRequest({ id: "evt_old_failure", type: "invoice.payment_failed", livemode: false, data: { object: { id: "in_paid" } } }))).status).toBe(204);
+    expect(sendSupporterPaymentEmail).not.toHaveBeenCalled();
+  });
+});

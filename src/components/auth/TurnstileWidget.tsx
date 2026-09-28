@@ -2,8 +2,10 @@
 
 import Script from "next/script";
 import { useEffect, useId, useRef, useState } from "react";
-type TurnstileAction = "login" | "registration" | "join-application" | "google-sso" | "x-sso" | "password-reset-request";
-const ALWAYS_PASS_TEST_SITE_KEY = "1x00000000000000000000AA";
+type TurnstileAction = "login" | "registration" | "join-application" | "contact-inquiry" | "google-sso" | "x-sso" | "password-reset-request";
+// Cloudflare's documented local-development test credentials. The matching
+// server-side secret accepts this token without contacting the live challenge.
+const LOCAL_TEST_SITE_KEY = "1x00000000000000000000AA";
 const LOCAL_TEST_TOKEN = "XXXX.DUMMY.TOKEN.XXXX";
 
 declare global {
@@ -29,7 +31,10 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
   const [widgetError, setWidgetError] = useState(false);
   const id = useId();
   const sitekey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const isLocalTestMode = sitekey === ALWAYS_PASS_TEST_SITE_KEY;
+  // The local Docker image is a production build, so NODE_ENV cannot identify local testing.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const isLocalTestMode = sitekey === LOCAL_TEST_SITE_KEY
+    && Boolean(appUrl && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(appUrl));
 
   useEffect(() => {
     callbackRef.current = onTokenChange;
@@ -111,7 +116,7 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
   return (
     <div className="turnstile-field" aria-labelledby={`${id}-label`}>
       <span className="sr-only" id={`${id}-label`}>セキュリティ確認</span>
-      {isLocalTestMode ? <p className="field__hint">ローカルテスト用のセキュリティ確認を使用しています。</p> : <>
+      {isLocalTestMode ? <p className="field__hint">ローカル開発用のセキュリティ確認を使用中です。</p> : <>
         <Script
           id="cloudflare-turnstile"
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"

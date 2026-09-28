@@ -12,7 +12,16 @@ interface RateLimitState {
 }
 
 export interface AuthRateLimitPolicy {
-  action: "login" | "registration" | "join-application" | "sso" | "tfa" | "password-reset-request" | "password-reset";
+  action:
+    | "login"
+    | "registration"
+    | "join-application"
+    | "contact-inquiry"
+    | "sso"
+    | "tfa"
+    | "password-reset-request"
+    | "password-reset"
+    | "support-checkout";
   accountLimit: number;
   ipLimit: number;
   windowMs: number;
@@ -22,6 +31,7 @@ export const AUTH_RATE_LIMITS = {
   login: { action: "login", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   registration: { action: "registration", accountLimit: 3, ipLimit: 5, windowMs: 60 * 60_000 },
   joinApplication: { action: "join-application", accountLimit: 3, ipLimit: 5, windowMs: 60 * 60_000 },
+  contactInquiry: { action: "contact-inquiry", accountLimit: 3, ipLimit: 8, windowMs: 60 * 60_000 },
   sso: { action: "sso", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   tfa: { action: "tfa", accountLimit: 10, ipLimit: 30, windowMs: 15 * 60_000 },
   passwordResetRequest: {
@@ -34,6 +44,12 @@ export const AUTH_RATE_LIMITS = {
     action: "password-reset",
     accountLimit: 10,
     ipLimit: 30,
+    windowMs: 15 * 60_000,
+  },
+  supportCheckout: {
+    action: "support-checkout",
+    accountLimit: 10,
+    ipLimit: 20,
     windowMs: 15 * 60_000,
   },
 } as const satisfies Record<string, AuthRateLimitPolicy>;
