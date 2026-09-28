@@ -165,6 +165,10 @@ const newPaid = { external_reference: "sub_new", stripe_created: 150, event_type
 assert.equal(monthlySupporterState([canceled, oldPaid], null), null);
 assert.equal(monthlySupporterState([oldPaid, canceled], null), null);
 assert.equal(monthlySupporterState([newPaid, canceled, oldPaid], null).tier, "basic");
+assert.equal(monthlySupporterState([
+  { ...oldPaid, tier: "standard", status: "active" },
+  { ...newPaid, tier: "premium", status: "active" },
+], null).tier, "premium");
 assert.equal(monthlySupporterState([canceled, { ...oldPaid, stripe_created: 300 }], null), null);
 assert.equal(monthlySupporterState([{ ...oldPaid, stripe_created: 200 }, canceled], null), null);
 assert.equal(monthlySupporterState([canceled], { external_reference: "sub_legacy", status: "active", variant: "standard" }).tier, "standard");

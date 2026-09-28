@@ -25,6 +25,7 @@ export async function POST(request: Request): Promise<Response> {
     const form = await request.formData();
     const parsed = schema.parse({ frequency: form.get("frequency"), tier: form.get("tier") });
     if (form.get("consent") !== "accepted") throw new ApiRouteError("Consent is required", 400, "CONSENT_REQUIRED");
+    if (form.get("adultConfirmed") !== "accepted") throw new ApiRouteError("未成年者はお申し込みいただけません。", 400, "AGE_REQUIREMENT_NOT_MET");
 
     let amount: number;
     let tier: "supporter" | "basic" | "standard" | "premium";

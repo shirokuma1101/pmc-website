@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import extension from "../src/index.js";
+import extension, { reconcileLinkedSupporterSubscription } from "../src/index.js";
 
 // Run only inside a disposable Directus-image container sharing a test Postgres container's network.
 if (process.env.DB_DATABASE !== "supporter_test" || process.env.DB_HOST !== "127.0.0.1") {
@@ -59,6 +59,17 @@ try {
   assert.equal((await post("/support-events", { ...legacy, notificationKey: "legacy-key" })).statusCode, 409);
   const subscriptionEvent = (id, subscription, created, status, tier) => ({ id, created, livemode: false, type: status === "canceled" ? "customer.subscription.deleted" : "customer.subscription.updated", object: { id: subscription, status, metadata: { tier, user_id: user } } });
   await post("/support-events", subscriptionEvent("evt_new_active", "sub_new", 200, "active", "basic"));
+  const invoiceEvent = (id, type, created) => ({
+    id, created, livemode: false, type,
+    object: {
+      id: `in_${id}`, status: type === "invoice.paid" ? "paid" : "open",
+      parent: { subscription_details: { subscription: "sub_new", metadata: { tier: "basic", user_id: user } } },
+    },
+  });
+  await post("/support-events", invoiceEvent("evt_renewal_failed", "invoice.payment_failed", 210));
+  assert.equal((await database("profile_entitlements").where({ source: "stripe_subscription" }).first()).status, "revoked");
+  await post("/support-events", invoiceEvent("evt_renewal_recovered", "invoice.paid", 220));
+  assert.equal((await database("profile_entitlements").where({ source: "stripe_subscription" }).first()).status, "active");
   await post("/support-events", subscriptionEvent("evt_old_canceled", "sub_old", 300, "canceled", "premium"));
   await post("/support-events", subscriptionEvent("evt_old_active_late", "sub_old", 100, "active", "premium"));
   assert.equal((await database("profile_entitlements").where({ source: "stripe_subscription" }).first()).variant, "basic");
@@ -69,6 +80,21 @@ try {
   await post("/support-events", ambiguous);
   await database("supporter_payments").where({ stripe_event_id: ambiguous.id }).update({ created_at: new Date(Date.now() - 25 * 60 * 60 * 1000) });
   assert.equal((await post("/support-events", ambiguous)).statusCode, 409);
+  const lateUser = "123e4567-e89b-42d3-a456-426614174097";
+  const lateMember = "123e4567-e89b-42d3-a456-426614174096";
+  await database("directus_users").insert({ id: lateUser });
+  const lateCheckout = (id, subscription, created, tier) => ({
+    id, created, livemode: false, type: "checkout.session.completed",
+    object: { id: `cs_${id}`, subscription, payment_status: "paid", metadata: { frequency: "monthly", tier, user_id: lateUser } },
+  });
+  await post("/support-events", lateCheckout("evt_late_standard", "sub_late_standard", 500, "standard"));
+  await post("/support-events", lateCheckout("evt_late_premium", "sub_late_premium", 600, "premium"));
+  assert.equal((await database("supporter_payments").where({ user: lateUser }).whereNull("member")).length, 2);
+  await database("organization_members").insert({ id: lateMember, user: lateUser });
+  await reconcileLinkedSupporterSubscription(database, lateMember, lateUser);
+  await reconcileLinkedSupporterSubscription(database, lateMember, lateUser);
+  assert.equal((await database("profile_entitlements").where({ member: lateMember, source: "stripe_subscription" }).first()).variant, "premium");
+  assert.equal((await database("supporter_payments").where({ user: lateUser, member: lateMember })).length, 2);
   console.log("Supporter storage: migration dry-run/rerun, authorization, parallel replay, notification ledger and legacy replay passed.");
 } finally {
   await database.destroy();

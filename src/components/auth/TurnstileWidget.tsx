@@ -31,7 +31,10 @@ export function TurnstileWidget({ action, onTokenChange, resetKey = 0 }: Turnsti
   const [widgetError, setWidgetError] = useState(false);
   const id = useId();
   const sitekey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const isLocalTestMode = process.env.NODE_ENV !== "production" && sitekey === LOCAL_TEST_SITE_KEY;
+  // The local Docker image is a production build, so NODE_ENV cannot identify local testing.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const isLocalTestMode = sitekey === LOCAL_TEST_SITE_KEY
+    && Boolean(appUrl && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(appUrl));
 
   useEffect(() => {
     callbackRef.current = onTokenChange;

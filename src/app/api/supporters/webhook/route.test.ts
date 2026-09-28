@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/directus/client", () => ({ directusRequest: vi.fn() }));
 vi.mock("@/lib/email/resend", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/email/resend")>(), sendSupporterPaymentEmail: vi.fn() }));
+vi.mock("@/lib/stripe", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/stripe")>(), scheduleSubscriptionCancellation: vi.fn() }));
 
 import { directusRequest } from "@/lib/directus/client";
 import { sendSupporterPaymentEmail } from "@/lib/email/resend";
+import { scheduleSubscriptionCancellation } from "@/lib/stripe";
 import { ApiRouteError } from "@/lib/api/route";
 import { POST } from "./route";
 
@@ -25,6 +27,7 @@ describe("POST /api/supporters/webhook", () => {
     process.env.DIRECTUS_URL = "http://directus.test";
     vi.mocked(directusRequest).mockReset().mockResolvedValue({ data: { notificationSent: false } });
     vi.mocked(sendSupporterPaymentEmail).mockReset().mockResolvedValue("email-id");
+    vi.mocked(scheduleSubscriptionCancellation).mockReset().mockResolvedValue(undefined);
   });
 
   it("forwards accepted signed events to Directus", async () => {
@@ -41,6 +44,18 @@ describe("POST /api/supporters/webhook", () => {
     expect(response.status).toBe(204);
     expect(directusRequest).toHaveBeenCalledWith("/pmc-website/support-events", expect.objectContaining({ body: expect.objectContaining({ type: "invoice.payment_failed" }) }));
     expect(sendSupporterPaymentEmail).toHaveBeenCalledWith(expect.objectContaining({ id: "evt_invoice" }));
+  });
+
+  it("schedules the old subscription to end only after a replacement payment succeeds", async () => {
+    const checkout = { id: "cs_switch", payment_status: "paid", customer: "cus_old", subscription: "sub_new", metadata: { user_id: "user-id", tier: "standard", switch_from_subscription: "sub_old" } };
+    expect((await POST(signedRequest({ id: "evt_switch", type: "checkout.session.completed", livemode: false, data: { object: checkout } }))).status).toBe(204);
+    expect(scheduleSubscriptionCancellation).toHaveBeenCalledWith("sub_old", "cus_old", "user-id");
+  });
+
+  it("keeps the old subscription when replacement checkout is not paid", async () => {
+    const checkout = { id: "cs_switch", payment_status: "unpaid", customer: "cus_old", subscription: "sub_new", metadata: { user_id: "user-id", tier: "standard", switch_from_subscription: "sub_old" } };
+    expect((await POST(signedRequest({ id: "evt_switch_unpaid", type: "checkout.session.completed", livemode: false, data: { object: checkout } }))).status).toBe(204);
+    expect(scheduleSubscriptionCancellation).not.toHaveBeenCalled();
   });
 
   it("returns an error after saving the payment when email delivery needs a retry", async () => {

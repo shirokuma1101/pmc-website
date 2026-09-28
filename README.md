@@ -76,6 +76,11 @@ Directusへテストデータや開発ユーザーを作らないための制限
 Stripe連携をローカルで確認する場合は、Dashboardで作成したtest modeのRestricted API Keyを
 `.env.local`の`STRIPE_SECRET_KEY`へ設定します。実値はGitへ追加しないでください。
 Checkout SessionsとCustomer Portal Sessionsを作成できる最小限の書き込み権限を付与します。
+固定料金の商品・Priceをtest modeに作成し、単発300円と月額400円・800円・1,500円の
+Price IDをそれぞれ`STRIPE_PRICE_SUPPORTER_ONE_TIME`、`STRIPE_PRICE_BASIC_MONTHLY`、
+`STRIPE_PRICE_STANDARD_MONTHLY`、`STRIPE_PRICE_PREMIUM_MONTHLY`へ設定します。
+Checkout作成前にStripeからPriceを取得し、金額・円建て・課金間隔・test/live modeを照合します。
+live modeには別の商品・Price IDを作成して設定してください。
 
 Webhook転送は公式Stripe CLIコンテナを使用します。
 
@@ -168,6 +173,7 @@ cp .env.example .env
 ```
 
 ホスト側でnpmは実行しません。詳細、手動確認項目、復旧時の注意は`PRODUCTION_UPDATE.md`を参照してください。
+サポーター機能の初回公開時は、[Stripe本番移行手順](docs/supporter-production-rollout.md)で追加env・Webhook・受付開始条件も確認してください。
 
 `.env`の公開URL、bind先、Directus・PostgreSQLのsecret、管理者資格情報、SMTP設定を変更します。
 最初にDBとDirectusを起動し、schemaの差分を確認します。
@@ -406,7 +412,7 @@ request bodyを許可し、設定変更後はDirectusコンテナを再作成し
 - `TURNSTILE_SECRET_KEY`: BFFだけで使用するCloudflare TurnstileのSecret Key（Browserへ公開しない）
 - `RESEND_API_KEY`: 参加申請・判定結果・Stripe支払い通知を送信するResend APIキー（Browserへ公開しない）
 - `RESEND_FROM_EMAIL`: Resendで検証済みのドメインを使う送信元（例: `PostMineClan <no-reply@postmineclan.com>`）
-- `CONTACT_PERSONAL_RECIPIENTS`: 個人宛問い合わせの送信先を設定する任意のJSON配列。例: `[{"id":"owner","label":"運営代表","email":"owner@example.com"}]`。個人アドレスはサーバー側にのみ保持し、画面には`label`だけ表示する。未設定でも共通窓口への送信は利用可能
+- `CONTACT_PERSONAL_RECIPIENTS`: 個人宛問い合わせの送信先を設定する任意のJSON配列。例: `[{"id":"owner","label":"運営代表","email":"owner@example.com"}]`。個人アドレスはサーバー側にのみ保持し、画面には`label`だけ表示する。未設定でも管理者宛（support@postmineclan.com）への送信は利用可能。返信先メールアドレスを空欄にした問い合わせには返信できない
 - `PMC_INTERNAL_API_TOKEN`: FrontendからDirectusの内部APIを呼び出すための十分に長いランダム値（両コンテナへ同じ値を設定）
 - `GOOGLE_SSO_AUTH_URL` / `X_SSO_AUTH_URL`: 任意のSSO認証開始URL。未設定のproviderはログイン画面に表示しない
 - `AUTH_RATE_LIMIT_TRUST_PROXY`: 信頼するreverse proxyが`X-Forwarded-For`を上書きする本番構成でのみ`true`

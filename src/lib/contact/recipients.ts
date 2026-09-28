@@ -22,7 +22,7 @@ function configuredRecipients() {
 
 export function contactRecipientOptions(): ContactRecipientOption[] {
   return [
-    { id: "support", label: "共通窓口（support@postmineclan.com）" },
+    { id: "support", label: "管理者宛（support@postmineclan.com）" },
     ...configuredRecipients().map(({ id, label }) => ({ id, label })),
   ];
 }

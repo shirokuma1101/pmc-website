@@ -363,6 +363,21 @@
   font-size: 0.78rem;
 }
 
+.donation-form .alert--info {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  border-color: var(--color-warning);
+  border-left-width: 4px;
+  box-shadow: var(--shadow-sm);
+}
+
+.donation-form > .button--primary:disabled {
+  color: var(--color-ink-soft);
+  background: var(--color-line-strong);
+  border-color: var(--color-line-strong);
+  opacity: 1;
+}
+
 .donation-section-heading {
   margin-bottom: 1.4rem;
   text-align: center;

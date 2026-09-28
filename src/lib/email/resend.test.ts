@@ -77,6 +77,22 @@ describe("sendJoinApplicationEmail", () => {
     expect(new Headers(options?.headers).get("Idempotency-Key")).toBe("contact-inquiry/7e06c851-552d-45e7-8d3e-a8f07636213c");
   });
 
+  it("sends contact mail without reply-to when no reply address was provided", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "contact-email-id" }), { status: 200 }));
+    await sendContactInquiryEmail({
+      submissionId: "7e06c851-552d-45e7-8d3e-a8f07636213c",
+      category: "other",
+      displayName: "Tester",
+      email: "",
+      subject: "質問",
+      message: "返信先なしで問い合わせます。",
+    }, "support@postmineclan.com");
+    const [, options] = fetchMock.mock.calls[0];
+    const body = JSON.parse(String(options?.body));
+    expect(body).not.toHaveProperty("reply_to");
+    expect(body.text).toContain("返信先: 未入力（返信不可）");
+  });
+
   it("sends an idempotent one-time payment confirmation to the Stripe customer", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "support-email-id" }), { status: 200 }));
     await expect(sendSupporterPaymentEmail({
@@ -128,6 +144,20 @@ describe("sendJoinApplicationEmail", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "email-id" })));
     await sendSupporterPaymentEmail({ id: "evt_invoice", type: "invoice.paid", object: { id: "in_paid", metadata: {}, customer_email: "subscriber@example.com", parent: { subscription_details: { metadata: { tier: "basic" } } } } });
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).text).toContain("Basic Supporter");
+  });
+
+  it("sends a monthly payment failure notice to the invoice recipient", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ id: "failure-email-id" })));
+    await sendSupporterPaymentEmail({
+      id: "evt_invoice_failed", type: "invoice.payment_failed",
+      object: { id: "in_failed", amount_due: 800, currency: "jpy", customer_email: "subscriber@example.com", parent: { subscription_details: { metadata: { tier: "standard" } } } },
+    });
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body.to).toEqual(["subscriber@example.com"]);
+    expect(body.subject).toContain("お支払いを確認できませんでした");
+    expect(body.text).toContain("Standard Supporter");
+    expect(body.text).toContain("¥800");
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get("Idempotency-Key")).toBe("stripe-support/evt_invoice_failed/invoice.payment_failed");
   });
 
   it("retries instead of silently acknowledging a missing recipient", async () => {

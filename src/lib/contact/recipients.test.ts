@@ -7,7 +7,7 @@ afterEach(() => { delete process.env.CONTACT_PERSONAL_RECIPIENTS; });
 
 describe("contact recipients", () => {
   it("offers the common mailbox by default", () => {
-    expect(contactRecipientOptions()).toEqual([{ id: "support", label: "共通窓口（support@postmineclan.com）" }]);
+    expect(contactRecipientOptions()).toEqual([{ id: "support", label: "管理者宛（support@postmineclan.com）" }]);
     expect(resolveContactRecipient("support")).toBe("support@postmineclan.com");
   });
 

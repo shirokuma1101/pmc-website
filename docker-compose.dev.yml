@@ -186,6 +186,10 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_INTERNAL_SECRET: ${STRIPE_INTERNAL_SECRET:-development-stripe-internal-secret}
+      STRIPE_PRICE_SUPPORTER_ONE_TIME: ${STRIPE_PRICE_SUPPORTER_ONE_TIME:-}
+      STRIPE_PRICE_BASIC_MONTHLY: ${STRIPE_PRICE_BASIC_MONTHLY:-}
+      STRIPE_PRICE_STANDARD_MONTHLY: ${STRIPE_PRICE_STANDARD_MONTHLY:-}
+      STRIPE_PRICE_PREMIUM_MONTHLY: ${STRIPE_PRICE_PREMIUM_MONTHLY:-}
       MAX_IMAGE_UPLOAD_BYTES: ${MAX_IMAGE_UPLOAD_BYTES:-8388608}
       MAX_IMAGE_INPUT_PIXELS: ${MAX_IMAGE_INPUT_PIXELS:-40000000}
     healthcheck:
@@ -213,7 +217,7 @@ services:
       - --forward-to
       - http://frontend:3000/api/supporters/webhook
       - --events
-      - checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,customer.subscription.updated,customer.subscription.deleted
+      - checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

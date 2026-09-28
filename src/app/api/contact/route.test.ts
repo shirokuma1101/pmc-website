@@ -37,6 +37,23 @@ describe("POST /api/contact", () => {
     expect(sendContactInquiryEmail).toHaveBeenCalledWith(expect.objectContaining({ email: "user@example.com" }), "support@postmineclan.com");
   });
 
+  it("accepts an inquiry without a reply address", async () => {
+    expect((await POST(request({ ...validBody, email: "" }))).status).toBe(201);
+    expect(sendContactInquiryEmail).toHaveBeenCalledWith(expect.objectContaining({ email: "" }), "support@postmineclan.com");
+  });
+
+  it("accepts an inquiry with the reply address omitted", async () => {
+    const body: Record<string, unknown> = { ...validBody };
+    delete body.email;
+    expect((await POST(request(body))).status).toBe(201);
+    expect(sendContactInquiryEmail).toHaveBeenCalledWith(expect.objectContaining({ email: "" }), "support@postmineclan.com");
+  });
+
+  it("rejects an invalid reply address when provided", async () => {
+    expect((await POST(request({ ...validBody, email: "not-an-email" }))).status).toBe(400);
+    expect(sendContactInquiryEmail).not.toHaveBeenCalled();
+  });
+
   it("rejects an unconfigured personal recipient", async () => {
     expect((await POST(request({ ...validBody, recipientId: "unknown" }))).status).toBe(400);
     expect(sendContactInquiryEmail).not.toHaveBeenCalled();

@@ -780,6 +780,25 @@ export function monthlySupporterState(payments, existing) {
   return active[0] ?? null;
 }
 
+/** Restore subscription benefits when a paying account is linked to a member after checkout. */
+export async function reconcileLinkedSupporterSubscription(database, memberId, userId) {
+  await ensureSupporterPaymentsTable(database);
+  await database.transaction(async (transaction) => {
+    const member = await transaction("organization_members").where({ id: memberId, user: userId }).forUpdate().first();
+    if (!member) throw new EndpointError(409, "ACCOUNT_LINK_CHANGED", "The member account link changed");
+    await transaction("supporter_payments").where({ user: userId }).whereNull("member").update({ member: memberId });
+    const payments = await transaction("supporter_payments").where({ user: userId, frequency: "monthly" }).whereNotNull("stripe_created");
+    if (!payments.length) return;
+    // Sandbox and live events must never be combined when rebuilding a benefit.
+    const latest = payments.reduce((left, right) => Number(right.stripe_created) > Number(left.stripe_created) ? right : left);
+    const current = monthlySupporterState(payments.filter((payment) => payment.livemode === latest.livemode), null);
+    const existing = await transaction("profile_entitlements").where({ member: memberId, feature: "profile_highlight", source: "stripe_subscription" }).first();
+    const record = { status: current ? "active" : "revoked", variant: current?.tier ?? null, valid_until: null, external_reference: current?.external_reference ?? null, updated_at: new Date() };
+    if (existing) await transaction("profile_entitlements").where({ id: existing.id }).update(record);
+    else await transaction("profile_entitlements").insert({ id: randomUUID(), member: memberId, feature: "profile_highlight", source: "stripe_subscription", ...record, created_at: new Date() });
+  });
+}
+
 function ensureProfileEntitlementsTable(database) {
   profileEntitlementsTablePromise ??= (async () => {
     await ensureOrganizationMembersTable(database);
@@ -1869,6 +1888,7 @@ export default {
       }
       const id = crypto.randomUUID();
       await database("organization_members").insert({ id, ...input, created_at: new Date() });
+      if (input.user) await reconcileLinkedSupporterSubscription(database, id, input.user);
       response.status(201).json({ data: { id, display_name: input.display_name, bio: input.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? "", avatar: input.avatar ?? null, minecraft_skin: input.minecraft_skin ?? null, minecraft_skin_model: input.minecraft_skin_model ?? "classic" } });
     }));
 
@@ -1942,6 +1962,7 @@ export default {
         input.xbox_gamertag = typeof profile?.xbox_gamertag === "string" ? profile.xbox_gamertag : "";
       }
       await database("organization_members").where({ id }).update({ ...input, updated_at: new Date() });
+      if (input.user) await reconcileLinkedSupporterSubscription(database, id, input.user);
       response.json({ data: { id, display_name: input.display_name ?? exists.display_name, bio: input.bio ?? exists.bio ?? "", xbox_gamertag: input.xbox_gamertag ?? exists.xbox_gamertag ?? "", avatar: Object.prototype.hasOwnProperty.call(input, "avatar") ? input.avatar : exists.avatar ?? null, minecraft_skin: Object.prototype.hasOwnProperty.call(input, "minecraft_skin") ? input.minecraft_skin : exists.minecraft_skin ?? null, minecraft_skin_model: input.minecraft_skin_model ?? exists.minecraft_skin_model ?? "classic" } });
     }));
 

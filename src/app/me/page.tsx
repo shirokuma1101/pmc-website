@@ -8,6 +8,8 @@ import { getSession } from "@/lib/auth/session";
 import { getOwnArticles } from "@/lib/directus/articles";
 import { getPosts } from "@/lib/directus/posts";
 import { getProfileByUserId } from "@/lib/directus/profiles";
+import { stripeEnabled } from "@/lib/stripe";
+import { findSupporterSubscriptionCustomer } from "@/lib/supporter-subscriptions";
 import type { ArticleStatus, Profile } from "@/types";
 
 const statusOptions: Array<{ value: ArticleStatus | "all"; label: string }> = [
@@ -27,6 +29,15 @@ function selectedStatus(value: string | string[] | undefined): ArticleStatus | u
 
 export const metadata = { title: "マイプロフィール" };
 
+async function canManageMonthlySupport(userId: string): Promise<boolean> {
+  if (!stripeEnabled()) return false;
+  try {
+    return Boolean(await findSupporterSubscriptionCustomer(userId));
+  } catch {
+    return false;
+  }
+}
+
 export default async function MyPage({
   searchParams,
 }: {
@@ -35,10 +46,11 @@ export default async function MyPage({
   const session = await getSession();
   if (!session) redirect("/login?next=/me");
   const status = selectedStatus((await searchParams).status);
-  const [storedProfile, articles, posts] = await Promise.all([
+  const [storedProfile, articles, posts, canManageSupport] = await Promise.all([
     getProfileByUserId(session.user.id, session.accessToken),
     getOwnArticles(session.user.id, session.accessToken, { status, limit: 50 }),
     getPosts({ authorId: session.user.id, accessToken: session.accessToken, limit: 8 }),
+    canManageMonthlySupport(session.user.id),
   ]);
   const profile: Profile = storedProfile ?? {
     id: "",
@@ -67,6 +79,11 @@ export default async function MyPage({
             <div><p className="eyebrow">Profile</p><h2 id="profile-settings-title">プロフィール編集</h2></div>
           </div>
           <ProfileForm profile={profile} />
+          {canManageSupport ? <section className="profile-supporter-management" aria-label="月額サポーター契約">
+            <form action="/api/supporters/portal" method="post">
+              <button className="button button--ghost button--full" type="submit">支払い方法・月額契約を管理</button>
+            </form>
+          </section> : null}
           <Link className="profile-security-link" href="/settings/security">
             <span className="profile-security-link__copy">
               <strong>2段階認証</strong>

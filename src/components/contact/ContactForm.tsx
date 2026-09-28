@@ -26,7 +26,7 @@ export function ContactForm({ recipients }: { recipients: ContactRecipientOption
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [submissionId] = useState(() => crypto.randomUUID());
-  const recipientLabel = recipients.find((recipient) => recipient.id === draft.recipientId)?.label ?? "共通窓口";
+  const recipientLabel = recipients.find((recipient) => recipient.id === draft.recipientId)?.label ?? "管理者宛";
 
   function update<K extends keyof ContactDraft>(key: K, value: ContactDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -58,7 +58,7 @@ export function ContactForm({ recipients }: { recipients: ContactRecipientOption
     } finally { setSubmitting(false); }
   }
 
-  if (submitted) return <section className="join-form-card" aria-labelledby="contact-complete-title"><div className="join-form-card__heading"><p className="eyebrow">Submitted</p><h2 id="contact-complete-title">お問い合わせを受け付けました</h2><p>受付番号: {submissionId}</p></div><Alert tone="success">入力されたメールアドレスへ、担当者からご連絡します。</Alert></section>;
+  if (submitted) return <section className="join-form-card" aria-labelledby="contact-complete-title"><div className="join-form-card__heading"><p className="eyebrow">Submitted</p><h2 id="contact-complete-title">お問い合わせを受け付けました</h2><p>受付番号: {submissionId}</p></div><Alert tone="success">{draft.email ? "入力されたメールアドレスへ、担当者からご連絡します。" : "返信先メールアドレスが未入力のため、個別の返信はできません。"}</Alert></section>;
 
   if (confirming) return (
     <section className="join-form-card" aria-labelledby="contact-confirm-title">
@@ -67,7 +67,7 @@ export function ContactForm({ recipients }: { recipients: ContactRecipientOption
         <div><dt>送信先</dt><dd>{recipientLabel}</dd></div>
         <div><dt>種別</dt><dd>{categoryLabels[draft.category]}</dd></div>
         <div><dt>お名前</dt><dd>{draft.displayName}</dd></div>
-        <div><dt>返信先</dt><dd>{draft.email}</dd></div>
+        <div><dt>返信先</dt><dd>{draft.email || "未入力（返信不可）"}</dd></div>
         <div><dt>件名</dt><dd>{draft.subject}</dd></div>
         <div className="join-confirmation__wide"><dt>内容</dt><dd style={{ whiteSpace: "pre-wrap" }}>{draft.message}</dd></div>
       </dl>
@@ -84,9 +84,9 @@ export function ContactForm({ recipients }: { recipients: ContactRecipientOption
         <label className="field"><span className="field__label">送信先</span><select className="input" value={draft.recipientId} onChange={(event) => update("recipientId", event.target.value)}>{recipients.map((recipient) => <option key={recipient.id} value={recipient.id}>{recipient.label}</option>)}</select></label>
         <label className="field"><span className="field__label">お問い合わせの種類</span><select className="input" value={draft.category} onChange={(event) => update("category", event.target.value as ContactDraft["category"])}>{Object.entries(categoryLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         <Input label="お名前" name="displayName" value={draft.displayName} maxLength={80} autoComplete="name" required onChange={(event) => update("displayName", event.target.value)} />
-        <Input label="返信先メールアドレス" name="email" type="email" value={draft.email} maxLength={254} autoComplete="email" required onChange={(event) => update("email", event.target.value)} />
+        <Input label="返信先メールアドレス（任意）" name="email" type="email" value={draft.email} maxLength={254} autoComplete="email" hint="返信を希望する場合は入力してください。" onChange={(event) => update("email", event.target.value)} />
       </div><Input label="件名" name="subject" value={draft.subject} maxLength={160} required onChange={(event) => update("subject", event.target.value)} /><Textarea label="お問い合わせ内容" name="message" value={draft.message} minLength={10} maxLength={5000} rows={8} required hint={`${draft.message.length}/5000文字`} onChange={(event) => update("message", event.target.value)} /></fieldset>
-      <fieldset className="join-form-section join-form-consents"><legend>確認事項</legend><label className="join-checkbox"><input type="checkbox" required /><span><Link href="/privacy" target="_blank">プライバシーポリシー</Link>を確認し、問い合わせ内容と返信先の送信に同意します。</span></label></fieldset>
+      <fieldset className="join-form-section join-form-consents"><legend>確認事項</legend><label className="join-checkbox"><input type="checkbox" required /><span><Link href="/privacy" target="_blank">プライバシーポリシー</Link>を確認し、問い合わせ内容と入力した場合の返信先の送信に同意します。</span></label></fieldset>
       <div className="join-form-actions"><Button type="submit" size="lg">入力内容を確認</Button></div>
     </form>
   );

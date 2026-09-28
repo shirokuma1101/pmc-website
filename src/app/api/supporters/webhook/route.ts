@@ -1,7 +1,7 @@
 import { ApiRouteError, withRouteErrors } from "@/lib/api/route";
 import { directusRequest } from "@/lib/directus/client";
 import { sendSupporterPaymentEmail, supporterPaymentNotificationKey, type StripeSupportEmailEvent } from "@/lib/email/resend";
-import { verifyStripeSignature } from "@/lib/stripe";
+import { scheduleSubscriptionCancellation, verifyStripeSignature } from "@/lib/stripe";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -32,6 +32,17 @@ export async function POST(request: Request): Promise<Response> {
     const expectedLiveMode = process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") ?? false;
     if (!event.id || !event.type || event.livemode !== expectedLiveMode) throw new ApiRouteError("Stripe event mode is invalid", 400, "INVALID_EVENT");
     if (!ACCEPTED_EVENTS.has(event.type)) return new Response(null, { status: 204 });
+    const checkout = event.data.object as { metadata?: Record<string, unknown>; payment_status?: unknown; customer?: unknown; subscription?: unknown };
+    if ((event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") && checkout.metadata?.switch_from_subscription) {
+      if (checkout.payment_status === "paid") {
+        const sourceId = checkout.metadata.switch_from_subscription;
+        const userId = checkout.metadata.user_id;
+        if (typeof sourceId !== "string" || typeof userId !== "string" || typeof checkout.customer !== "string" || typeof checkout.subscription !== "string") {
+          throw new ApiRouteError("Invalid switch checkout metadata", 400, "INVALID_SWITCH_CHECKOUT");
+        }
+        await scheduleSubscriptionCancellation(sourceId, checkout.customer, userId);
+      }
+    }
     const emailEvent = { id: event.id, type: event.type, object: event.data.object } as StripeSupportEmailEvent;
     const notificationKey = supporterPaymentNotificationKey(emailEvent);
     const result = await directusRequest<{ data: { notificationSent: boolean; notificationObsolete?: boolean } }>("/pmc-website/support-events", {

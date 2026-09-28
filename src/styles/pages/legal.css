@@ -59,6 +59,27 @@
   margin-block: 0.35rem 0.65rem;
 }
 
+.legal-disclosure-list {
+  margin: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.legal-disclosure-list > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 12rem) 1fr;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.legal-disclosure-list dt { font-weight: 700; }
+.legal-disclosure-list dd { margin: 0; color: var(--color-ink-soft); }
+.legal-disclosure-list address { font-style: normal; }
+
+@media (max-width: 600px) {
+  .legal-disclosure-list > div { grid-template-columns: 1fr; gap: 0.2rem; }
+}
+
 .legal-page section a {
   color: var(--color-primary);
   text-decoration: underline;

@@ -16,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
     const input = contactInquirySchema.parse(turnstileProtectedInputFrom(body));
     const recipient = resolveContactRecipient(input.recipientId);
     if (!recipient) throw new ApiRouteError("送信先を選び直してください。", 400, "INVALID_RECIPIENT");
-    enforceAuthRateLimit(request, input.email, AUTH_RATE_LIMITS.contactInquiry);
+    enforceAuthRateLimit(request, input.email || input.submissionId, AUTH_RATE_LIMITS.contactInquiry);
     await verifyTurnstile(request, turnstileTokenFrom(body), "contact-inquiry");
     await sendContactInquiryEmail(input, recipient);
     return NextResponse.json({ data: { submitted: true, submissionId: input.submissionId } }, { status: 201 });

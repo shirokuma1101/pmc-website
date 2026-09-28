@@ -39,7 +39,7 @@ export const contactInquirySchema = z.object({
   recipientId: z.string().regex(/^[a-z0-9-]{1,40}$/),
   category: z.enum(["supporter", "account", "community", "other"]),
   displayName: z.string().trim().min(1).max(80),
-  email: z.email().trim().max(254),
+  email: z.union([z.literal(""), z.email().trim().max(254)]).default(""),
   subject: z.string().trim().min(1).max(160),
   message: z.string().trim().min(10).max(5_000),
   policyConsent: z.literal(true),

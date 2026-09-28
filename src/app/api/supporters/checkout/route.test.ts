@@ -17,7 +17,7 @@ import { findSupporterSubscriptionCustomer } from "@/lib/supporter-subscriptions
 const session = { accessToken: "token", user: { id: "user-id", displayName: "Member", isAdmin: false, tfaEnabled: false, email: "member@example.com" } };
 
 function request(fields: Record<string, string>): Request {
-  const body = new URLSearchParams(fields);
+  const body = new URLSearchParams({ adultConfirmed: "accepted", ...fields });
   return new Request("http://localhost:3001/api/supporters/checkout", { method: "POST", headers: { Origin: "http://localhost:3001", "Content-Type": "application/x-www-form-urlencoded" }, body });
 }
 
@@ -63,6 +63,12 @@ describe("POST /api/supporters/checkout", () => {
 
   it("requires explicit consent", async () => {
     const response = await POST(request({ frequency: "monthly", tier: "basic" }));
+    expect(response.status).toBe(400);
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("requires an adult confirmation even when consent is given", async () => {
+    const response = await POST(request({ frequency: "one_time", tier: "supporter", consent: "accepted", adultConfirmed: "" }));
     expect(response.status).toBe(400);
     expect(createCheckoutSession).not.toHaveBeenCalled();
   });
