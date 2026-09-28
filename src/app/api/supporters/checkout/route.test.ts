@@ -17,7 +17,8 @@ import { findSupporterSubscriptionCustomer } from "@/lib/supporter-subscriptions
 const session = { accessToken: "token", user: { id: "user-id", displayName: "Member", isAdmin: false, tfaEnabled: false, email: "member@example.com" } };
 
 function request(fields: Record<string, string>): Request {
-  const body = new URLSearchParams({ adultConfirmed: "accepted", ...fields });
+  // Serialize across jsdom/Node realms; Node 22 Request rejects jsdom URLSearchParams.
+  const body = new URLSearchParams({ adultConfirmed: "accepted", ...fields }).toString();
   return new Request("http://localhost:3001/api/supporters/checkout", { method: "POST", headers: { Origin: "http://localhost:3001", "Content-Type": "application/x-www-form-urlencoded" }, body });
 }
 

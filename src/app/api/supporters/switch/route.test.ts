@@ -18,7 +18,8 @@ function request(fields: Record<string, string>) {
   return new Request("http://localhost:3001/api/supporters/switch", {
     method: "POST",
     headers: { Origin: "http://localhost:3001", "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ tier: "standard", consent: "accepted", adultConfirmed: "accepted", ...fields }),
+    // Serialize across jsdom/Node realms; Node 22 Request rejects jsdom URLSearchParams.
+    body: new URLSearchParams({ tier: "standard", consent: "accepted", adultConfirmed: "accepted", ...fields }).toString(),
   });
 }
 
