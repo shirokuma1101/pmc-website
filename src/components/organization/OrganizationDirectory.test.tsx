@@ -62,7 +62,7 @@ describe("OrganizationDirectory", () => {
     const tieredMembers: OrganizationMember[] = [
       members[0],
       { ...members[0], profileId: "77777777-7777-4777-8777-777777777777", displayName: "通常メンバー2" },
-      { ...members[0], profileId: "88888888-8888-4888-8888-888888888888", displayName: "Supporterメンバー", supporterTier: "supporter", highlighted: true },
+      { ...members[0], profileId: "88888888-8888-4888-8888-888888888888", displayName: "Supporterメンバー", supporterTier: "supporter", supporterBadgeLevel: 2, highlighted: true },
       { ...members[0], profileId: "99999999-9999-4999-8999-999999999999", displayName: "Basicメンバー", supporterTier: "basic", highlighted: true },
       { ...members[0], profileId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", displayName: "Standardメンバー", supporterTier: "standard", highlighted: true },
       members[1],
@@ -71,6 +71,7 @@ describe("OrganizationDirectory", () => {
 
     const cards = [...container.querySelectorAll<HTMLButtonElement>('button[data-role]')];
     expect(cards.map((card) => card.dataset.supporterTier ?? "none")).toEqual(["premium", "standard", "basic", "supporter", "none", "none"]);
+    expect(screen.getByRole("button", { name: /Supporterメンバー/ })).toHaveTextContent("Supporter II");
   });
 
   it("switches to the roles and teams tab", () => {

@@ -14,7 +14,7 @@ const monthlyBenefits = [
   { label: "地図の時系列比較を利用可能", match: "地図の時系列比較" },
 ] as const;
 const plans = [
-  { key: ONE_TIME_SUPPORT.tier, label: "Supporter", amount: ONE_TIME_SUPPORT.amount, frequency: "one_time" as const, badge: "Supporterバッジ", benefits: [] as string[] },
+  { key: ONE_TIME_SUPPORT.tier, label: "Supporter", amount: ONE_TIME_SUPPORT.amount, frequency: "one_time" as const, badge: "Supporterバッジ（支援回数で変化）", benefits: [...ONE_TIME_SUPPORT.benefits] },
   ...Object.entries(MONTHLY_SUPPORTER_PLANS).map(([key, plan]) => ({
     key: key as MonthlySupporterTier, label: plan.label, amount: plan.amount,
     frequency: "monthly" as const,

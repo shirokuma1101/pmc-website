@@ -1,8 +1,14 @@
-import type { SupporterTier } from "@/types";
+import type { SupporterBadgeLevel, SupporterTier } from "@/types";
 
 export const SUPPORTER_TIER_KEYS = ["supporter", "basic", "standard", "premium"] as const;
 
-export const ONE_TIME_SUPPORT = { amount: 300, label: "Supporter (One-Time Purchase)", description: "Supporterバッジのみ", tier: "supporter" } as const;
+export const ONE_TIME_SUPPORT = {
+  amount: 300,
+  label: "Supporter (One-Time Purchase)",
+  description: "回数に応じたSupporterバッジ、メンバー一覧での表示、地図の時系列比較",
+  benefits: ["メンバー一覧でサポーターとして表示", "地図の時系列比較を利用可能"],
+  tier: "supporter",
+} as const;
 export const MONTHLY_SUPPORTER_PLANS = {
   basic: { amount: 400, label: "Basic Supporter", benefits: ["Basic Supporterバッジ（非表示設定可）", "メンバー一覧でサポーターとして表示", "地図の時系列比較を利用可能"] },
   standard: { amount: 800, label: "Standard Supporter", benefits: ["Standard Supporterバッジ（非表示設定可）", "メンバー一覧でサポーターとして表示", "地図の時系列比較を利用可能"] },
@@ -28,7 +34,8 @@ export const SUPPORTER_TIERS: ReadonlyArray<{
   { key: "premium", label: "Premium", description: "月額プレミアムプラン" },
 ];
 
-export function supporterTierLabel(tier?: SupporterTier): string | undefined {
+export function supporterTierLabel(tier?: SupporterTier, badgeLevel?: SupporterBadgeLevel): string | undefined {
+  if (tier === "supporter" && badgeLevel) return `Supporter ${["I", "II", "III", "IV", "V"][badgeLevel - 1]}`;
   return SUPPORTER_TIERS.find((item) => item.key === tier)?.label;
 }
 

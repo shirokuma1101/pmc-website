@@ -1,7 +1,7 @@
 import "server-only";
 
 import { directusAssetUrl } from "@/lib/config";
-import type { MinecraftSkinModel, OrganizationAccountOption, OrganizationMember, OrganizationRole, OrganizationSection, SupporterTier } from "@/types";
+import type { MinecraftSkinModel, OrganizationAccountOption, OrganizationMember, OrganizationRole, OrganizationSection, SupporterBadgeLevel, SupporterTier } from "@/types";
 import { DIRECTUS_APP_ENDPOINT } from "./constants";
 import { directusRequest } from "./client";
 
@@ -20,6 +20,7 @@ interface OrganizationRaw {
   group_id?: string | null;
   highlighted?: boolean;
   supporterTier?: SupporterTier | null;
+  supporterBadgeLevel?: SupporterBadgeLevel | null;
 }
 
 const roleLabels: Record<OrganizationRole, string> = {
@@ -48,12 +49,18 @@ export async function getOrganization(accessToken?: string): Promise<Organizatio
     ...(raw.group_id ? { groupId: raw.group_id } : {}),
     highlighted: raw.highlighted === true,
     ...(raw.supporterTier ? { supporterTier: raw.supporterTier } : {}),
+    ...(raw.supporterTier === "supporter" && [1, 2, 3, 4, 5].includes(raw.supporterBadgeLevel ?? 0) ? { supporterBadgeLevel: raw.supporterBadgeLevel! } : {}),
   }));
 }
 
 export async function getMySupporterTier(accessToken: string): Promise<SupporterTier | null> {
   const response = await directusRequest<{ data: { tier: SupporterTier | null } }>(`${DIRECTUS_APP_ENDPOINT}/supporter-status`, { accessToken });
   return response.data.tier;
+}
+
+export async function getMyOneTimeSupportCount(accessToken: string): Promise<number> {
+  const response = await directusRequest<{ data: { count: number } }>(`${DIRECTUS_APP_ENDPOINT}/my-one-time-support`, { accessToken });
+  return response.data.count;
 }
 
 export async function getOrganizationLayout(): Promise<OrganizationSection[]> {

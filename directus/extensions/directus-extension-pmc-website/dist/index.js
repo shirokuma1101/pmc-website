@@ -708,6 +708,15 @@ function effectiveSupporterTier(entitlements, now = new Date()) {
   return effective;
 }
 
+export function oneTimeSupporterBadgeLevel(count) {
+  if (count >= 15) return 5;
+  if (count >= 10) return 4;
+  if (count >= 5) return 3;
+  if (count >= 3) return 2;
+  if (count >= 1) return 1;
+  return null;
+}
+
 function addUtcMonths(date, months) {
   const result = new Date(date);
   const day = result.getUTCDate();
@@ -1398,13 +1407,27 @@ export default {
 
     router.get("/supporter-status", route(async (request, response) => {
       const userId = currentUser(request);
-      await Promise.all([ensureOrganizationMembersTable(database), ensureProfileEntitlementsTable(database)]);
+      await Promise.all([ensureOrganizationMembersTable(database), ensureProfileEntitlementsTable(database), ensureSupporterPaymentsTable(database)]);
       const member = await database("organization_members").select("id").where({ user: userId }).first();
-      if (!member) return response.json({ data: { tier: null } });
+      const oneTimePayment = await database("supporter_payments")
+        .select("id")
+        .where({ user: userId, frequency: "one_time", tier: "supporter", status: "active" })
+        .first();
+      if (!member) return response.json({ data: { tier: oneTimePayment ? "supporter" : null } });
       const entitlements = await database("profile_entitlements")
         .select("variant", "valid_until")
         .where({ member: member.id, feature: "profile_highlight", status: "active" });
-      response.json({ data: { tier: effectiveSupporterTier(entitlements) ?? null } });
+      response.json({ data: { tier: effectiveSupporterTier(entitlements) ?? (oneTimePayment ? "supporter" : null) } });
+    }));
+
+    router.get("/my-one-time-support", route(async (request, response) => {
+      const userId = currentUser(request);
+      await ensureSupporterPaymentsTable(database);
+      const result = await database("supporter_payments")
+        .countDistinct({ count: "stripe_object_id" })
+        .where({ user: userId, frequency: "one_time", tier: "supporter", status: "active" })
+        .first();
+      response.json({ data: { count: Number(result?.count ?? 0) } });
     }));
 
     router.post("/register", route(async (request, response) => {
@@ -1790,7 +1813,7 @@ export default {
     }));
 
     router.get("/organization", route(async (request, response) => {
-      await Promise.all([ensureOrganizationLayoutTable(database), ensureProfileEntitlementsTable(database), ensureProfileSkinColumns(database)]);
+      await Promise.all([ensureOrganizationLayoutTable(database), ensureProfileEntitlementsTable(database), ensureProfileSkinColumns(database), ensureSupporterPaymentsTable(database)]);
       const rows = await database("organization_members as member")
         .leftJoin("directus_users as users", "users.id", "member.user")
         .leftJoin("profiles as profile", "profile.user", "member.user")
@@ -1803,6 +1826,13 @@ export default {
         )
         .orderBy("member.display_name", "asc");
       const entitlements = await database("profile_entitlements").select("member", "variant", "valid_until").where({ feature: "profile_highlight", status: "active" });
+      const oneTimePayments = await database("supporter_payments")
+        .select("member")
+        .countDistinct({ count: "stripe_object_id" })
+        .where({ frequency: "one_time", tier: "supporter", status: "active" })
+        .whereNotNull("member")
+        .groupBy("member");
+      const badgeLevelByMember = new Map(oneTimePayments.map((payment) => [String(payment.member), oneTimeSupporterBadgeLevel(Number(payment.count))]));
       const entitlementsByMember = new Map();
       for (const entitlement of entitlements) {
         const member = String(entitlement.member);
@@ -1812,6 +1842,7 @@ export default {
       response.json({ data: rows.map((row) => {
         const publicTier = canSeePrivateSupporterState || row.supporter_badge_visible !== false
           ? effectiveSupporterTier(entitlementsByMember.get(String(row.profile_id)) ?? [])
+            ?? (badgeLevelByMember.has(String(row.profile_id)) ? "supporter" : null)
           : null;
         return {
         profile_id: row.profile_id,
@@ -1828,6 +1859,7 @@ export default {
         group_id: row.organization_group ?? null,
         highlighted: Boolean(publicTier),
         supporterTier: publicTier ?? null,
+        supporterBadgeLevel: publicTier === "supporter" ? badgeLevelByMember.get(String(row.profile_id)) ?? null : null,
       };
       }) });
     }));

@@ -8,8 +8,20 @@ import {
   shouldNotifyDiscordForArticleApproval,
   stripeSupportEvent,
   monthlySupporterState,
+  oneTimeSupporterBadgeLevel,
   storedImageIdsInMarkdown,
 } from "../src/index.js";
+
+assert.equal(oneTimeSupporterBadgeLevel(0), null);
+assert.equal(oneTimeSupporterBadgeLevel(1), 1);
+assert.equal(oneTimeSupporterBadgeLevel(2), 1);
+assert.equal(oneTimeSupporterBadgeLevel(3), 2);
+assert.equal(oneTimeSupporterBadgeLevel(4), 2);
+assert.equal(oneTimeSupporterBadgeLevel(5), 3);
+assert.equal(oneTimeSupporterBadgeLevel(9), 3);
+assert.equal(oneTimeSupporterBadgeLevel(10), 4);
+assert.equal(oneTimeSupporterBadgeLevel(14), 4);
+assert.equal(oneTimeSupporterBadgeLevel(15), 5);
 
 assert.equal(encodedDownloadFilename("PMC 1.0's world.zip"), "PMC%201.0%27s%20world.zip");
 

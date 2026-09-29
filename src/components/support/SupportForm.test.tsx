@@ -32,7 +32,7 @@ describe("SupportForm", () => {
     expect(form.getByRole("radio", { name: /Supporter.*¥300.*税込/ })).toBeChecked();
     expect(new FormData(container.querySelector("form")!).get("frequency")).toBe("one_time");
     expect(new FormData(container.querySelector("form")!).get("tier")).toBe("supporter");
-    expect(within(form.getByRole("table")).getByText("Supporterバッジ")).toBeInTheDocument();
+    expect(within(form.getByRole("table")).getByText("Supporterバッジ（支援回数で変化）")).toBeInTheDocument();
     expect(within(form.getByRole("table")).getByRole("rowheader", { name: "支払い方式" }).closest("tr")).toHaveTextContent("単発・自動更新なし");
     expect(form.queryByRole("spinbutton", { name: "有効月数" })).not.toBeInTheDocument();
     expect(form.queryByText(/Standard Supporter特典/)).not.toBeInTheDocument();
@@ -58,14 +58,14 @@ describe("SupportForm", () => {
     expect(form.getAllByText("（税込）/ 月")).toHaveLength(3);
     const table = form.getByRole("table", { name: "サポートプランの比較と選択" });
     const badgeRow = within(table).getByRole("rowheader", { name: "プロフィールに表示されるバッジ" }).closest("tr")!;
-    expect(within(badgeRow).getByText("Supporterバッジ")).toBeInTheDocument();
+    expect(within(badgeRow).getByText("Supporterバッジ（支援回数で変化）")).toBeInTheDocument();
     expect(within(badgeRow).getByText("Basic Supporterバッジ")).toBeInTheDocument();
     expect(within(badgeRow).getByText("Standard Supporterバッジ")).toBeInTheDocument();
     expect(within(badgeRow).getByText("Premium Supporterバッジ")).toBeInTheDocument();
     expect(within(table).getByRole("rowheader", { name: "メンバー一覧でサポーターとして表示" })).toBeInTheDocument();
     expect(within(table).getByRole("rowheader", { name: "地図の時系列比較を利用可能" })).toBeInTheDocument();
-    expect(within(table).getAllByLabelText("利用可能")).toHaveLength(6);
-    expect(within(table).getAllByLabelText("対象外")).toHaveLength(2);
+    expect(within(table).getAllByLabelText("利用可能")).toHaveLength(8);
+    expect(within(table).queryByLabelText("対象外")).not.toBeInTheDocument();
     expect(form.queryByText("活動をそっと応援")).not.toBeInTheDocument();
   });
 
@@ -75,7 +75,8 @@ describe("SupportForm", () => {
     const mobile = container.querySelector(".support-comparison-mobile")!;
     fireEvent.click(within(mobile as HTMLElement).getByRole("button", { name: /Supporter.*¥300/ }));
     expect(within(mobile as HTMLElement).getByText("単発・自動更新なし")).toBeInTheDocument();
-    expect(within(mobile as HTMLElement).getByText("Supporterバッジ")).toBeInTheDocument();
+    expect(within(mobile as HTMLElement).getByText("Supporterバッジ（支援回数で変化）")).toBeInTheDocument();
+    expect(within(mobile as HTMLElement).getAllByText("✓ 利用可能")).toHaveLength(2);
     expect(new FormData(container.querySelector("form")!).get("frequency")).toBe("one_time");
     expect(form.getByRole("radio", { name: /Supporter.*¥300/ })).toBeChecked();
   });

@@ -39,6 +39,11 @@ try {
     await handlers.get(`post ${path}`)({ body, get: () => secret }, response, (error) => { throw error; });
     return response;
   }
+  async function get(path, userId = null) {
+    const response = { statusCode: 200, body: undefined, status(code) { this.statusCode = code; return this; }, json(value) { this.body = value; }, send() {} };
+    await handlers.get(`get ${path}`)({ accountability: userId ? { user: userId } : null }, response, (error) => { throw error; });
+    return response;
+  }
   const user = "123e4567-e89b-42d3-a456-426614174099";
   const member = "123e4567-e89b-42d3-a456-426614174098";
   await database("directus_users").insert({ id: user });
@@ -54,6 +59,11 @@ try {
   assert.equal((await post("/support-email-sent", { id: event.id, notificationKey: event.notificationKey, emailId: "resend_test" })).statusCode, 204);
   assert.equal((await post("/support-events", event)).body.data.notificationSent, true);
   assert.equal((await post("/support-events", { ...event, id: "evt_second_delivery", type: "checkout.session.async_payment_succeeded" })).body.data.notificationSent, true);
+  assert.equal((await get("/my-one-time-support", user)).body.data.count, 1);
+  assert.equal((await get("/my-one-time-support")).statusCode, 401);
+  const otherUser = "123e4567-e89b-42d3-a456-426614174095";
+  await database("directus_users").insert({ id: otherUser });
+  assert.equal((await get("/my-one-time-support", otherUser)).body.data.count, 0);
   const legacy = { ...event, id: "evt_legacy", notificationKey: null };
   await post("/support-events", legacy);
   assert.equal((await post("/support-events", { ...legacy, notificationKey: "legacy-key" })).statusCode, 409);

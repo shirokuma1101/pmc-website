@@ -8,11 +8,13 @@ import { PostCard } from "@/components/timeline";
 import { EmptyState } from "@/components/ui";
 import { getSession } from "@/lib/auth/session";
 import { getOwnArticles } from "@/lib/directus/articles";
+import { getMyOneTimeSupportCount, getOrganization } from "@/lib/directus/organization";
 import { getPosts } from "@/lib/directus/posts";
 import { getProfileByUserId } from "@/lib/directus/profiles";
 import { getWorldsPage } from "@/lib/directus/worlds";
 import { stripeEnabled } from "@/lib/stripe";
 import { findSupporterSubscriptionCustomer } from "@/lib/supporter-subscriptions";
+import { supporterTierLabel } from "@/lib/organization/supporter";
 import type { ArticleStatus, Profile } from "@/types";
 
 const statusOptions: Array<{ value: ArticleStatus | "all"; label: string }> = [
@@ -58,11 +60,13 @@ export default async function MyPage({
   const query = await searchParams;
   const tab = selectedTab(query.tab);
   const status = selectedStatus(query.status);
-  const [storedProfile, articles, posts, canManageSupport] = await Promise.all([
+  const [storedProfile, articles, posts, canManageSupport, organization, oneTimeSupportCount] = await Promise.all([
     getProfileByUserId(session.user.id, session.accessToken),
     getOwnArticles(session.user.id, session.accessToken, { status, limit: 50 }),
     getPosts({ authorId: session.user.id, accessToken: session.accessToken, limit: 8 }),
     canManageMonthlySupport(session.user.id),
+    getOrganization(),
+    getMyOneTimeSupportCount(session.accessToken).catch(() => null),
   ]);
   const profile: Profile = storedProfile ?? {
     id: "",
@@ -71,6 +75,8 @@ export default async function MyPage({
     ...(session.user.avatarUrl ? { avatarUrl: session.user.avatarUrl } : {}),
     user: session.user,
   };
+  // Respect the same visibility preference on the private profile preview.
+  const supporter = profile.supporterBadgeVisible !== false ? organization.find((item) => item.userId === session.user.id) : undefined;
   const worlds = tab === "worlds" ? await getWorldsPage(session.accessToken) : null;
 
   return (
@@ -81,8 +87,9 @@ export default async function MyPage({
       <div className="my-page-panel my-page-panel--profile">
         <aside className="profile-settings" aria-labelledby="profile-settings-title">
           <div className="section-heading section-heading--compact">
-            <div><p className="eyebrow">Profile</p><h2 id="profile-settings-title">プロフィール編集</h2></div>
+            <div><p className="eyebrow">Profile</p><h2 id="profile-settings-title">プロフィール編集</h2>{supporter?.supporterTier ? <span className="profile-hero__supporter-badge">{supporterTierLabel(supporter.supporterTier, supporter.supporterBadgeLevel)}</span> : null}</div>
           </div>
+          {oneTimeSupportCount !== null ? <p className="one-time-support-summary">単発サポートの累計：{oneTimeSupportCount}回（本人のみ表示）</p> : null}
           <ProfileForm profile={profile} />
           <Link className="profile-security-link" href="/settings/security">
             <span className="profile-security-link__copy">

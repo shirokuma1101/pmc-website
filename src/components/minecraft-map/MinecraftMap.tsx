@@ -1126,7 +1126,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
               ◷ 地図のタイムライン
             </button>
           ) : (
-            <a className={styles.timelineOpen} href="/supporters" title="月額サポーター特典">◷ 地図履歴は月額サポーター限定</a>
+            <a className={styles.timelineOpen} href="/supporters" title="サポーター特典">◷ 地図履歴はサポーター限定</a>
           )}
         </div>
       </div>

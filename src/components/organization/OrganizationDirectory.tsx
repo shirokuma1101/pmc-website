@@ -22,7 +22,7 @@ function GroupMember({ member, groupLabel, groupColor, onSelect }: { member: Org
       <span className={styles.groupMemberText}>
         <strong>{member.displayName}</strong>
         <small>{groupLabel}</small>
-        {supporterTier ? <em className={styles.groupMemberBadge}>{supporterTierLabel(supporterTier)}</em> : null}
+        {supporterTier ? <em className={styles.groupMemberBadge}>{supporterTierLabel(supporterTier, member.supporterBadgeLevel)}</em> : null}
       </span>
     </button>
   );
@@ -59,7 +59,7 @@ export function OrganizationDirectory({ members, sections }: { members: Organiza
           {members.length ? <div className={styles.grid}>
             {profileMembers.map((member) => (
               <button className={styles.profileCard} data-color={groupColors.get(member.groupId ?? "")} data-highlighted={member.highlighted || undefined} data-supporter-tier={memberSupporterTier(member)} data-role={member.role} key={member.profileId} onClick={() => setSelected(member)} type="button">
-                {memberSupporterTier(member) ? <span className={styles.memberBadge}>{supporterTierLabel(memberSupporterTier(member))}</span> : null}
+                {memberSupporterTier(member) ? <span className={styles.memberBadge}>{supporterTierLabel(memberSupporterTier(member), member.supporterBadgeLevel)}</span> : null}
                 <header>
                   <Avatar user={member} size="lg" />
                   <div><p>{groupNames.get(member.groupId ?? "") ?? "未分類"}</p><h3>{member.displayName}</h3></div>
@@ -102,7 +102,7 @@ export function OrganizationDirectory({ members, sections }: { members: Organiza
       {selected ? <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
         <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="member-detail-title">
           <button className={styles.modalClose} type="button" aria-label="詳細を閉じる" onClick={() => setSelected(null)}>×</button>
-          <header className={styles.modalHeader}><Avatar user={selected} size="lg" /><div><p>{groupNames.get(selected.groupId ?? "") ?? "未分類"}</p><h2 id="member-detail-title">{selected.displayName}</h2>{memberSupporterTier(selected) ? <b className={styles.modalBadge} data-supporter-tier={memberSupporterTier(selected)}>{supporterTierLabel(memberSupporterTier(selected))}</b> : null}</div></header>
+          <header className={styles.modalHeader}><Avatar user={selected} size="lg" /><div><p>{groupNames.get(selected.groupId ?? "") ?? "未分類"}</p><h2 id="member-detail-title">{selected.displayName}</h2>{memberSupporterTier(selected) ? <b className={styles.modalBadge} data-supporter-tier={memberSupporterTier(selected)}>{supporterTierLabel(memberSupporterTier(selected), selected.supporterBadgeLevel)}</b> : null}</div></header>
           <p className={styles.modalBio}>{selected.bio || "紹介文はまだありません。"}</p>
           {selected.xboxGamertag ? <p className={styles.modalGamertag}><span>Xbox</span>{selected.xboxGamertag}</p> : null}
           {selected.minecraftSkinUrl ? <div className={styles.modalSkin}><MinecraftSkinViewer skinUrl={selected.minecraftSkinUrl} model={selected.minecraftSkinModel} label={selected.displayName} /><small>ドラッグで回転・ホイールやピンチで拡大縮小</small></div> : null}

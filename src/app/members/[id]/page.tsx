@@ -5,8 +5,10 @@ import { PostCard } from "@/components/timeline";
 import { MinecraftSkinViewer } from "@/components/profile";
 import { Avatar, EmptyState } from "@/components/ui";
 import { getPublishedArticles } from "@/lib/directus/articles";
+import { getOrganization } from "@/lib/directus/organization";
 import { getPosts } from "@/lib/directus/posts";
 import { getProfileByUserId } from "@/lib/directus/profiles";
+import { supporterTierLabel } from "@/lib/organization/supporter";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const profile = await getProfileByUserId((await params).id);
@@ -17,13 +19,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function MemberPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [profile, articles, posts] = await Promise.all([
+  const [profile, articles, posts, organization] = await Promise.all([
     getProfileByUserId(id),
     getPublishedArticles({ authorId: id, limit: 6 }),
     getPosts({ authorId: id, limit: 8 }),
+    getOrganization(),
   ]);
   if (!profile) notFound();
   const member = profile.user ?? { id, displayName: profile.displayName, avatarUrl: profile.avatarUrl };
+  // Both the profile preference and the public organization endpoint must allow the badge.
+  const supporter = profile.supporterBadgeVisible !== false ? organization.find((item) => item.userId === id) : undefined;
 
   return (
     <main id="main-content" className="page-shell">
@@ -32,6 +37,7 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
         <div>
           <p className="eyebrow">Member</p>
           <h1>{profile.displayName}</h1>
+          {supporter?.supporterTier ? <span className="profile-hero__supporter-badge">{supporterTierLabel(supporter.supporterTier, supporter.supporterBadgeLevel)}</span> : null}
           <p className="profile-hero__bio">{profile.bio || "活動を記録しているPostMineClanメンバーです。"}</p>
           {profile.xboxGamertag ? <p className="profile-hero__gamertag"><span>Xbox</span>{profile.xboxGamertag}</p> : null}
         </div>
