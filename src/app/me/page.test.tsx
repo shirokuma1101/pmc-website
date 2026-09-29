@@ -10,6 +10,7 @@ vi.mock("@/components/timeline", () => ({ PostCard: () => <div /> }));
 vi.mock("@/components/ui", () => ({ Avatar: () => <div />, EmptyState: () => <div /> }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/directus/articles", () => ({ getOwnArticles: vi.fn() }));
+vi.mock("@/lib/directus/organization", () => ({ getOrganization: vi.fn(), getMyOneTimeSupportCount: vi.fn() }));
 vi.mock("@/lib/directus/posts", () => ({ getPosts: vi.fn() }));
 vi.mock("@/lib/directus/profiles", () => ({ getProfileByUserId: vi.fn() }));
 vi.mock("@/lib/directus/worlds", () => ({ getWorldsPage: vi.fn() }));
@@ -18,6 +19,7 @@ vi.mock("@/lib/supporter-subscriptions", () => ({ findSupporterSubscriptionCusto
 
 import { getSession } from "@/lib/auth/session";
 import { getOwnArticles } from "@/lib/directus/articles";
+import { getMyOneTimeSupportCount, getOrganization } from "@/lib/directus/organization";
 import { getPosts } from "@/lib/directus/posts";
 import { getProfileByUserId } from "@/lib/directus/profiles";
 import { getWorldsPage } from "@/lib/directus/worlds";
@@ -34,6 +36,8 @@ describe("MyPage supporter management", () => {
     vi.mocked(getSession).mockReset().mockResolvedValue(session);
     vi.mocked(getProfileByUserId).mockReset().mockResolvedValue(null);
     vi.mocked(getOwnArticles).mockReset().mockResolvedValue({ data: [], pagination: { page: 1, limit: 50, hasMore: false } });
+    vi.mocked(getOrganization).mockReset().mockResolvedValue([]);
+    vi.mocked(getMyOneTimeSupportCount).mockReset().mockResolvedValue(4);
     vi.mocked(getPosts).mockReset().mockResolvedValue({ data: [], pagination: { page: 1, limit: 8, hasMore: false } });
     vi.mocked(stripeEnabled).mockReset().mockReturnValue(true);
     vi.mocked(findSupporterSubscriptionCustomer).mockReset().mockResolvedValue("cus_current");
@@ -44,6 +48,22 @@ describe("MyPage supporter management", () => {
     render(await MyPage({ searchParams: Promise.resolve({}) }));
     const button = screen.getByRole("button", { name: "支払い方法・月額契約を管理" });
     expect(button.closest("form")).toHaveAttribute("action", "/api/supporters/portal");
+  });
+
+  it("shows a one-time badge only when its profile visibility setting allows it", async () => {
+    vi.mocked(getOrganization).mockResolvedValue([{ userId: session.user.id, supporterTier: "supporter", supporterBadgeLevel: 2 }] as never);
+    render(await MyPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText("Supporter II")).toBeInTheDocument();
+    cleanup();
+    vi.mocked(getProfileByUserId).mockResolvedValue({ id: "profile-id", displayName: "Member", bio: "", supporterBadgeVisible: false });
+    render(await MyPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.queryByText("Supporter II")).not.toBeInTheDocument();
+  });
+
+  it("shows the exact one-time support count only on My Page", async () => {
+    render(await MyPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText("単発サポートの累計：4回（本人のみ表示）")).toBeInTheDocument();
+    expect(getMyOneTimeSupportCount).toHaveBeenCalledWith("token");
   });
 
   it("hides the portal button when no manageable monthly subscription exists", async () => {

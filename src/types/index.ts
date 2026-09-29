@@ -33,6 +33,7 @@ export type MinecraftSkinModel = "classic" | "slim";
 export type OrganizationRole = "master" | "administrator" | "server_owner" | "team_member" | "trainee";
 export type OrganizationGroupColor = "blue" | "teal" | "gold" | "violet" | "rose" | "slate" | "green" | "cyan" | "indigo" | "orange" | "plum" | "red" | "olive" | "sky" | "brown" | "magenta";
 export type SupporterTier = "supporter" | "basic" | "standard" | "premium";
+export type SupporterBadgeLevel = 1 | 2 | 3 | 4 | 5;
 
 export interface OrganizationMember {
   profileId: string;
@@ -50,6 +51,7 @@ export interface OrganizationMember {
   groupId?: string;
   highlighted?: boolean;
   supporterTier?: SupporterTier;
+  supporterBadgeLevel?: SupporterBadgeLevel;
 }
 
 export interface OrganizationGroup {
