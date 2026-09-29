@@ -171,6 +171,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   const [worldName, setWorldName] = useState(minecraftMapConfig.defaultWorld);
   const [mapName, setMapName] = useState(minecraftMapConfig.defaultMap);
   const [coordinates, setCoordinates] = useState({ x: 0, z: 0 });
+  const [zoomState, setZoomState] = useState<{ current: number; min: number; max: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [markers, setMarkers] = useState<MinecraftMapMarker[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MinecraftMapMarker | null>(null);
@@ -374,7 +375,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
         crs: L.CRS.Simple,
         minZoom: 0,
         maxZoom,
-        zoomControl: true,
+        zoomControl: false,
         attributionControl: true,
       });
       leafletMap.attributionControl.setPrefix(false);
@@ -391,6 +392,9 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
         [projectedCenter.lat, projectedCenter.lng],
         Math.min(maxZoom, Math.max(0, position.zoom)),
       );
+      const updateZoomState = () => setZoomState({ current: leafletMap.getZoom(), min: leafletMap.getMinZoom(), max: leafletMap.getMaxZoom() });
+      updateZoomState();
+      leafletMap.on("zoomend", updateZoomState);
 
       function updatePosition(point: LatLng, updateUrl: boolean) {
         const location = dynmapToMinecraft(
@@ -883,6 +887,10 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
             </button>
           </div>
           <div className={styles.panelStatus}>
+            <div className={styles.zoomControls} role="group" aria-label="地図の拡大縮小">
+              <button type="button" aria-label="地図を拡大" disabled={!zoomState || zoomState.current >= zoomState.max} onClick={() => leafletMapRef.current?.zoomIn()}>＋</button>
+              <button type="button" aria-label="地図を縮小" disabled={!zoomState || zoomState.current <= zoomState.min} onClick={() => leafletMapRef.current?.zoomOut()}>－</button>
+            </div>
             <p className={styles.coordinates} aria-live="polite">
               X {coordinates.x.toLocaleString()} / Z {coordinates.z.toLocaleString()}
             </p>
