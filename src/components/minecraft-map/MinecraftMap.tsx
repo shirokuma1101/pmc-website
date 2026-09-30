@@ -153,6 +153,7 @@ function createDynmapTileLayer(
 
 export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { currentUser: SessionUser | null; mapHistoryEnabled?: boolean }) {
   const mapElementRef = useRef<HTMLDivElement>(null);
+  const blueMapFrameRef = useRef<HTMLIFrameElement>(null);
   const leafletMapRef = useRef<LeafletMap | null>(null);
   const tileLayerRef = useRef<TileLayer | null>(null);
   const markerLayerRef = useRef<LayerGroup | null>(null);
@@ -835,6 +836,18 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   const safeBlueMapUrl = blueMapUrl?.startsWith(`${minecraftMapConfig.tileBaseUrl.replace(/\/$/, "")}/`) ? blueMapUrl : null;
   const blueMapActive = viewMode === "bluemap" && Boolean(safeBlueMapUrl);
 
+  useEffect(() => {
+    if (blueMapActive) return;
+    const frame = requestAnimationFrame(() => leafletMapRef.current?.invalidateSize());
+    return () => cancelAnimationFrame(frame);
+  }, [blueMapActive]);
+
+  function zoomBlueMap(direction: "in" | "out") {
+    const index = direction === "in" ? 0 : 1;
+    blueMapFrameRef.current?.contentDocument
+      ?.querySelectorAll<HTMLElement>("#zoom-buttons .svg-button")[index]?.click();
+  }
+
   function changeDisplay(value: string) {
     setSelectedMarker(null);
     setMarkerDraft(null);
@@ -889,13 +902,14 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
 
   return (
     <section className={styles.shell} aria-label="Minecraftワールドマップ">
-      <div className={`${styles.mapFrame} ${timelineOpen ? styles.timelineVisible : ""}`}>
+      <div className={`${styles.mapFrame} ${timelineOpen ? styles.timelineVisible : ""} ${blueMapActive ? styles.blueMapLayout : ""}`}>
         <div ref={mapElementRef} className={styles.map} aria-hidden={blueMapActive} style={blueMapActive ? { visibility: "hidden" } : undefined} />
         {blueMapActive ? (
           <iframe
+            ref={blueMapFrameRef}
             key={safeBlueMapUrl}
             className={styles.blueMapFrame}
-            src={`${safeBlueMapUrl}index.html`}
+            src={`${safeBlueMapUrl}index.html?embedded=1`}
             title="BlueMap 3D ワールドマップ"
             loading="lazy"
           />
@@ -918,7 +932,13 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
           </div>
           <div className={styles.panelStatus}>
             {blueMapActive ? (
-              <p className={styles.blueMapNotice}>BlueMap 3D ではマーカー・道路・線路の表示と編集はできません。平面または3D地表に切り替えてください。</p>
+              <>
+                <div className={styles.zoomControls} role="group" aria-label="BlueMap の拡大縮小">
+                  <button type="button" aria-label="BlueMap を拡大" onClick={() => zoomBlueMap("in")}>＋</button>
+                  <button type="button" aria-label="BlueMap を縮小" onClick={() => zoomBlueMap("out")}>－</button>
+                </div>
+                <p className={styles.blueMapNotice}>BlueMap 3D ではマーカー・道路・線路の表示と編集はできません。平面または3D地表に切り替えてください。</p>
+              </>
             ) : (
               <>
                 <div className={styles.zoomControls} role="group" aria-label="地図の拡大縮小">
@@ -962,34 +982,36 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
               <option value="bluemap" disabled={!safeBlueMapUrl}>BlueMap 3D{safeBlueMapUrl ? "" : "（未生成）"}</option>
             </select>
           </label>
+          {!blueMapActive ? <>
           <label className={styles.field}>
             マーカー作成者
-            <select value={authorFilter} disabled={blueMapActive || !markersVisible} onChange={(event) => setAuthorFilter(event.target.value)}>
+            <select value={authorFilter} disabled={!markersVisible} onChange={(event) => setAuthorFilter(event.target.value)}>
               <option value="all">すべて</option>
               {markerAuthors.map((author) => <option key={author.id} value={author.id}>{author.displayName}</option>)}
             </select>
           </label>
           <label className={styles.field}>
             マーカー種類
-            <select value={iconFilter} disabled={blueMapActive || !markersVisible} onChange={(event) => setIconFilter(event.target.value)}>
+            <select value={iconFilter} disabled={!markersVisible} onChange={(event) => setIconFilter(event.target.value)}>
               <option value="all">すべて</option>
               {MARKER_ICONS.map((icon) => <option key={icon.value} value={icon.value}>{icon.symbol} {icon.label}</option>)}
             </select>
           </label>
           <label className={styles.field}>
             路線作成者
-            <select value={pathAuthorFilter} disabled={blueMapActive || !pathsVisible} onChange={(event) => setPathAuthorFilter(event.target.value)}>
+            <select value={pathAuthorFilter} disabled={!pathsVisible} onChange={(event) => setPathAuthorFilter(event.target.value)}>
               <option value="all">すべて</option>
               {pathAuthors.map((author) => <option key={author.id} value={author.id}>{author.displayName}</option>)}
             </select>
           </label>
           <label className={styles.field}>
             路線種類
-            <select value={pathKindFilter} disabled={blueMapActive || !pathsVisible} onChange={(event) => setPathKindFilter(event.target.value)}>
+            <select value={pathKindFilter} disabled={!pathsVisible} onChange={(event) => setPathKindFilter(event.target.value)}>
               <option value="all">すべて</option>
               {PATH_KINDS.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}
             </select>
           </label>
+          </> : null}
               </div>
               {!blueMapActive ? <div className={styles.toolbarMeta}>
           <label className={styles.visibilityToggle}>

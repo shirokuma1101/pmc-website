@@ -137,6 +137,34 @@
   background: #18212b;
 }
 
+.blueMapLayout {
+  display: flex;
+  flex-direction: column;
+}
+
+.blueMapLayout .map {
+  display: none;
+}
+
+.blueMapLayout .toolbar {
+  position: relative;
+  order: 0;
+  top: auto;
+  left: auto;
+  width: 100%;
+  max-height: 45%;
+  border-radius: 0;
+}
+
+.blueMapLayout .blueMapFrame {
+  position: relative;
+  order: 1;
+  inset: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
 .blueMapNotice {
   grid-column: 1 / -1;
   margin: 0;

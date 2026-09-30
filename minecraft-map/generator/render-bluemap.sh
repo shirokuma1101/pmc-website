@@ -38,7 +38,10 @@ cat > "$config/webapp.conf" <<EOF
 enabled: true
 webroot: "$webroot"
 use-cookies: false
+scripts: ["bluemap-embed.js"]
+styles: ["bluemap-embed.css"]
 EOF
+cp /usr/local/share/bluemap/bluemap-embed.js /usr/local/share/bluemap/bluemap-embed.css "$webroot/"
 cat > "$config/webserver.conf" <<EOF
 enabled: false
 EOF

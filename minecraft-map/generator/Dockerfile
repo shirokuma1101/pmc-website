@@ -35,6 +35,8 @@ COPY --chmod=644 render-log.sh /usr/local/lib/render-log.sh
 COPY --chmod=755 extract_archive.py /usr/local/bin/extract_archive.py
 COPY --chmod=755 update_catalog.py /usr/local/bin/update_catalog.py
 COPY --chmod=755 render-bluemap.sh /usr/local/bin/render-bluemap
+COPY --chmod=644 bluemap-embed.js bluemap-embed.css /usr/local/share/bluemap/
+RUN chmod 755 /usr/local/share/bluemap
 
 USER mapgen
 WORKDIR /work
