@@ -854,7 +854,10 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
     setSelectedPath(null);
     setPathDraft(null);
     if (value === "bluemap") {
-      if (safeBlueMapUrl) setViewMode("bluemap");
+      if (safeBlueMapUrl) {
+        setViewMode("bluemap");
+        setTimelineOpen(false);
+      }
     } else {
       setViewMode("dynmap");
       setMapName(value);
@@ -902,7 +905,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
 
   return (
     <section className={styles.shell} aria-label="Minecraftワールドマップ">
-      <div className={`${styles.mapFrame} ${timelineOpen ? styles.timelineVisible : ""}`}>
+      <div className={`${styles.mapFrame} ${timelineOpen && !blueMapActive ? styles.timelineVisible : ""}`}>
         <div ref={mapElementRef} className={styles.map} aria-hidden={blueMapActive} style={blueMapActive ? { visibility: "hidden" } : undefined} />
         {blueMapActive ? (
           <iframe
@@ -1166,7 +1169,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
         ) : null}
         {markerMessage ? <p className={styles.markerMessage}>{markerMessage} <button type="button" onClick={() => setMarkerMessage(null)}>閉じる</button></p> : null}
         {pathMessage ? <p className={styles.markerMessage}>{pathMessage} <button type="button" onClick={() => setPathMessage(null)}>閉じる</button></p> : null}
-        <div className={styles.timelineOverlay}>
+        {!blueMapActive ? <div className={styles.timelineOverlay}>
           {mapHistoryEnabled && timelineOpen ? (
             <MapTimeline
               snapshots={snapshots}
@@ -1190,7 +1193,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
           ) : (
             <a className={styles.timelineOpen} href="/supporters" title="サポーター特典">◷ 地図履歴はサポーター限定</a>
           )}
-        </div>
+        </div> : null}
       </div>
     </section>
   );
