@@ -852,7 +852,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false, blueMapEn
   function changeDisplay(value: string) {
     setBlueMapError(null);
     if (value === "bluemap" && !blueMapEnabled) {
-      setBlueMapError("BlueMap 3D は Premium Supporter 限定です。利用するには Premium Supporter への加入が必要です。");
+      setBlueMapError("BlueMap 3D は Premium Supporter 限定です。");
       return;
     }
     setSelectedMarker(null);
