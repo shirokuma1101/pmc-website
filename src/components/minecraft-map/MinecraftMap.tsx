@@ -902,7 +902,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
 
   return (
     <section className={styles.shell} aria-label="Minecraftワールドマップ">
-      <div className={`${styles.mapFrame} ${timelineOpen ? styles.timelineVisible : ""} ${blueMapActive ? styles.blueMapLayout : ""}`}>
+      <div className={`${styles.mapFrame} ${timelineOpen ? styles.timelineVisible : ""}`}>
         <div ref={mapElementRef} className={styles.map} aria-hidden={blueMapActive} style={blueMapActive ? { visibility: "hidden" } : undefined} />
         {blueMapActive ? (
           <iframe
