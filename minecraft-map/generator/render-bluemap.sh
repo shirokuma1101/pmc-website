@@ -10,12 +10,24 @@ webroot="$2"
 }
 threads="${BLUEMAP_RENDER_THREADS:-2}"
 [[ "$threads" =~ ^[1-9][0-9]*$ ]] || { echo "BLUEMAP_RENDER_THREADS must be a positive integer." >&2; exit 1; }
+mc_version="${MAP_OUTPUT_FORMAT:-JAVA_1_21_4}"
+mc_version="${mc_version#JAVA_}"
+mc_version="${mc_version//_/.}"
+[[ "$mc_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "MAP_OUTPUT_FORMAT must be a Java version such as JAVA_1_21_4." >&2
+  exit 1
+}
 
 run_dir="$(dirname "$webroot")"
 config="$run_dir/config"
 mkdir -p "$config/maps" "$config/storages" "$webroot"
 cd "$run_dir"
-/opt/java25/bin/java -jar /opt/bluemap.jar -c "$config" >/dev/null
+# BlueMap creates example configs and exits with status 1 when invoked without an action.
+/opt/java25/bin/java -jar /opt/bluemap.jar -c "$config" >/dev/null 2>&1 || true
+[[ -f "$config/core.conf" && -f "$config/webapp.conf" && -f "$config/webserver.conf" ]] || {
+  echo "BlueMap did not initialize its configuration." >&2
+  exit 1
+}
 rm -f "$config/maps/"*.conf
 cat > "$config/core.conf" <<EOF
 accept-download: true
@@ -41,7 +53,7 @@ dimension: "minecraft:overworld"
 storage: "file"
 EOF
 
-/opt/java25/bin/java "-Xmx${BLUEMAP_HEAP:-4G}" -jar /opt/bluemap.jar -c "$config" -r -g -s
+/opt/java25/bin/java "-Xmx${BLUEMAP_HEAP:-4G}" -jar /opt/bluemap.jar -c "$config" -v "$mc_version" -r -g -s
 [[ -f "$webroot/index.html" && -f "$webroot/settings.json" ]] || {
   echo "BlueMap web output is incomplete." >&2
   exit 1
