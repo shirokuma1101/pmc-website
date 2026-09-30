@@ -145,6 +145,15 @@
   line-height: 1.5;
 }
 
+.blueMapError {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .status {
   display: grid;
   position: absolute;

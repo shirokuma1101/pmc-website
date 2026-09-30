@@ -151,7 +151,7 @@ function createDynmapTileLayer(
   return tileLayer;
 }
 
-export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { currentUser: SessionUser | null; mapHistoryEnabled?: boolean }) {
+export function MinecraftMap({ currentUser, mapHistoryEnabled = false, blueMapEnabled = false }: { currentUser: SessionUser | null; mapHistoryEnabled?: boolean; blueMapEnabled?: boolean }) {
   const mapElementRef = useRef<HTMLDivElement>(null);
   const blueMapFrameRef = useRef<HTMLIFrameElement>(null);
   const leafletMapRef = useRef<LeafletMap | null>(null);
@@ -175,6 +175,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   const [coordinates, setCoordinates] = useState({ x: 0, z: 0 });
   const [zoomState, setZoomState] = useState<{ current: number; min: number; max: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [blueMapError, setBlueMapError] = useState<string | null>(null);
   const [markers, setMarkers] = useState<MinecraftMapMarker[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MinecraftMapMarker | null>(null);
   const [markerDraft, setMarkerDraft] = useState<MarkerDraft | null>(null);
@@ -834,7 +835,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   const snapshots = catalogWorld?.snapshots ?? [];
   const blueMapUrl = snapshots.find((candidate) => candidate.id === snapshotId)?.blueMapUrl;
   const safeBlueMapUrl = blueMapUrl?.startsWith(`${minecraftMapConfig.tileBaseUrl.replace(/\/$/, "")}/`) ? blueMapUrl : null;
-  const blueMapActive = viewMode === "bluemap" && Boolean(safeBlueMapUrl);
+  const blueMapActive = viewMode === "bluemap" && blueMapEnabled && Boolean(safeBlueMapUrl);
 
   useEffect(() => {
     if (blueMapActive) return;
@@ -849,6 +850,11 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   }
 
   function changeDisplay(value: string) {
+    setBlueMapError(null);
+    if (value === "bluemap" && !blueMapEnabled) {
+      setBlueMapError("BlueMap 3D は Premium Supporter 限定です。利用するには Premium Supporter への加入が必要です。");
+      return;
+    }
     setSelectedMarker(null);
     setMarkerDraft(null);
     setSelectedPath(null);
@@ -982,9 +988,10 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
               {selectableMaps(selectedWorld || { maps: [] }).map((map) => (
                 <option key={map.name} value={map.name}>{mapLabel(map)}</option>
               ))}
-              <option value="bluemap" disabled={!safeBlueMapUrl}>BlueMap 3D{safeBlueMapUrl ? "" : "（未生成）"}</option>
+              <option value="bluemap" disabled={!safeBlueMapUrl}>BlueMap 3D (Premium Only){safeBlueMapUrl ? "" : "（未生成）"}</option>
             </select>
           </label>
+          {blueMapError ? <p className={styles.blueMapError} role="alert">{blueMapError}</p> : null}
           {!blueMapActive ? <>
           <label className={styles.field}>
             マーカー作成者
