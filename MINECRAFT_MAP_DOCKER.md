@@ -74,6 +74,23 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
 生成した出力は、WebサイトComposeで常時起動している`map-static`からそのまま配信されます。再作成やディレクトリのコピーは不要です。
 
+### BlueMap 3Dも生成する
+
+BlueMapは変換済みJavaワールドから事前生成します。閲覧時にMinecraftサーバーやBlueMapの内蔵Webサーバーは不要です。初回は[Mojang EULA](https://www.minecraft.net/en-us/eula)を確認し、Minecraft Java Editionのライセンスを所有している場合に限り、`minecraft-map/.env.map`に次を設定します。BlueMapが描画に必要なMinecraftクライアント資源を取得します。
+
+```env
+BLUEMAP_ENABLED=true
+BLUEMAP_ACCEPT_DOWNLOAD=true
+BLUEMAP_RENDER_THREADS=2
+BLUEMAP_HEAP=4G
+```
+
+`npm run map:build`の後に`npm run map:generate`を実行します。BlueMap 5.28とJava 25を含む生成イメージを使用し、Dynmapの描画終了後に同じJavaワールドをBlueMap CLIへ渡します。生成が完了したスナップショットだけが公開され、`catalog.json`に`blueMapUrl`が追加されます。`/map`の「表示」から「BlueMap 3D」を選ぶと、同じワールド・スナップショットの3D地図を表示します。未生成のスナップショットでは選択できません。生成物は`minecraft-map/output/worlds/<ワールドID>/snapshots/<スナップショットID>/bluemap/`に保存され、既存のNginxから配信されます。
+
+BlueMap描画は時間・CPU・メモリ・ディスク容量を追加で使用します。必要に応じて`MAP_MEMORY_LIMIT`を`BLUEMAP_HEAP`より十分大きく設定してください。既存のスナップショットにBlueMapを後付けする処理はありません。履歴生成スクリプトは生成済みIDをスキップするため、過去分が必要なら元のバックアップから新しいスナップショットとして生成してください。静的ファイルは公開URLで閲覧可能であり、履歴の閲覧権限をサーバー側で制限する仕組みはありません。
+
+配信設定を初めて適用するときは、WebサイトComposeの`map-static`を再起動してNginx設定を読み直してください。生成ジョブだけを実行した後は再起動不要です。BlueMapのバージョンを更新する際は、生成イメージのCLI jarとJavaランタイムをセットで検証し、古いスナップショットのWebアプリとの互換性も確認します。
+
 アーカイブ名やメモリ量を指定する場合は、`minecraft-map/.env.map.example` を参考に環境変数を設定できます。複数ワールドでは `MAP_WORLD_ID` と `MAP_WORLD_LABEL`を変えて実行します。`MAP_SNAPSHOT_ID`が空欄なら実行日時が自動採番されます。通常は全領域を生成し、動作確認などで範囲を限定するときだけ `MAP_RENDER_MODE=radius` と中心座標・半径を指定してください。
 
 ### Ubuntuで履歴を一括生成する

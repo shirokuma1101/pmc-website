@@ -170,6 +170,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   const [activeTileBaseUrl, setActiveTileBaseUrl] = useState(minecraftMapConfig.tileBaseUrl);
   const [worldName, setWorldName] = useState(minecraftMapConfig.defaultWorld);
   const [mapName, setMapName] = useState(minecraftMapConfig.defaultMap);
+  const [viewMode, setViewMode] = useState<"dynmap" | "bluemap">("dynmap");
   const [coordinates, setCoordinates] = useState({ x: 0, z: 0 });
   const [zoomState, setZoomState] = useState<{ current: number; min: number; max: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -830,6 +831,22 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   const selectedWorldSetId = dynmapWorldIdentity(worldName).setId;
   const catalogWorld = catalog?.worlds.find((candidate) => candidate.id === logicalWorldId);
   const snapshots = catalogWorld?.snapshots ?? [];
+  const blueMapUrl = snapshots.find((candidate) => candidate.id === snapshotId)?.blueMapUrl;
+  const safeBlueMapUrl = blueMapUrl?.startsWith(`${minecraftMapConfig.tileBaseUrl.replace(/\/$/, "")}/`) ? blueMapUrl : null;
+  const blueMapActive = viewMode === "bluemap" && Boolean(safeBlueMapUrl);
+
+  function changeDisplay(value: string) {
+    setSelectedMarker(null);
+    setMarkerDraft(null);
+    setSelectedPath(null);
+    setPathDraft(null);
+    if (value === "bluemap") {
+      if (safeBlueMapUrl) setViewMode("bluemap");
+    } else {
+      setViewMode("dynmap");
+      setMapName(value);
+    }
+  }
 
   function changeActiveWorld(nextWorld: string) {
     if (!configuration) return;
@@ -848,8 +865,12 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
     if (catalog) {
       const nextWorld = catalog.worlds.find((candidate) => candidate.id === nextSetId);
       if (!nextWorld) return;
+      const nextSnapshotId = nextWorld.currentSnapshot || nextWorld.snapshots.at(-1)?.id || null;
+      if (!nextWorld.snapshots.find((candidate) => candidate.id === nextSnapshotId)?.blueMapUrl) {
+        setViewMode("dynmap");
+      }
       setLogicalWorldId(nextWorld.id);
-      setSnapshotId(nextWorld.currentSnapshot || nextWorld.snapshots.at(-1)?.id || null);
+      setSnapshotId(nextSnapshotId);
       setConfiguration(null);
       setSelectedMarker(null);
       setMarkerDraft(null);
@@ -869,7 +890,16 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
   return (
     <section className={styles.shell} aria-label="Minecraftワールドマップ">
       <div className={`${styles.mapFrame} ${timelineOpen ? styles.timelineVisible : ""}`}>
-        <div ref={mapElementRef} className={styles.map} />
+        <div ref={mapElementRef} className={styles.map} aria-hidden={blueMapActive} style={blueMapActive ? { visibility: "hidden" } : undefined} />
+        {blueMapActive ? (
+          <iframe
+            key={safeBlueMapUrl}
+            className={styles.blueMapFrame}
+            src={safeBlueMapUrl!}
+            title="BlueMap 3D ワールドマップ"
+            loading="lazy"
+          />
+        ) : null}
         <aside className={styles.toolbar} aria-label="地図の表示設定">
           <div className={styles.panelHeading}>
             <div>
@@ -887,16 +917,22 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
             </button>
           </div>
           <div className={styles.panelStatus}>
-            <div className={styles.zoomControls} role="group" aria-label="地図の拡大縮小">
-              <button type="button" aria-label="地図を拡大" disabled={!zoomState || zoomState.current >= zoomState.max} onClick={() => leafletMapRef.current?.zoomIn()}>＋</button>
-              <button type="button" aria-label="地図を縮小" disabled={!zoomState || zoomState.current <= zoomState.min} onClick={() => leafletMapRef.current?.zoomOut()}>－</button>
-            </div>
-            <p className={styles.coordinates} aria-live="polite">
-              X {coordinates.x.toLocaleString()} / Z {coordinates.z.toLocaleString()}
-            </p>
-            <p className={styles.hint}>
-              ドラッグで移動、ホイールまたはボタンで拡大縮小できます。{pathDraft ? "地図をクリックして頂点を追加し、番号をドラッグして位置を調整します。" : currentUser ? "右クリックまたは長押しでマーカーを追加できます。" : "マーカーなどはログインすると追加できます。"}
-            </p>
+            {blueMapActive ? (
+              <p className={styles.blueMapNotice}>BlueMap 3D ではマーカー・道路・線路の表示と編集はできません。平面または3D地表に切り替えてください。</p>
+            ) : (
+              <>
+                <div className={styles.zoomControls} role="group" aria-label="地図の拡大縮小">
+                  <button type="button" aria-label="地図を拡大" disabled={!zoomState || zoomState.current >= zoomState.max} onClick={() => leafletMapRef.current?.zoomIn()}>＋</button>
+                  <button type="button" aria-label="地図を縮小" disabled={!zoomState || zoomState.current <= zoomState.min} onClick={() => leafletMapRef.current?.zoomOut()}>－</button>
+                </div>
+                <p className={styles.coordinates} aria-live="polite">
+                  X {coordinates.x.toLocaleString()} / Z {coordinates.z.toLocaleString()}
+                </p>
+                <p className={styles.hint}>
+                  ドラッグで移動、ホイールまたはボタンで拡大縮小できます。{pathDraft ? "地図をクリックして頂点を追加し、番号をドラッグして位置を調整します。" : currentUser ? "右クリックまたは長押しでマーカーを追加できます。" : "マーカーなどはログインすると追加できます。"}
+                </p>
+              </>
+            )}
           </div>
           {controlsOpen ? (
             <div id="minecraft-map-controls" className={styles.panelContent}>
@@ -916,45 +952,46 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
           <label className={styles.field}>
             表示
             <select
-              value={mapName}
+              value={blueMapActive ? "bluemap" : mapName}
               disabled={!selectedWorld}
-              onChange={(event) => setMapName(event.target.value)}
+              onChange={(event) => changeDisplay(event.target.value)}
             >
               {selectableMaps(selectedWorld || { maps: [] }).map((map) => (
                 <option key={map.name} value={map.name}>{mapLabel(map)}</option>
               ))}
+              <option value="bluemap" disabled={!safeBlueMapUrl}>BlueMap 3D{safeBlueMapUrl ? "" : "（未生成）"}</option>
             </select>
           </label>
           <label className={styles.field}>
             マーカー作成者
-            <select value={authorFilter} disabled={!markersVisible} onChange={(event) => setAuthorFilter(event.target.value)}>
+            <select value={authorFilter} disabled={blueMapActive || !markersVisible} onChange={(event) => setAuthorFilter(event.target.value)}>
               <option value="all">すべて</option>
               {markerAuthors.map((author) => <option key={author.id} value={author.id}>{author.displayName}</option>)}
             </select>
           </label>
           <label className={styles.field}>
             マーカー種類
-            <select value={iconFilter} disabled={!markersVisible} onChange={(event) => setIconFilter(event.target.value)}>
+            <select value={iconFilter} disabled={blueMapActive || !markersVisible} onChange={(event) => setIconFilter(event.target.value)}>
               <option value="all">すべて</option>
               {MARKER_ICONS.map((icon) => <option key={icon.value} value={icon.value}>{icon.symbol} {icon.label}</option>)}
             </select>
           </label>
           <label className={styles.field}>
             路線作成者
-            <select value={pathAuthorFilter} disabled={!pathsVisible} onChange={(event) => setPathAuthorFilter(event.target.value)}>
+            <select value={pathAuthorFilter} disabled={blueMapActive || !pathsVisible} onChange={(event) => setPathAuthorFilter(event.target.value)}>
               <option value="all">すべて</option>
               {pathAuthors.map((author) => <option key={author.id} value={author.id}>{author.displayName}</option>)}
             </select>
           </label>
           <label className={styles.field}>
             路線種類
-            <select value={pathKindFilter} disabled={!pathsVisible} onChange={(event) => setPathKindFilter(event.target.value)}>
+            <select value={pathKindFilter} disabled={blueMapActive || !pathsVisible} onChange={(event) => setPathKindFilter(event.target.value)}>
               <option value="all">すべて</option>
               {PATH_KINDS.map((kind) => <option key={kind.value} value={kind.value}>{kind.label}</option>)}
             </select>
           </label>
               </div>
-              <div className={styles.toolbarMeta}>
+              {!blueMapActive ? <div className={styles.toolbarMeta}>
           <label className={styles.visibilityToggle}>
             <input
               type="checkbox"
@@ -989,13 +1026,13 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
               {pathDraft ? "描画を終了" : "＋ 道路・線路を描く"}
             </button>
           ) : null}
-              </div>
+              </div> : null}
             </div>
           ) : null}
         </aside>
-        {!configuration && !error ? <p className={styles.status}>地図を読み込んでいます…</p> : null}
-        {error ? <p className={styles.status}>{error}</p> : null}
-        {selectedMarker ? (
+        {!blueMapActive && !configuration && !error ? <p className={styles.status}>地図を読み込んでいます…</p> : null}
+        {!blueMapActive && error ? <p className={styles.status}>{error}</p> : null}
+        {!blueMapActive && selectedMarker ? (
           <aside className={styles.markerCard} aria-label="マーカー詳細">
             <button className={styles.closeButton} type="button" onClick={() => setSelectedMarker(null)} aria-label="閉じる">×</button>
             {selectedMarker.imageUrl ? <img className={styles.markerImage} src={selectedMarker.imageUrl} alt="" /> : null}
@@ -1012,7 +1049,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
             ) : null}
           </aside>
         ) : null}
-        {selectedPath ? (
+        {!blueMapActive && selectedPath ? (
           <aside className={styles.pathCard} aria-label="道路・線路の詳細">
             <button className={styles.closeButton} type="button" onClick={() => setSelectedPath(null)} aria-label="閉じる">×</button>
             <p className={styles.markerKind}>{pathKindLabel(selectedPath.kind)}</p>
@@ -1028,7 +1065,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
             ) : null}
           </aside>
         ) : null}
-        {markerDraft ? (
+        {!blueMapActive && markerDraft ? (
           <form className={styles.markerForm} onSubmit={saveMarker}>
             <div className={styles.formHeading}>
               <h2>{markerDraft.id ? "マーカーを編集" : "マーカーを追加"}</h2>
@@ -1069,7 +1106,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
             <button className={styles.saveButton} disabled={savingMarker}>{savingMarker ? "保存中…" : "保存"}</button>
           </form>
         ) : null}
-        {pathDraft ? (
+        {!blueMapActive && pathDraft ? (
           <form className={styles.pathForm} onSubmit={savePath}>
             <div className={styles.formHeading}>
               <div>
@@ -1114,6 +1151,9 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
               selectedId={snapshotId}
               onClose={() => setTimelineOpen(false)}
               onSelect={(nextSnapshotId) => {
+                if (!snapshots.find((candidate) => candidate.id === nextSnapshotId)?.blueMapUrl) {
+                  setViewMode("dynmap");
+                }
                 setSnapshotId(nextSnapshotId);
                 const url = new URL(window.location.href);
                 url.searchParams.set("world", logicalWorldId);

@@ -5,6 +5,10 @@ log() { printf '[map-generator] %s\n' "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
 source /usr/local/lib/render-log.sh
 
+if [[ "${BLUEMAP_ENABLED:-false}" == "true" && "${BLUEMAP_ACCEPT_DOWNLOAD:-false}" != "true" ]]; then
+  fail "Set BLUEMAP_ACCEPT_DOWNLOAD=true after accepting Mojang's EULA and confirming a Java Edition license."
+fi
+
 render_threads="${MAP_RENDER_THREADS:-}"
 if [[ -n "$render_threads" ]]; then
   [[ "$render_threads" =~ ^[1-9][0-9]*$ ]] || fail "MAP_RENDER_THREADS must be a positive integer."
@@ -165,15 +169,29 @@ world_label="${MAP_WORLD_LABEL:-$world_id}"
 snapshot_label="${MAP_SNAPSHOT_LABEL:-$created_at}"
 [[ "$world_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || fail "MAP_WORLD_ID contains unsupported characters."
 [[ "$snapshot_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || fail "MAP_SNAPSHOT_ID contains unsupported characters."
+if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
+  log "Rendering BlueMap from converted Java world"
+  /usr/local/bin/render-bluemap "$renderer/$world_name" "$run_root/bluemap/web"
+fi
 snapshot_root="/output/worlds/$world_id/snapshots"
 target="$snapshot_root/$snapshot_id"
 [[ ! -e "$target" ]] || fail "Snapshot already exists: $world_id/$snapshot_id"
 next="/output/.snapshot-$world_id-$snapshot_id"
 mkdir -p "$next"
 cp -a "$renderer/plugins/dynmap/web/." "$next/"
+bluemap_url=''
+if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
+  mkdir -p "$next/bluemap"
+  cp -a "$run_root/bluemap/web/." "$next/bluemap/"
+  bluemap_url="${MAP_PUBLIC_BASE_URL:-/minecraft-map}/worlds/$world_id/snapshots/$snapshot_id/bluemap/"
+fi
 printf 'ok\n' > "$next/health.txt"
 mkdir -p "$snapshot_root"
 mv "$next" "$target"
+catalog_args=()
+if [[ -n "$bluemap_url" ]]; then
+  catalog_args=(--bluemap-url "$bluemap_url")
+fi
 /usr/local/bin/update_catalog.py \
   --output /output \
   --world-id "$world_id" \
@@ -184,5 +202,6 @@ mv "$next" "$target"
   --base-url "${MAP_PUBLIC_BASE_URL:-/minecraft-map}" \
   --metadata "$target/metadata.json" \
   --source "$(basename "$archive")" \
-  --dynmap-world "$world_name"
+  --dynmap-world "$world_name" \
+  "${catalog_args[@]}"
 log "Complete: $target"
