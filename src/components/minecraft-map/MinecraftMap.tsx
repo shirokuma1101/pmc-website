@@ -895,7 +895,7 @@ export function MinecraftMap({ currentUser, mapHistoryEnabled = false }: { curre
           <iframe
             key={safeBlueMapUrl}
             className={styles.blueMapFrame}
-            src={safeBlueMapUrl!}
+            src={`${safeBlueMapUrl}index.html`}
             title="BlueMap 3D ワールドマップ"
             loading="lazy"
           />
