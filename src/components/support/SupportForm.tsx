@@ -13,11 +13,11 @@ const monthlyBenefits = [
   { label: "メンバー一覧でサポーターとして表示", match: "メンバー一覧" },
   { label: "地図の時系列比較を利用可能", match: "地図の時系列比較" },
 ] as const;
-const plannedBenefits = [
-  { label: "Webサイト新規機能のアーリーアクセス", tiers: ["basic", "standard", "premium"] },
-  { label: "Discord bot新規コマンドのアーリーアクセス", tiers: ["basic", "standard", "premium"] },
-  { label: "会員限定コンテンツへのアクセス", tiers: ["standard", "premium"] },
-  { label: "BlueMap(3Dマップ)の利用", tiers: ["premium"] },
+const additionalBenefits = [
+  { label: "Webサイト新規機能のアーリーアクセス", tiers: ["basic", "standard", "premium"], available: false },
+  { label: "Discord bot新規コマンドのアーリーアクセス", tiers: ["basic", "standard", "premium"], available: false },
+  { label: "会員限定コンテンツへのアクセス", tiers: ["standard", "premium"], available: false },
+  { label: "BlueMap(3Dマップ)の利用", tiers: ["premium"], available: true },
 ] as const;
 const plans = [
   { key: ONE_TIME_SUPPORT.tier, label: "Supporter", amount: ONE_TIME_SUPPORT.amount, frequency: "one_time" as const, badge: "Supporterバッジ（支援回数で変化）", benefits: [...ONE_TIME_SUPPORT.benefits] },
@@ -99,12 +99,13 @@ export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none",
                     })}
                   </tr>
                 ))}
-                {plannedBenefits.map((benefit) => (
+                {additionalBenefits.map((benefit) => (
                   <tr key={benefit.label}>
                     <th scope="row">{benefit.label}</th>
                     {plans.map((plan) => {
-                      const planned = benefit.tiers.some((tier) => tier === plan.key);
-                      return <td data-selected={tier === plan.key} key={plan.key}><span aria-label={planned ? "提供予定" : "対象外"} className={planned ? "support-comparison__planned" : "support-comparison__no"}>{planned ? "提供予定" : "—"}</span></td>;
+                      const eligible = benefit.tiers.some((tier) => tier === plan.key);
+                      const status = eligible ? benefit.available ? "利用可能" : "提供予定" : "対象外";
+                      return <td data-selected={tier === plan.key} key={plan.key}><span aria-label={status} className={eligible ? benefit.available ? "support-comparison__yes" : "support-comparison__planned" : "support-comparison__no"}>{eligible ? benefit.available ? "✓" : "提供予定" : "—"}</span></td>;
                     })}
                   </tr>
                 ))}
@@ -129,9 +130,9 @@ export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none",
                 const available = plans.find((plan) => plan.key === tier)?.benefits.some((item) => item.includes(benefit.match));
                 return <div key={benefit.label}><dt>{benefit.label}</dt><dd>{available ? "✓ 利用可能" : "— 対象外"}</dd></div>;
               })}
-              {plannedBenefits.map((benefit) => {
-                const planned = benefit.tiers.some((planTier) => planTier === tier);
-                return <div key={benefit.label}><dt>{benefit.label}</dt><dd className={planned ? "support-comparison__planned" : undefined}>{planned ? "提供予定" : "— 対象外"}</dd></div>;
+              {additionalBenefits.map((benefit) => {
+                const eligible = benefit.tiers.some((planTier) => planTier === tier);
+                return <div key={benefit.label}><dt>{benefit.label}</dt><dd className={eligible && !benefit.available ? "support-comparison__planned" : undefined}>{eligible ? benefit.available ? "✓ 利用可能" : "提供予定" : "— 対象外"}</dd></div>;
               })}
             </dl>
           </div>

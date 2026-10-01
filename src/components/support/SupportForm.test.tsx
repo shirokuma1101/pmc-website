@@ -1,4 +1,4 @@
-import { fireEvent, render, within } from "@testing-library/react";
+import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SupportForm } from "./SupportForm";
 
@@ -64,7 +64,7 @@ describe("SupportForm", () => {
     expect(within(badgeRow).getByText("Premium Supporterバッジ")).toBeInTheDocument();
     expect(within(table).getByRole("rowheader", { name: "メンバー一覧でサポーターとして表示" })).toBeInTheDocument();
     expect(within(table).getByRole("rowheader", { name: "地図の時系列比較を利用可能" })).toBeInTheDocument();
-    expect(within(table).getAllByLabelText("利用可能")).toHaveLength(8);
+    expect(within(table).getAllByLabelText("利用可能")).toHaveLength(9);
     expect(within(table).getAllByLabelText("対象外")).toHaveLength(7);
     expect(form.queryByText("活動をそっと応援")).not.toBeInTheDocument();
   });
@@ -83,7 +83,8 @@ describe("SupportForm", () => {
     }
     expect(within(membersContent).getAllByLabelText("提供予定")).toHaveLength(2);
     expect(within(membersContent).getAllByLabelText("対象外")).toHaveLength(2);
-    expect(within(blueMap).getAllByLabelText("提供予定")).toHaveLength(1);
+    expect(within(blueMap).getAllByLabelText("利用可能")).toHaveLength(1);
+    expect(within(blueMap).getByText("✓")).toHaveClass("support-comparison__yes");
     expect(within(blueMap).getAllByLabelText("対象外")).toHaveLength(3);
     expect(form.getByText(/「提供予定」の特典は現在まだ利用できません/)).toBeInTheDocument();
 
@@ -95,7 +96,7 @@ describe("SupportForm", () => {
     fireEvent.click(mobile.getByRole("button", { name: /Basic Supporter.*¥400/ }));
     expect(mobile.getByText("会員限定コンテンツへのアクセス").nextElementSibling).toHaveTextContent("対象外");
     fireEvent.click(mobile.getByRole("button", { name: /Premium Supporter.*¥1,500/ }));
-    expect(mobile.getByText("BlueMap(3Dマップ)の利用").nextElementSibling).toHaveTextContent("提供予定");
+    expect(mobile.getByText("BlueMap(3Dマップ)の利用").nextElementSibling).toHaveTextContent("✓ 利用可能");
   });
 
   it("updates mobile plan details and checkout fields when a plan card is selected", () => {
@@ -134,7 +135,9 @@ describe("SupportForm", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: { message: "切替手続き中です。" } }), { status: 409 }));
     const { container } = render(<SupportForm checkoutEnabled loggedIn monthlyStatus="existing" currentTier="basic" />);
     acceptRequiredConditions(within(container.querySelector("form")!));
-    fireEvent.submit(container.querySelector("form")!);
+    await act(async () => {
+      fireEvent.submit(container.querySelector("form")!);
+    });
     expect(await within(container).findByText("切替手続き中です。")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/supporters/switch");
   });
@@ -144,7 +147,9 @@ describe("SupportForm", () => {
     const { container } = render(<SupportForm checkoutEnabled loggedIn />);
     const form = within(container.querySelector("form")!);
     acceptRequiredConditions(form);
-    fireEvent.submit(container.querySelector("form")!);
+    await act(async () => {
+      fireEvent.submit(container.querySelector("form")!);
+    });
     expect(await form.findByRole("alert")).toHaveTextContent("既に契約があります。");
     expect(form.getByRole("radio", { name: /Standard Supporter.*¥800/ })).toBeChecked();
     expect(form.getByRole("button", { name: "サポーターになる" })).toBeEnabled();

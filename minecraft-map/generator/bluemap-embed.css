@@ -1,0 +1,4 @@
+.pmc-bluemap-embedded #app > .control-bar,
+.pmc-bluemap-embedded #app > #zoom-buttons {
+  display: none !important;
+}

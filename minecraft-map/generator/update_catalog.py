@@ -23,6 +23,7 @@ parser.add_argument("--base-url", required=True)
 parser.add_argument("--metadata", required=True)
 parser.add_argument("--source", required=True)
 parser.add_argument("--dynmap-world", required=True)
+parser.add_argument("--bluemap-url")
 args = parser.parse_args()
 
 output = Path(args.output)
@@ -47,12 +48,15 @@ if world is None:
 
 world["name"] = args.world_name
 world["snapshots"] = [item for item in world.get("snapshots", []) if item["id"] != args.snapshot_id]
-world["snapshots"].append({
+snapshot = {
     "id": args.snapshot_id,
     "label": args.snapshot_label,
     "createdAt": args.created_at,
     "baseUrl": args.base_url.rstrip("/") + f"/worlds/{args.world_id}/snapshots/{args.snapshot_id}",
-})
+}
+if args.bluemap_url:
+    snapshot["blueMapUrl"] = args.bluemap_url
+world["snapshots"].append(snapshot)
 world["snapshots"].sort(key=lambda item: item["createdAt"])
 world["currentSnapshot"] = world["snapshots"][-1]["id"]
 catalog["worlds"].sort(key=lambda item: item["name"])

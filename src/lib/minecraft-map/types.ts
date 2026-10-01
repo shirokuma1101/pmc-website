@@ -51,6 +51,7 @@ export interface MinecraftMapSnapshot {
   label: string;
   createdAt: string;
   baseUrl: string;
+  blueMapUrl?: string;
 }
 
 export interface MinecraftMapCatalogWorld {

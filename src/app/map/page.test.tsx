@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/minecraft-map", () => ({
-  MinecraftMap: ({ mapHistoryEnabled }: { mapHistoryEnabled: boolean }) => <div data-testid="map" data-history-enabled={mapHistoryEnabled} />,
+  MinecraftMap: ({ mapHistoryEnabled, blueMapEnabled }: { mapHistoryEnabled: boolean; blueMapEnabled: boolean }) => <div data-testid="map" data-history-enabled={mapHistoryEnabled} data-bluemap-enabled={blueMapEnabled} />,
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/directus/organization", () => ({ getMySupporterTier: vi.fn() }));
@@ -28,5 +28,17 @@ describe("MapPage history entitlement", () => {
   it("keeps history unavailable without a supporter entitlement", async () => {
     render(await MapPage());
     expect(screen.getByTestId("map")).toHaveAttribute("data-history-enabled", "false");
+    expect(screen.getByTestId("map")).toHaveAttribute("data-bluemap-enabled", "false");
+  });
+
+  it("enables BlueMap only for Premium Supporters", async () => {
+    vi.mocked(getMySupporterTier).mockResolvedValue("standard");
+    render(await MapPage());
+    expect(screen.getByTestId("map")).toHaveAttribute("data-bluemap-enabled", "false");
+    cleanup();
+
+    vi.mocked(getMySupporterTier).mockResolvedValue("premium");
+    render(await MapPage());
+    expect(screen.getByTestId("map")).toHaveAttribute("data-bluemap-enabled", "true");
   });
 });
