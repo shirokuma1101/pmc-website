@@ -1,4 +1,4 @@
-import { fireEvent, render, within } from "@testing-library/react";
+import { act, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SupportForm } from "./SupportForm";
 
@@ -135,7 +135,9 @@ describe("SupportForm", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: { message: "切替手続き中です。" } }), { status: 409 }));
     const { container } = render(<SupportForm checkoutEnabled loggedIn monthlyStatus="existing" currentTier="basic" />);
     acceptRequiredConditions(within(container.querySelector("form")!));
-    fireEvent.submit(container.querySelector("form")!);
+    await act(async () => {
+      fireEvent.submit(container.querySelector("form")!);
+    });
     expect(await within(container).findByText("切替手続き中です。")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/supporters/switch");
   });
@@ -145,7 +147,9 @@ describe("SupportForm", () => {
     const { container } = render(<SupportForm checkoutEnabled loggedIn />);
     const form = within(container.querySelector("form")!);
     acceptRequiredConditions(form);
-    fireEvent.submit(container.querySelector("form")!);
+    await act(async () => {
+      fireEvent.submit(container.querySelector("form")!);
+    });
     expect(await form.findByRole("alert")).toHaveTextContent("既に契約があります。");
     expect(form.getByRole("radio", { name: /Standard Supporter.*¥800/ })).toBeChecked();
     expect(form.getByRole("button", { name: "サポーターになる" })).toBeEnabled();
