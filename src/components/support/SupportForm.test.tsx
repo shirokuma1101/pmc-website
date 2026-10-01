@@ -64,7 +64,7 @@ describe("SupportForm", () => {
     expect(within(badgeRow).getByText("Premium Supporterバッジ")).toBeInTheDocument();
     expect(within(table).getByRole("rowheader", { name: "メンバー一覧でサポーターとして表示" })).toBeInTheDocument();
     expect(within(table).getByRole("rowheader", { name: "地図の時系列比較を利用可能" })).toBeInTheDocument();
-    expect(within(table).getAllByLabelText("利用可能")).toHaveLength(8);
+    expect(within(table).getAllByLabelText("利用可能")).toHaveLength(9);
     expect(within(table).getAllByLabelText("対象外")).toHaveLength(7);
     expect(form.queryByText("活動をそっと応援")).not.toBeInTheDocument();
   });
@@ -83,7 +83,8 @@ describe("SupportForm", () => {
     }
     expect(within(membersContent).getAllByLabelText("提供予定")).toHaveLength(2);
     expect(within(membersContent).getAllByLabelText("対象外")).toHaveLength(2);
-    expect(within(blueMap).getAllByLabelText("提供予定")).toHaveLength(1);
+    expect(within(blueMap).getAllByLabelText("利用可能")).toHaveLength(1);
+    expect(within(blueMap).getByText("✓ 利用可能")).toBeInTheDocument();
     expect(within(blueMap).getAllByLabelText("対象外")).toHaveLength(3);
     expect(form.getByText(/「提供予定」の特典は現在まだ利用できません/)).toBeInTheDocument();
 
@@ -95,7 +96,7 @@ describe("SupportForm", () => {
     fireEvent.click(mobile.getByRole("button", { name: /Basic Supporter.*¥400/ }));
     expect(mobile.getByText("会員限定コンテンツへのアクセス").nextElementSibling).toHaveTextContent("対象外");
     fireEvent.click(mobile.getByRole("button", { name: /Premium Supporter.*¥1,500/ }));
-    expect(mobile.getByText("BlueMap(3Dマップ)の利用").nextElementSibling).toHaveTextContent("提供予定");
+    expect(mobile.getByText("BlueMap(3Dマップ)の利用").nextElementSibling).toHaveTextContent("✓ 利用可能");
   });
 
   it("updates mobile plan details and checkout fields when a plan card is selected", () => {
