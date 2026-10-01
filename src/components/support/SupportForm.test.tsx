@@ -84,7 +84,7 @@ describe("SupportForm", () => {
     expect(within(membersContent).getAllByLabelText("提供予定")).toHaveLength(2);
     expect(within(membersContent).getAllByLabelText("対象外")).toHaveLength(2);
     expect(within(blueMap).getAllByLabelText("利用可能")).toHaveLength(1);
-    expect(within(blueMap).getByText("✓ 利用可能")).toBeInTheDocument();
+    expect(within(blueMap).getByText("✓")).toHaveClass("support-comparison__yes");
     expect(within(blueMap).getAllByLabelText("対象外")).toHaveLength(3);
     expect(form.getByText(/「提供予定」の特典は現在まだ利用できません/)).toBeInTheDocument();
 

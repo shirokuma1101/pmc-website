@@ -105,7 +105,7 @@ export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none",
                     {plans.map((plan) => {
                       const eligible = benefit.tiers.some((tier) => tier === plan.key);
                       const status = eligible ? benefit.available ? "利用可能" : "提供予定" : "対象外";
-                      return <td data-selected={tier === plan.key} key={plan.key}><span aria-label={status} className={eligible ? benefit.available ? "support-comparison__yes" : "support-comparison__planned" : "support-comparison__no"}>{eligible ? benefit.available ? "✓ 利用可能" : "提供予定" : "—"}</span></td>;
+                      return <td data-selected={tier === plan.key} key={plan.key}><span aria-label={status} className={eligible ? benefit.available ? "support-comparison__yes" : "support-comparison__planned" : "support-comparison__no"}>{eligible ? benefit.available ? "✓" : "提供予定" : "—"}</span></td>;
                     })}
                   </tr>
                 ))}
@@ -132,7 +132,7 @@ export function SupportForm({ checkoutEnabled, loggedIn, monthlyStatus = "none",
               })}
               {additionalBenefits.map((benefit) => {
                 const eligible = benefit.tiers.some((planTier) => planTier === tier);
-                return <div key={benefit.label}><dt>{benefit.label}</dt><dd className={eligible ? benefit.available ? "support-comparison__yes" : "support-comparison__planned" : undefined}>{eligible ? benefit.available ? "✓ 利用可能" : "提供予定" : "— 対象外"}</dd></div>;
+                return <div key={benefit.label}><dt>{benefit.label}</dt><dd className={eligible && !benefit.available ? "support-comparison__planned" : undefined}>{eligible ? benefit.available ? "✓ 利用可能" : "提供予定" : "— 対象外"}</dd></div>;
               })}
             </dl>
           </div>
