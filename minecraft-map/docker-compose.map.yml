@@ -15,6 +15,7 @@ services:
       MAP_SNAPSHOT_LABEL: ${MAP_SNAPSHOT_LABEL:-}
       MAP_SNAPSHOT_CREATED_AT: ${MAP_SNAPSHOT_CREATED_AT:-}
       MAP_PUBLIC_BASE_URL: ${MAP_PUBLIC_BASE_URL:-/minecraft-map}
+      MAP_REQUIRE_NFS: ${MAP_REQUIRE_NFS:-false}
       MAP_OUTPUT_FORMAT: ${MAP_OUTPUT_FORMAT:-JAVA_1_21_4}
       MAP_RENDER_MAPS: ${MAP_RENDER_MAPS:-flat,surface}
       MAP_RENDER_MODE: ${MAP_RENDER_MODE:-full}
@@ -35,7 +36,11 @@ services:
         target: /input
         read_only: true
       - ./work:/work
-      - ./output:/output
+      - type: bind
+        source: ${MAP_OUTPUT_DIRECTORY:-./output}
+        target: /output
+        bind:
+          create_host_path: false
     restart: "no"
     init: true
     mem_limit: ${MAP_MEMORY_LIMIT:-12g}

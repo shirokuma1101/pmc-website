@@ -70,12 +70,25 @@ script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 archive_root="$(cd -- "$archive_directory" && pwd)"
 compose_file="$script_directory/docker-compose.map.yml"
 env_file="$script_directory/.env.map"
-output_root="$script_directory/output"
+source "$script_directory/generator/map-storage.sh"
 compose_args=(-f "$compose_file")
 if [[ -f "$env_file" ]]; then
   compose_args=(--env-file "$env_file" "${compose_args[@]}")
   printf '[map-history] Use environment file: %s\n' "$env_file"
 fi
+# Ask Compose to resolve .env interpolation, shell overrides and relative paths.
+# Do not source .env.map as shell code or use a separate dotenv parser.
+storage_config="$(docker compose "${compose_args[@]}" config --format json | "$python_command" -c '
+import json, sys
+service = json.load(sys.stdin)["services"]["map-generator"]
+print(next(volume["source"] for volume in service["volumes"] if volume["target"] == "/output"))
+print(service["environment"]["MAP_REQUIRE_NFS"])
+')" || { printf 'Failed to resolve map output configuration\n' >&2; exit 1; }
+mapfile -t storage_values <<< "$storage_config"
+output_root="${storage_values[0]}"
+require_nfs="${storage_values[1]}"
+check_map_storage "$output_root" "$require_nfs" || exit 1
+printf '[map-history] Output directory: %s\n' "$output_root"
 mapfile -t archives < <(find "$archive_root" -maxdepth 1 -type f -name '*.tar.gz' -printf '%T@ %p\n' | sort -n | cut -d' ' -f2-)
 [[ ${#archives[@]} -gt 0 ]] || { printf 'No .tar.gz archives found in %s\n' "$archive_root" >&2; exit 1; }
 latest_archive="${archives[-1]}"
@@ -115,6 +128,7 @@ for archive in "${archives[@]}"; do
     if [[ "$dry_run" == 'true' ]]; then
       printf '[map-history] Dry run: would replace unregistered or forced snapshot %s\n' "$snapshot_id"
     else
+      check_map_storage "$output_root" "$require_nfs" || exit 1
       printf '[map-history] Replace unregistered or forced snapshot %s\n' "$snapshot_id"
       rm -rf -- "$snapshot_path"
     fi
@@ -143,6 +157,7 @@ for archive in "${archives[@]}"; do
 done
 
 if [[ "$history_retention" == 'mondays' ]]; then
+  check_map_storage "$output_root" "$require_nfs" || exit 1
   retention_args=(--output "$output_root" --world-id "$world_id" --timezone "$snapshot_timezone" --keep-snapshot-id "$latest_snapshot_id")
   [[ "$dry_run" == 'true' ]] && retention_args+=(--dry-run)
   removed_snapshots="$("$python_command" "$script_directory/generator/snapshot_retention.py" "${retention_args[@]}")" || {
