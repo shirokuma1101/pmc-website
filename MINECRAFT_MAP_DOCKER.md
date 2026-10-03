@@ -22,7 +22,7 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
 ## 地図を更新する
 
-ジェネレーターは一時ディレクトリでレンダリングした後、完成したスナップショットを`minecraft-map/output`へ反映します。配信用Nginxの再起動は不要です。Bedrockワールドのスナップショット、Chunker変換、Paper/Dynmapレンダリングはデータ破損を避けるため、配信用Nginxとは別の一時コンテナで実行します。
+ジェネレーターは保存先内の一時ディレクトリへ直接レンダリングし、完成後にスナップショットの公開パスへ移動します。既定の保存先は`minecraft-map/output`です。配信用Nginxの再起動は不要です。Bedrockワールドの展開、Chunker変換、Paper実行用ファイルはローカルの`minecraft-map/work`に置き、配信用Nginxとは別の一時コンテナで処理します。
 
 ## Bedrockサーバーのtar.gzから生成する
 
@@ -72,7 +72,58 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
 生成物は `minecraft-map/output/worlds/<ワールドID>/snapshots/<撮影日時>` に追加されます。平面表示は `flat`、3D表示は `surface` として生成され、洞窟表示は除外されます。既存の履歴は上書きされず、`catalog.json`の最新スナップショットだけが更新されます。
 
-生成した出力は、WebサイトComposeで常時起動している`map-static`からそのまま配信されます。再作成やディレクトリのコピーは不要です。
+生成した出力は、WebサイトComposeで常時起動している`map-static`からそのまま配信されます。保存先を変更しない通常の更新では、再作成やディレクトリのコピーは不要です。
+
+### Ubuntu＋TrueNAS SCALEのNFSへ保存する
+
+`MAP_OUTPUT_DIRECTORY`で完成データと生成中のDynmap・BlueMapタイルの保存先を変更できます。未設定・空欄の場合は`./output`です。相対パスは`minecraft-map/docker-compose.map.yml`のあるディレクトリ基準です。NASには絶対パスを指定してください。保存先ディレクトリは実行前に用意します。Composeのbind mountには`create_host_path: false`を指定しています。[Docker Composeのbind mount仕様](https://docs.docker.com/reference/compose-file/services/#volumes)も参照してください。
+
+1. TrueNASでマップ専用のデータセットとNFS共有を用意し、Ubuntuホストからのアクセスを許可します。実行ユーザーにファイル作成・削除・rename・chmodを許可し、配信用Nginxにはファイルの読み取りとディレクトリの通過を許可してください。UID/GIDを揃えるか、共有のMapall User/Groupを専用ユーザーに設定します。Ubuntu履歴スクリプトは実行ユーザーのUID/GIDを生成コンテナにも適用します。直接`docker compose run`する場合は`MAP_GENERATOR_UID`/`MAP_GENERATOR_GID`を合わせてください。[TrueNAS公式NFS共有ガイド](https://cdn.truenas.com/docs/scale/scaletutorials/shares/addingnfsshares/)を参照してください。
+
+2. Ubuntu側へNFS共有をマウントします。以下のIP・共有パスは例で、実際の値に置き換えます。
+
+   ```bash
+   sudo apt-get install nfs-common
+   sudo mkdir -p /mnt/pmc-map
+   sudo mount -t nfs 192.0.2.10:/mnt/tank/pmc-map /mnt/pmc-map
+   findmnt -T /mnt/pmc-map
+   ```
+
+3. `minecraft-map/.env.map`を設定します。
+
+   ```env
+   MAP_OUTPUT_DIRECTORY=/mnt/pmc-map
+   MAP_REQUIRE_NFS=true
+   ```
+
+   `MAP_REQUIRE_NFS=true`ではUbuntu履歴スクリプトが生成・履歴削除前に、生成コンテナがレンダリング開始前に、保存先のファイルシステム種別がNFSであることを確認します。未マウント時に残るローカルディレクトリでは停止します。ローカルディスクやSMBを使う場合は`false`にします。NASの接続断を監視する機能ではなく、NFS通信障害時の待機・復旧動作はホストのマウント設定に従います。
+
+4. 設定を明示して生成イメージを再ビルドします。単発生成でも同じ環境ファイルを渡してください。`npm run map:build`/`npm run map:generate`は`.env.map`を自動で指定しないため、NAS設定には以下のコマンドを使用します。
+
+   ```bash
+   docker compose --env-file minecraft-map/.env.map \
+     -f minecraft-map/docker-compose.map.yml build map-generator
+   docker compose --env-file minecraft-map/.env.map \
+     -f minecraft-map/docker-compose.map.yml run --rm map-generator
+   ```
+
+   履歴の一括生成は下記の`generate-history.sh`を使います。`.env.map`は自動で読み込まれます。出力先の解決に`docker compose config --format json`を使用するため、`--dry-run`でもDocker ComposeとPython 3が必要です。シェルでexportした同名変数はComposeの規則に従って`.env.map`より優先されます。
+
+5. 配信用の`.env`（開発では`.env.local`）にも同じ保存先を設定し、NASをマウントした状態で`map-static`を再作成します。
+
+   ```env
+   MINECRAFT_MAP_DATA_PATH=/mnt/pmc-map
+   ```
+
+   ```bash
+   docker compose --env-file .env up -d --no-deps --force-recreate map-static
+   ```
+
+   開発環境は`docker compose --env-file .env.local -f docker-compose.dev.yml up -d --no-deps --force-recreate map-static`です。ホスト起動時も、NFSのマウントを完了してから配信用コンテナを起動する運用にしてください。
+
+指定先には`catalog.json`と`worlds/`が生成されます。タイルは指定先の`.snapshot-<world>-<snapshot>-<ランダム値>/`へ直接書き込み、成功時に同じ保存先内の`worlds/<world>/snapshots/<snapshot>/`へ移動するため、ローカルにタイルを生成・コピーしません。配信用Nginxは`.snapshot-*`へのアクセスを404で拒否します。このNginx設定の適用にも`map-static`の再作成が必要です。BlueMapの設定・キャッシュは引き続きローカルの`work`を使用します。ワールド展開・変換に必要なローカル容量とinodeは別途必要です。
+
+保存先を変更しても既存履歴は自動移行されません。既存履歴を残す場合は生成ジョブを停止し、`catalog.json`と`worlds/`を含む従来の`output`の内容を新しい保存先へコピーしてから切り替えてください。生成ジョブは従来どおり同時実行を避けます。失敗したジョブの`.snapshot-*`はカタログに登録されず、再試行では別の一時ディレクトリを作ります。残った一時ディレクトリは、生成ジョブが停止していることを確認したうえで管理者が整理してください。TrueNAS実機での権限・NFS性能は環境ごとに確認が必要です。
 
 ### BlueMap 3Dも生成する
 
@@ -123,7 +174,7 @@ bash minecraft-map/generate-history.sh \
 
 サーバーの時刻をUTCなど別のタイムゾーンとして解釈する場合は、`--timezone UTC`のように指定できます。途中から再実行すると、出力ディレクトリとカタログの両方に存在する完成済みスナップショットは自動的にスキップされます。カタログに未登録の出力ディレクトリは中断処理の残骸とみなし、通常実行時に置き換えて再生成します。
 
-Windows/PowerShell版も`minecraft-map/.env.map`を自動的に読み込みます。不整合なバックアップをスキップして残りを処理する場合は、`-ContinueOnError`を追加します。失敗したファイルは最後に一覧表示され、終了コードは失敗として返ります。
+Windows/PowerShell版も`minecraft-map/.env.map`を自動的に読み込み、Composeで解決された保存先のカタログを参照します。`MAP_REQUIRE_NFS=true`はホストのNFS確認ができるUbuntuのBash版で使用してください。PowerShell版では停止します。不整合なバックアップをスキップして残りを処理する場合は、`-ContinueOnError`を追加します。失敗したファイルは最後に一覧表示され、終了コードは失敗として返ります。
 
 ## 本番
 

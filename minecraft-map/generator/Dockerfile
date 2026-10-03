@@ -32,6 +32,7 @@ RUN apt-get update \
 
 COPY --chmod=755 render-map.sh /usr/local/bin/render-map
 COPY --chmod=644 render-log.sh /usr/local/lib/render-log.sh
+COPY --chmod=644 map-storage.sh /usr/local/lib/map-storage.sh
 COPY --chmod=755 extract_archive.py /usr/local/bin/extract_archive.py
 COPY --chmod=755 update_catalog.py /usr/local/bin/update_catalog.py
 COPY --chmod=755 render-bluemap.sh /usr/local/bin/render-bluemap

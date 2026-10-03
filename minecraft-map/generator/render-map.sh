@@ -4,6 +4,8 @@ set -Eeuo pipefail
 log() { printf '[map-generator] %s\n' "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
 source /usr/local/lib/render-log.sh
+source /usr/local/lib/map-storage.sh
+check_map_storage /output "${MAP_REQUIRE_NFS:-false}" || fail "Output storage check failed."
 
 if [[ "${BLUEMAP_ENABLED:-false}" == "true" && "${BLUEMAP_ACCEPT_DOWNLOAD:-false}" != "true" ]]; then
   fail "Set BLUEMAP_ACCEPT_DOWNLOAD=true after accepting Mojang's EULA and confirming a Java Edition license."
@@ -23,6 +25,16 @@ else
   archive="${archives[0]}"
 fi
 [[ -f "$archive" ]] || fail "Archive not found: $archive"
+
+created_at="${MAP_SNAPSHOT_CREATED_AT:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+snapshot_id="${MAP_SNAPSHOT_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+world_name="${MAP_WORLD_NAME:-world}"
+world_id="${MAP_WORLD_ID:-$world_name}"
+world_label="${MAP_WORLD_LABEL:-$world_id}"
+snapshot_label="${MAP_SNAPSHOT_LABEL:-$created_at}"
+next="$(prepare_map_snapshot /output "$world_id" "$snapshot_id")" || fail "Cannot prepare snapshot output."
+snapshot_root="/output/worlds/$world_id/snapshots"
+target="$snapshot_root/$snapshot_id"
 
 run_root="/work/run"
 rm -rf "$run_root"
@@ -50,7 +62,7 @@ java "-Xmx${CHUNKER_HEAP:-8G}" -jar /opt/chunker.jar \
 rm -rf "$run_root/java-world/DIM-1" "$run_root/java-world/DIM1"
 
 renderer="$run_root/renderer"
-world_name="${MAP_WORLD_NAME:-world}"
+link_dynmap_output "$renderer" "$next"
 mv "$run_root/java-world" "$renderer/$world_name"
 cp /opt/paper.jar "$renderer/paper.jar"
 cp /opt/dynmap.jar "$renderer/plugins/Dynmap.jar"
@@ -162,32 +174,19 @@ wait "$paper_pid"
 paper_pid=''
 [[ -f "$renderer/plugins/dynmap/web/standalone/dynmap_config.json" ]] || fail "Dynmap web output is incomplete."
 
-created_at="${MAP_SNAPSHOT_CREATED_AT:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
-snapshot_id="${MAP_SNAPSHOT_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
-world_id="${MAP_WORLD_ID:-$world_name}"
-world_label="${MAP_WORLD_LABEL:-$world_id}"
-snapshot_label="${MAP_SNAPSHOT_LABEL:-$created_at}"
-[[ "$world_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || fail "MAP_WORLD_ID contains unsupported characters."
-[[ "$snapshot_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || fail "MAP_SNAPSHOT_ID contains unsupported characters."
+check_map_storage /output "${MAP_REQUIRE_NFS:-false}" || fail "Output storage check failed."
 if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
   log "Rendering BlueMap from converted Java world"
-  /usr/local/bin/render-bluemap "$renderer/$world_name" "$run_root/bluemap/web"
+  /usr/local/bin/render-bluemap "$renderer/$world_name" "$next/bluemap" "$run_root/bluemap"
 fi
-snapshot_root="/output/worlds/$world_id/snapshots"
-target="$snapshot_root/$snapshot_id"
 [[ ! -e "$target" ]] || fail "Snapshot already exists: $world_id/$snapshot_id"
-next="/output/.snapshot-$world_id-$snapshot_id"
-mkdir -p "$next"
-cp -a "$renderer/plugins/dynmap/web/." "$next/"
 bluemap_url=''
 if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
-  mkdir -p "$next/bluemap"
-  cp -a "$run_root/bluemap/web/." "$next/bluemap/"
   bluemap_url="${MAP_PUBLIC_BASE_URL:-/minecraft-map}/worlds/$world_id/snapshots/$snapshot_id/bluemap/"
 fi
 printf 'ok\n' > "$next/health.txt"
 mkdir -p "$snapshot_root"
-mv "$next" "$target"
+mv -T "$next" "$target"
 catalog_args=()
 if [[ -n "$bluemap_url" ]]; then
   catalog_args=(--bluemap-url "$bluemap_url")

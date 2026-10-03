@@ -38,6 +38,7 @@
     "typegen": "next typegen",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:eslint-glob": "node --test scripts/test-next-eslint-glob.mjs",
     "test:watch": "vitest",
     "security:audit": "npm audit --audit-level=high",
     "security:check": "npm run security:audit && npm run cms:extension:check && npm test"
@@ -69,6 +70,7 @@
     "@vitejs/plugin-react": "4.7.0",
     "eslint": "9.39.3",
     "eslint-config-next": "16.3.1",
+    "fast-glob": "file:tools/next-eslint-glob",
     "jsdom": "26.1.0",
     "typescript": "5.9.3",
     "vitest": "3.2.7"

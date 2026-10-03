@@ -44,6 +44,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Validate Next.js ESLint glob compatibility
+        run: npm run test:eslint-glob
+
       - name: Unit tests
         run: npm test
 
@@ -65,8 +68,17 @@ jobs:
 
       - name: Validate map generator scripts
         run: |
-          bash -n minecraft-map/generator/render-map.sh minecraft-map/generator/render-bluemap.sh minecraft-map/generator/render-log.sh
+          docker compose --env-file minecraft-map/.env.map.example -f minecraft-map/docker-compose.map.yml config --quiet
+          bash -n minecraft-map/generator/render-map.sh minecraft-map/generator/render-bluemap.sh minecraft-map/generator/render-log.sh minecraft-map/generator/map-storage.sh minecraft-map/generate-history.sh
           bash minecraft-map/tests/render-log.sh
+          bash minecraft-map/tests/map-storage.sh
+          bash minecraft-map/tests/bluemap-storage.sh
+          bash minecraft-map/tests/archive-schedule.sh
+          python3 -m unittest discover -s minecraft-map/tests -p 'test_*.py'
+
+      - name: Validate PowerShell map history storage
+        shell: pwsh
+        run: ./minecraft-map/tests/history-storage.ps1
 
       - name: Build container
         run: docker compose --env-file .env.example build frontend

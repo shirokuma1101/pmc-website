@@ -18,13 +18,29 @@ $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $archiveRoot = (Resolve-Path -LiteralPath $ArchiveDirectory).Path
 $composeFile = Join-Path $PSScriptRoot "docker-compose.map.yml"
 $envFile = Join-Path $PSScriptRoot ".env.map"
-$catalogPath = Join-Path $PSScriptRoot "output\catalog.json"
 $composeArguments = @()
 if (Test-Path -LiteralPath $envFile) {
   $composeArguments += @("--env-file", $envFile)
   Write-Host "[map-history] Use environment file: $envFile"
 }
 $composeArguments += @("-f", $composeFile)
+$configJson = & docker compose @composeArguments config --format json
+if ($LASTEXITCODE -ne 0) {
+  throw "Failed to resolve map output configuration"
+}
+$service = ($configJson | ConvertFrom-Json).services.'map-generator'
+$outputRoot = ($service.volumes | Where-Object { $_.target -eq "/output" } | Select-Object -First 1).source
+if ([string]::IsNullOrWhiteSpace($outputRoot)) {
+  throw "Map output bind mount was not found"
+}
+if ($service.environment.MAP_REQUIRE_NFS -notin @("true", "false")) {
+  throw "MAP_REQUIRE_NFS must be true or false"
+}
+if ($service.environment.MAP_REQUIRE_NFS -eq "true") {
+  throw "MAP_REQUIRE_NFS=true requires the Ubuntu generate-history.sh script to verify host NFS storage"
+}
+$catalogPath = Join-Path $outputRoot "catalog.json"
+Write-Host "[map-history] Output directory: $outputRoot"
 $archives = @(Get-ChildItem -LiteralPath $archiveRoot -File -Filter "*.tar.gz" | Sort-Object LastWriteTime, Name)
 
 if ($archives.Count -eq 0) {

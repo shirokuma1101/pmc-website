@@ -55,6 +55,33 @@ Review generated pull requests and run the full verification suite before
 merging them; do not enable automatic merging for security updates without
 reviewing behavior changes.
 
+### Next.js ESLint directory discovery
+
+The pinned `@next/eslint-plugin-next` pulls in `fast-glob`, `micromatch`, and
+`braces`. The published advisory
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+affects all released `braces` versions. To remove that code while keeping the
+Next.js, React, and TypeScript rule sets, `package.json` provides `fast-glob`
+as a direct file dependency on the private `@pmc/next-eslint-glob` package
+in `tools/next-eslint-glob`, backed by the pinned `tinyglobby` release.
+Its compatibility version matches the plugin's exact `3.3.1` requirement so
+npm deduplicates the plugin's dependency to this local implementation. This
+is project-authored code, not the upstream `fast-glob` 3.3.1 distribution.
+
+The adapter supports the plugin's synchronous root-directory discovery and
+disables directory expansion to preserve exact-directory matching. It is not
+a general replacement for the full `fast-glob` API. No other callers should
+use this alias. `npm run test:eslint-glob` checks directory patterns, the
+resolved adapter, and enforcement of the existing rules after `npm ci`.
+The frontend Dockerfile copies the local package before dependency installation.
+
+When updating Next.js lint dependencies, run the compatibility test and inspect
+the plugin's glob usage and exact dependency version. Remove the local alias once the
+upstream plugin stops depending on vulnerable code, then regenerate the lockfile
+and repeat audit, lint, typecheck, unit tests, and the production build.
+The security audit continues to reject high and critical findings without
+advisory exclusions.
+
 Run the checks available without extra local tools using:
 
 ```text

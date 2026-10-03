@@ -18,7 +18,7 @@ mc_version="${mc_version//_/.}"
   exit 1
 }
 
-run_dir="$(dirname "$webroot")"
+run_dir="${3:-$(dirname "$webroot")}"
 config="$run_dir/config"
 mkdir -p "$config/maps" "$config/storages" "$webroot"
 cd "$run_dir"
