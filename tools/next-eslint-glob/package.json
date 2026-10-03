@@ -1,0 +1,10 @@
+{
+  "name": "@pmc/next-eslint-glob",
+  "version": "3.3.1",
+  "private": true,
+  "description": "Directory glob compatibility for the pinned Next.js ESLint plugin",
+  "main": "index.cjs",
+  "dependencies": {
+    "tinyglobby": "0.2.17"
+  }
+}
