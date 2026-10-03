@@ -44,6 +44,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Validate Next.js ESLint glob compatibility
+        run: npm run test:eslint-glob
+
       - name: Unit tests
         run: npm test
 
