@@ -3,6 +3,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 GENERATOR = Path(__file__).resolve().parents[1] / "generator"
@@ -58,6 +59,24 @@ class SnapshotRetentionTest(unittest.TestCase):
         self.assertTrue((self.snapshots_root / "latest").exists())
         updated = json.loads((self.output / "catalog.json").read_text(encoding="utf-8"))
         self.assertEqual([item["id"] for item in updated["worlds"][0]["snapshots"]], ["monday", "latest"])
+
+    def test_apply_replaces_current_json_without_opening_existing_file_for_writing(self):
+        current_path = self.output / "worlds" / "pmc6" / "current.json"
+        original_open = Path.open
+
+        def deny_direct_write(path, mode="r", *args, **kwargs):
+            if path == current_path and "w" in mode:
+                raise PermissionError("existing current.json is not writable")
+            return original_open(path, mode, *args, **kwargs)
+
+        with patch.object(Path, "open", deny_direct_write):
+            self.assertEqual(apply_retention(self.output, "pmc6", "Asia/Tokyo", False), ["tuesday"])
+
+        current = json.loads(current_path.read_text(encoding="utf-8"))
+        catalog = json.loads((self.output / "catalog.json").read_text(encoding="utf-8"))
+        self.assertEqual(current["snapshotId"], "latest")
+        self.assertEqual(current["updatedAt"], catalog["updatedAt"])
+        self.assertEqual(list(current_path.parent.glob(".current.json.*.tmp")), [])
 
     def test_apply_rejects_snapshot_ids_outside_world_directory(self):
         catalog_path = self.output / "catalog.json"
