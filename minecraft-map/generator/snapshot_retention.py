@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from current_snapshot import write_current_snapshot
+
 
 def timezone_info(name: str):
     try:
@@ -95,14 +97,7 @@ def apply_retention(
     os.replace(temporary, catalog_path)
 
     current_path = output / "worlds" / world_id / "current.json"
-    with current_path.open("w", encoding="utf-8", newline="\n") as destination:
-        json.dump(
-            {"snapshotId": latest_id, "updatedAt": catalog["updatedAt"]},
-            destination,
-            ensure_ascii=False,
-            indent=2,
-        )
-        destination.write("\n")
+    write_current_snapshot(current_path, latest_id, catalog["updatedAt"])
     return removed_ids
 
 

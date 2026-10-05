@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+from current_snapshot import write_current_snapshot
+
 
 def read_json(path: Path, fallback):
     if not path.exists():
@@ -73,7 +75,4 @@ with temporary.open("w", encoding="utf-8", newline="\n") as destination:
 os.replace(temporary, catalog_path)
 
 current_path = output / "worlds" / args.world_id / "current.json"
-current_path.parent.mkdir(parents=True, exist_ok=True)
-with current_path.open("w", encoding="utf-8", newline="\n") as destination:
-    json.dump({"snapshotId": world["currentSnapshot"], "updatedAt": catalog["updatedAt"]}, destination, ensure_ascii=False, indent=2)
-    destination.write("\n")
+write_current_snapshot(current_path, world["currentSnapshot"], catalog["updatedAt"])
