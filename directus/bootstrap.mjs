@@ -1,4 +1,4 @@
-const baseUrl = (process.env.DIRECTUS_URL ?? "http://127.0.0.1:8056").replace(/\/$/, "");
+const baseUrl = (process.env.DIRECTUS_URL ?? "http://127.0.0.1:10101").replace(/\/$/, "");
 const adminEmail = process.env.DIRECTUS_ADMIN_EMAIL ?? process.env.DIRECTUS_DEV_ADMIN_EMAIL;
 const adminPassword = process.env.DIRECTUS_ADMIN_PASSWORD ?? process.env.DIRECTUS_DEV_ADMIN_PASSWORD;
 const adminOtp = process.env.DIRECTUS_ADMIN_OTP?.trim() || undefined;

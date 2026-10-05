@@ -16,7 +16,7 @@
    npm run docker:up
    ```
 
-3. `http://localhost:3001/map` を開きます。
+3. `http://localhost:10100/map` を開きます。
 
 Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker:logs` です。`minecraft-map/output`は`map-static`へ読み取り専用でマウントされ、Nginx自体のポートは外部へ公開されません。
 

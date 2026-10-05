@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-const baseUrl = new URL(process.env.DIRECTUS_URL ?? "http://127.0.0.1:8056");
+const baseUrl = new URL(process.env.DIRECTUS_URL ?? "http://127.0.0.1:10101");
 if (!new Set(["127.0.0.1", "localhost", "::1"]).has(baseUrl.hostname)) {
   throw new Error("Refusing to run the Directus smoke test against a non-local host.");
 }

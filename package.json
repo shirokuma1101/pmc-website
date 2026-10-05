@@ -6,7 +6,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 3001",
+    "dev": "next dev --hostname 0.0.0.0 --port 10100",
     "env:setup": "node scripts/setup-local-env.mjs",
     "cms:up": "docker compose -f docker-compose.dev.yml --env-file .env.local up -d --wait",
     "cms:down": "docker compose -f docker-compose.dev.yml --env-file .env.local down",
