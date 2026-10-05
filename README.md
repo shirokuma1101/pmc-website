@@ -12,8 +12,8 @@ Directusのデータモデルと専用API拡張をこのリポジトリで管理
 
 ```text
 Browser
-  ├─ http://localhost:3001        Next.js
-  └─ http://127.0.0.1:8056        Directusの画像・管理画面
+  ├─ http://localhost:10100        Next.js
+  └─ http://127.0.0.1:10101        Directusの画像・管理画面
                                       ├─ Docker内PostgreSQL
                                       └─ Mailpit（開発用メール受信箱）
 ```
@@ -49,9 +49,9 @@ npm run cms:smoke
 npm run dev
 ```
 
-- Frontend: <http://localhost:3001>
-- Directus管理画面: <http://127.0.0.1:8056/admin/login>
-- 開発用メール受信箱: <http://127.0.0.1:8026>
+- Frontend: <http://localhost:10100>
+- Directus管理画面: <http://127.0.0.1:10101/admin/login>
+- 開発用メール受信箱: <http://127.0.0.1:10102>
 
 `npm run env:setup`はランダムなローカル専用パスワードと署名secretを`.env.local`へ生成します。
 管理者と検証ユーザーのメールアドレス・パスワードも同ファイルで確認できます。既存の
@@ -65,7 +65,7 @@ npm run cms:down        # 停止。DBとuploadsのvolumeは保持
 npm run cms:logs        # ログを追跡
 npm run cms:restart     # 拡張APIを含むDirectusを再起動
 npm run cms:smoke       # 認証・投稿・記事承認・画像・権限を結合テスト
-npm run dev             # Next.jsをポート3001で起動
+npm run dev             # Next.jsをポート10100で起動
 ```
 
 `cms:bootstrap`と`cms:smoke`はloopback以外のDirectusを拒否します。誤って公開中の
@@ -206,7 +206,7 @@ docker compose --env-file .env --profile tools run --rm \
 unset directus_admin_otp
 ```
 
-既定ではFrontendを`127.0.0.1:3000`、Directusを`127.0.0.1:8055`へbindします。同一ホストの
+既定ではFrontendを`127.0.0.1:10002`、Directusを`127.0.0.1:10001`へbindします。同一ホストの
 reverse proxyから、FrontendとDirectusをそれぞれHTTPSで公開してください。reverse proxyが別マシンに
 ある場合は、`FRONTEND_BIND_IP`と`DIRECTUS_BIND_IP`へDockerホストのprivate IPを指定し、firewallで
 reverse proxyからの接続だけを許可します。PostgreSQLはホストへ公開しません。
@@ -468,3 +468,9 @@ docker compose --env-file .env.example config --quiet
 ## License
 
 このリポジトリの`LICENSE`を参照してください。依存softwareにはそれぞれのlicenseが適用されます。
+
+## Composeのホストポート割り当て
+
+pmc-websiteは10000〜10999を使用します。本番はGateway 10000、Directus 10001、Frontend 10002、開発はGateway 10100、Directus 10101、Mailpit 10102です。コンテナ内部のポートと永続ボリュームは変更しません。
+
+既存の.envはGATEWAY_PORT / DIRECTUS_PORT / FRONTEND_PORTを、.env.localはFRONTEND_DEV_PORT / DIRECTUS_DEV_PORT / MAILPIT_UI_PORTとローカル接続URLを更新してください。env:setupは既存ファイルを上書きしません。開発Frontendの公開URLはビルド時にも使用するため、反映には再ビルドが必要です。Docker開発環境とnpm run devは同じ10100を使うため、同時に起動しないでください。ボリュームを削除するdown -vは使用しないでください。

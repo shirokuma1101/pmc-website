@@ -12,7 +12,7 @@ services:
       map-static:
         condition: service_healthy
     ports:
-      - "${GATEWAY_BIND_IP:-127.0.0.1}:${GATEWAY_PORT:-8080}:8080"
+      - "${GATEWAY_BIND_IP:-127.0.0.1}:${GATEWAY_PORT:-10000}:8080"
     volumes:
       - ./docker/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
     healthcheck:
@@ -109,7 +109,7 @@ services:
       DISCORD_ARTICLE_WEBHOOK_URL: ${DISCORD_ARTICLE_WEBHOOK_URL:-}
       DISCORD_ARTICLE_WEBHOOK_NOTIFY_UPDATES: ${DISCORD_ARTICLE_WEBHOOK_NOTIFY_UPDATES:-false}
     ports:
-      - "${DIRECTUS_BIND_IP:-127.0.0.1}:${DIRECTUS_PORT:-8055}:8055"
+      - "${DIRECTUS_BIND_IP:-127.0.0.1}:${DIRECTUS_PORT:-10001}:8055"
     volumes:
       - directus_uploads:/directus/uploads
       - ./directus/extensions:/directus/extensions:ro
@@ -178,7 +178,7 @@ services:
       MAX_IMAGE_UPLOAD_BYTES: ${MAX_IMAGE_UPLOAD_BYTES:-8388608}
       MAX_IMAGE_INPUT_PIXELS: ${MAX_IMAGE_INPUT_PIXELS:-40000000}
     ports:
-      - "${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_BIND_IP:-127.0.0.1}:${FRONTEND_PORT:-10002}:3000"
     healthcheck:
       test:
         [
