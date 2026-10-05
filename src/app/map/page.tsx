@@ -13,7 +13,7 @@ export default async function MapPage() {
   const session = await getSession();
   const supporterTier = session ? await getMySupporterTier(session.accessToken).catch(() => null) : null;
   const mapHistoryEnabled = Boolean(session?.user.isAdmin || supporterTier === "supporter" || supporterTier === "basic" || supporterTier === "standard" || supporterTier === "premium");
-  const blueMapEnabled = supporterTier === "premium";
+  const blueMapEnabled = Boolean(session?.user.isAdmin || supporterTier === "premium");
   return (
     <main id="main-content" className={styles.page}>
       <MinecraftMap currentUser={session?.user ?? null} mapHistoryEnabled={mapHistoryEnabled} blueMapEnabled={blueMapEnabled} />

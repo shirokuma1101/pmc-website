@@ -31,13 +31,20 @@ describe("MapPage history entitlement", () => {
     expect(screen.getByTestId("map")).toHaveAttribute("data-bluemap-enabled", "false");
   });
 
-  it("enables BlueMap only for Premium Supporters", async () => {
+  it("enables BlueMap for Premium Supporters but not Standard Supporters", async () => {
     vi.mocked(getMySupporterTier).mockResolvedValue("standard");
     render(await MapPage());
     expect(screen.getByTestId("map")).toHaveAttribute("data-bluemap-enabled", "false");
     cleanup();
 
     vi.mocked(getMySupporterTier).mockResolvedValue("premium");
+    render(await MapPage());
+    expect(screen.getByTestId("map")).toHaveAttribute("data-bluemap-enabled", "true");
+  });
+
+  it("enables BlueMap for administrators without a Premium subscription", async () => {
+    vi.mocked(getSession).mockResolvedValue({ accessToken: "admin-token", user: { id: "admin", isAdmin: true } } as never);
+    vi.mocked(getMySupporterTier).mockResolvedValue(null);
     render(await MapPage());
     expect(screen.getByTestId("map")).toHaveAttribute("data-bluemap-enabled", "true");
   });
