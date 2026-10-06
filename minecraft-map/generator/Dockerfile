@@ -15,6 +15,9 @@ ARG DYNMAP_SHA256=87c6035c2cb73bf22fc34ca738cb21a2db89ab5f30bd1071cd8090802a1c78
 ARG BLUEMAP_URL=https://github.com/BlueMap-Minecraft/BlueMap/releases/download/v5.28/bluemap-5.28-cli.jar
 ARG BLUEMAP_SHA256=c6868465f8f972a64a3f2acc32112cab8560339045747f81359bdea6959f7ac2
 
+ARG CHUNKY_URL=https://hangarcdn.papermc.io/plugins/pop4959/Chunky/versions/1.4.40/PAPER/Chunky-Bukkit-1.4.40.jar
+ARG CHUNKY_SHA256=2a5477fc80f71012e15ade1ce34dbeb836e17623b28db112492c0f1443c09721
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl python3 \
     && rm -rf /var/lib/apt/lists/* \
@@ -22,10 +25,12 @@ RUN apt-get update \
     && curl --fail --location --retry 5 --header "User-Agent: pmc-website-map-generator/1.0 (local project)" --output /opt/paper.jar "$PAPER_URL" \
     && curl --fail --location --retry 5 --output /opt/dynmap.jar "$DYNMAP_URL" \
     && curl --fail --location --retry 5 --output /opt/bluemap.jar "$BLUEMAP_URL" \
+    && curl --fail --location --retry 5 --output /opt/chunky.jar "$CHUNKY_URL" \
     && echo "$CHUNKER_SHA256  /opt/chunker.jar" | sha256sum --check \
     && echo "$PAPER_SHA256  /opt/paper.jar" | sha256sum --check \
     && echo "$DYNMAP_SHA256  /opt/dynmap.jar" | sha256sum --check \
     && echo "$BLUEMAP_SHA256  /opt/bluemap.jar" | sha256sum --check \
+    && echo "$CHUNKY_SHA256  /opt/chunky.jar" | sha256sum --check \
     && useradd --create-home --uid 10001 mapgen \
     && mkdir -p /input /work /output \
     && chown -R mapgen:mapgen /input /work /output
@@ -37,6 +42,7 @@ COPY --chmod=755 extract_archive.py /usr/local/bin/extract_archive.py
 COPY --chmod=755 update_catalog.py /usr/local/bin/update_catalog.py
 COPY --chmod=644 current_snapshot.py /usr/local/bin/current_snapshot.py
 COPY --chmod=755 render-bluemap.sh /usr/local/bin/render-bluemap
+COPY --chmod=755 chunky-region-bounds.py /usr/local/bin/chunky-region-bounds.py
 COPY --chmod=644 bluemap-embed.js bluemap-embed.css /usr/local/share/bluemap/
 RUN chmod 755 /usr/local/share/bluemap
 

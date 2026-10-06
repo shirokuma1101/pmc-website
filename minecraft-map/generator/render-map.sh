@@ -11,6 +11,9 @@ if [[ "${BLUEMAP_ENABLED:-false}" == "true" && "${BLUEMAP_ACCEPT_DOWNLOAD:-false
   fail "Set BLUEMAP_ACCEPT_DOWNLOAD=true after accepting Mojang's EULA and confirming a Java Edition license."
 fi
 
+relight_timeout="${BLUEMAP_RELIGHT_TIMEOUT_SECONDS:-86400}"
+[[ "$relight_timeout" =~ ^[1-9][0-9]*$ ]] || fail "BLUEMAP_RELIGHT_TIMEOUT_SECONDS must be a positive integer."
+
 render_threads="${MAP_RENDER_THREADS:-}"
 if [[ -n "$render_threads" ]]; then
   [[ "$render_threads" =~ ^[1-9][0-9]*$ ]] || fail "MAP_RENDER_THREADS must be a positive integer."
@@ -66,6 +69,18 @@ link_dynmap_output "$renderer" "$next"
 mv "$run_root/java-world" "$renderer/$world_name"
 cp /opt/paper.jar "$renderer/paper.jar"
 cp /opt/dynmap.jar "$renderer/plugins/Dynmap.jar"
+if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
+  cp /opt/chunky.jar "$renderer/plugins/Chunky.jar"
+  mkdir -p "$renderer/plugins/Chunky"
+  cat > "$renderer/plugins/Chunky/config.yml" <<'EOF'
+version: 2
+language: en
+continue-on-restart: false
+force-load-existing-chunks: true
+silent: false
+update-interval: 1
+EOF
+fi
 printf 'eula=true\n' > "$renderer/eula.txt"
 cat > "$renderer/bukkit.yml" <<'EOF'
 settings:
@@ -116,6 +131,20 @@ log "Starting Paper once to initialize Dynmap"
 : > "$renderer/generator.log"
 start_paper
 wait_for_log 'Done (' 900
+if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
+  grep -Fq '[Chunky] Enabling Chunky v' "$renderer/generator.log" || fail "Chunky did not start."
+  read -r min_x min_z max_x max_z < <(
+    /usr/local/bin/chunky-region-bounds.py "$renderer/$world_name/region"
+  ) || fail "Cannot determine existing Java chunk bounds."
+  log "Relighting existing chunks for BlueMap ($min_x,$min_z to $max_x,$max_z)"
+  printf 'chunky world %s\n' "$world_name" >&3
+  printf 'chunky corners %s %s %s %s\n' "$min_x" "$min_z" "$max_x" "$max_z" >&3
+  printf 'chunky pattern world\n' >&3
+  render_log_start="$(render_log_next_line "$renderer/generator.log")"
+  printf 'chunky start\n' >&3
+  wait_for_log "Task started in $world_name" 120 "$render_log_start"
+  wait_for_log "Task finished for $world_name." "$relight_timeout" "$render_log_start"
+fi
 printf 'stop\n' >&3
 wait "$paper_pid"
 paper_pid=''
