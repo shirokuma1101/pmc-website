@@ -57,6 +57,13 @@ reviewing behavior changes.
 
 ### Next.js ESLint directory discovery
 
+ESLint remains pinned to `9.39.5`: although Next.js 16.4 supports the ESLint 10
+core, its React, import, and accessibility plugins still declare ESLint 9 as
+their highest compatible major. ESLint 9 is upstream-deprecated. Upgrade to
+ESLint 10 once all plugin peer ranges support it, and repeat strict peer
+resolution, audit, lint, and the adapter tests. Do not bypass peer conflicts
+with `--force` or `--legacy-peer-deps`.
+
 The pinned `@next/eslint-plugin-next` pulls in `fast-glob`, `micromatch`, and
 `braces`. The published advisory
 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)

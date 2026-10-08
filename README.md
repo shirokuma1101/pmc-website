@@ -116,8 +116,8 @@ uploads volumeを作成します。旧`pmc-website-dev_*` volumeは自動削除�
 
 ## Directusの管理対象
 
-- `docker-compose.dev.yml`: ローカルDirectus 12.3.0とPostgreSQL 17.6
-- `docker-compose.yml`: 本番Frontend、Directus 12.3.0、PostgreSQL 17.6
+- `docker-compose.dev.yml`: ローカルDirectus 12.5.0とPostgreSQL 17.11
+- `docker-compose.yml`: 本番Frontend、Directus 12.5.0、PostgreSQL 17.11
 - `directus/schema/snapshot.yaml`: collections、fields、relationsのスキーマ
 - `directus/bootstrap.mjs`: ローカル用folder、role、policy、ユーザー、初期設定
 - `directus/extensions/directus-extension-pmc-website`: `/pmc-website`専用API

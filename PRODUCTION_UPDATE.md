@@ -219,6 +219,24 @@ docker compose --env-file .env exec directus \
 
 ## 9. Directusスキーマのdry-run
 
+### 依存イメージを更新するリリース
+
+PostgreSQL 17.11、Directus 12.5.0、nginx 1.30.5、cloudflared 2026.10.0へ更新する場合は、
+バックアップとFrontendの事前ビルドを完了してから、固定したイメージを取得します。
+
+```sh
+docker compose --env-file .env pull database directus gateway map-static cloudflared
+```
+
+続く`up -d --wait database directus`はDB・Directusコンテナを更新し、Directus起動時の内部マイグレーションを実行します。
+メンテナンス時間を確保し、更新後のDirectus 12.5.0でスキーマdry-runを確認してください。
+snapshotの`directus`バージョンも12.5.0へ更新していますが、この依存更新によるcollection・field・relationの変更はありません。
+PostgreSQLは17系のままなので、メジャーバージョン移行の`pg_upgrade`は不要です。
+
+`production-update.sh`はスキーマdry-runより後にDirectusを再作成するため、今回のイメージ更新ではこの手順書の手動手順を使用します。
+スキーマ・bootstrapの確認後、手順12でFrontendと合わせて`gateway`・`map-static`・`cloudflared`も更新してください。
+内部マイグレーション後の復旧では、古いDirectusイメージへの切り戻しだけで済ませず、バックアップからのDB復元を検討します。
+
 databaseとDirectusが正常であることを確認します。
 
 ```sh
@@ -290,7 +308,7 @@ docker compose --env-file .env logs --tail=200 directus
 
 ```sh
 docker compose --env-file .env up -d --no-deps frontend
-docker compose --env-file .env up -d cloudflared
+docker compose --env-file .env up -d --wait gateway map-static cloudflared
 docker compose --env-file .env ps
 ```
 

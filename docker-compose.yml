@@ -1,10 +1,10 @@
 name: pmc-website
 
-x-directus-image: &directus-image directus/directus:12.3.0@sha256:568861dc03396477d0829897936731d861a3aa8ca68516a1422d68b4d3752621
+x-directus-image: &directus-image directus/directus:12.5.0@sha256:7de5d6898b955dab1672619aed590035dcade4f8d7396d913e55543e114d1331
 
 services:
   gateway:
-    image: nginx:1.29.4-alpine
+    image: nginx:1.30.5-alpine3.24@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
     restart: unless-stopped
     depends_on:
       frontend:
@@ -24,7 +24,7 @@ services:
       - no-new-privileges:true
 
   map-static:
-    image: nginx:1.29.4-alpine
+    image: nginx:1.30.5-alpine3.24@sha256:0985e772fb9f729e6fa0980da05fca5d9c468e870eed43071545afa9d2e27d94
     restart: unless-stopped
     volumes:
       - ${MINECRAFT_MAP_DATA_PATH:-./minecraft-map/output}:/usr/share/nginx/html:ro
@@ -38,7 +38,7 @@ services:
       - no-new-privileges:true
 
   database:
-    image: postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    image: postgres:17.11-alpine3.24@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     restart: unless-stopped
     environment:
       POSTGRES_DB: pmc_website
@@ -197,7 +197,7 @@ services:
       - ALL
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.10.0@sha256:9b49eed8f62806d5d45ddf59ecefb5710429598ea6d3fcccd2af938f621b2b07
     restart: unless-stopped
     depends_on:
       gateway:
