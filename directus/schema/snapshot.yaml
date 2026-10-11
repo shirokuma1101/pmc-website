@@ -1,5 +1,5 @@
 version: 1
-directus: 12.3.0
+directus: 12.5.0
 vendor: postgres
 collections:
   - collection: article_likes
