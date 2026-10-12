@@ -17,6 +17,18 @@ check_map_storage() {
   fi
 }
 
+check_local_map_work_storage() {
+  local work="$1" filesystem
+  [[ -d "$work" ]] || { printf 'Local work directory is missing: %s\n' "$work" >&2; return 1; }
+  filesystem="$(stat -f -c '%T' -- "$work")" || return 1
+  case "$filesystem" in
+    nfs|nfs4|cifs|smb2)
+      printf 'Map work directory must be local: %s (%s)\n' "$work" "$filesystem" >&2
+      return 1
+      ;;
+  esac
+}
+
 prepare_map_snapshot() {
   local output="$1" world_id="$2" snapshot_id="$3"
   [[ "$world_id" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || { printf 'Invalid world ID\n' >&2; return 1; }
@@ -37,4 +49,21 @@ link_dynmap_output() {
   local renderer="$1" webroot="$2"
   mkdir -p "$renderer/plugins/dynmap"
   ln -s "$webroot" "$renderer/plugins/dynmap/web"
+}
+
+publish_map_snapshot() {
+  local local_snapshot="$1" output="$2" world_id="$3" snapshot_id="$4" staging target
+  [[ -f "$local_snapshot/health.txt" ]] || {
+    printf 'Completed local snapshot is missing: %s\n' "$local_snapshot" >&2
+    return 1
+  }
+  staging="$(prepare_map_snapshot "$output" "$world_id" "$snapshot_id")" || return 1
+  # Copy into a hidden directory on the destination filesystem. A failed copy
+  # must never expose an incomplete snapshot at its public path.
+  cp -R -- "$local_snapshot/." "$staging/" || return 1
+  chmod 755 "$staging" || return 1
+  target="$output/worlds/$world_id/snapshots/$snapshot_id"
+  mkdir -p "$(dirname "$target")" || return 1
+  [[ ! -e "$target" ]] || { printf 'Snapshot already exists: %s/%s\n' "$world_id" "$snapshot_id" >&2; return 1; }
+  mv -T -- "$staging" "$target"
 }
