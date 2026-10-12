@@ -116,14 +116,6 @@ start_paper() {
   paper_pid=$!
 }
 
-log "Starting Paper once to initialize Dynmap"
-: > "$renderer/generator.log"
-start_paper
-wait_for_log 'Done (' 900
-printf 'stop\n' >&3
-wait "$paper_pid"
-paper_pid=''
-
 if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
   cp /opt/chunky.jar "$renderer/plugins/Chunky.jar"
   mkdir -p "$renderer/plugins/Chunky"
@@ -136,6 +128,29 @@ silent: false
 update-interval: 1
 EOF
 fi
+
+log "Starting Paper to initialize Dynmap and relight existing chunks"
+: > "$renderer/generator.log"
+start_paper
+wait_for_log 'Done (' 900
+printf 'dynmap pause all\n' >&3
+if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
+  grep -Fq '[Chunky] Enabling Chunky v' "$renderer/generator.log" || fail "Chunky did not start."
+  read -r min_x min_z max_x max_z < <(
+    /usr/local/bin/chunky-region-bounds.py "$renderer/$world_name/region"
+  ) || fail "Cannot determine existing Java chunk bounds."
+  log "Relighting existing chunks for BlueMap ($min_x,$min_z to $max_x,$max_z)"
+  printf 'chunky world %s\n' "$world_name" >&3
+  printf 'chunky corners %s %s %s %s\n' "$min_x" "$min_z" "$max_x" "$max_z" >&3
+  printf 'chunky pattern world\n' >&3
+  render_log_start="$(render_log_next_line "$renderer/generator.log")"
+  printf 'chunky start\n' >&3
+  wait_for_log "Task started in $world_name" 120 "$render_log_start"
+  wait_for_log "Task finished for $world_name." "$relight_timeout" "$render_log_start"
+fi
+printf 'stop\n' >&3
+wait "$paper_pid"
+paper_pid=''
 
 dynmap_config="$renderer/plugins/dynmap/configuration.txt"
 [[ -f "$dynmap_config" ]] || fail "Dynmap configuration was not generated."
@@ -186,20 +201,6 @@ else
 fi
 
 printf 'dynmap pause all\n' >&3
-if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
-  grep -Fq '[Chunky] Enabling Chunky v' "$renderer/generator.log" || fail "Chunky did not start."
-  read -r min_x min_z max_x max_z < <(
-    /usr/local/bin/chunky-region-bounds.py "$renderer/$world_name/region"
-  ) || fail "Cannot determine existing Java chunk bounds."
-  log "Relighting existing chunks for BlueMap ($min_x,$min_z to $max_x,$max_z)"
-  printf 'chunky world %s\n' "$world_name" >&3
-  printf 'chunky corners %s %s %s %s\n' "$min_x" "$min_z" "$max_x" "$max_z" >&3
-  printf 'chunky pattern world\n' >&3
-  render_log_start="$(render_log_next_line "$renderer/generator.log")"
-  printf 'chunky start\n' >&3
-  wait_for_log "Task started in $world_name" 120 "$render_log_start"
-  wait_for_log "Task finished for $world_name." "$relight_timeout" "$render_log_start"
-fi
 printf 'stop\n' >&3
 wait "$paper_pid"
 paper_pid=''
