@@ -22,7 +22,7 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
 ## 地図を更新する
 
-ジェネレーターは保存先内の一時ディレクトリへ直接レンダリングし、完成後にスナップショットの公開パスへ移動します。既定の保存先は`minecraft-map/output`です。配信用Nginxの再起動は不要です。Bedrockワールドの展開、Chunker変換、Paper実行用ファイルはローカルの`minecraft-map/work`に置き、配信用Nginxとは別の一時コンテナで処理します。
+ジェネレーターはローカルの`minecraft-map/work`でDynmap・BlueMapまで生成し、完成後に保存先の非公開一時ディレクトリへコピーします。コピー完了後、同じ保存先内でスナップショットの公開パスへ移動します。既定の保存先は`minecraft-map/output`です。配信用Nginxの再起動は不要です。Bedrockワールドの展開、Chunker変換、Paper実行用ファイルも`work`に置き、配信用Nginxとは別の一時コンテナで処理します。`work`にはローカルのファイルシステムを使い、変換済みワールドとDynmap・BlueMapの生成物が同時に収まる空き容量とinodeを確保してください。
 
 ## Bedrockサーバーのtar.gzから生成する
 
@@ -121,7 +121,7 @@ Webサイトの停止は `npm run docker:down`、ログ確認は `npm run docker
 
    開発環境は`docker compose --env-file .env.local -f docker-compose.dev.yml up -d --no-deps --force-recreate map-static`です。ホスト起動時も、NFSのマウントを完了してから配信用コンテナを起動する運用にしてください。
 
-指定先には`catalog.json`と`worlds/`が生成されます。タイルは指定先の`.snapshot-<world>-<snapshot>-<ランダム値>/`へ直接書き込み、成功時に同じ保存先内の`worlds/<world>/snapshots/<snapshot>/`へ移動するため、ローカルにタイルを生成・コピーしません。配信用Nginxは`.snapshot-*`へのアクセスを404で拒否します。このNginx設定の適用にも`map-static`の再作成が必要です。BlueMapの設定・キャッシュは引き続きローカルの`work`を使用します。ワールド展開・変換に必要なローカル容量とinodeは別途必要です。
+指定先には`catalog.json`と`worlds/`が生成されます。タイルはローカルの`work`で生成し、完成後に指定先の`.snapshot-<world>-<snapshot>-<ランダム値>/`へコピーします。コピーがすべて成功したときだけ、同じ保存先内の`worlds/<world>/snapshots/<snapshot>/`へ移動します。NFSへのコピー時間は生成時間に追加されますが、レンダリング中のNFS書き込み待ちを避けられます。配信用Nginxは`.snapshot-*`へのアクセスを404で拒否します。このNginx設定の適用にも`map-static`の再作成が必要です。BlueMapの設定・キャッシュもローカルの`work`を使用します。
 
 保存先を変更しても既存履歴は自動移行されません。既存履歴を残す場合は生成ジョブを停止し、`catalog.json`と`worlds/`を含む従来の`output`の内容を新しい保存先へコピーしてから切り替えてください。生成ジョブは従来どおり同時実行を避けます。失敗したジョブの`.snapshot-*`はカタログに登録されず、再試行では別の一時ディレクトリを作ります。残った一時ディレクトリは、生成ジョブが停止していることを確認したうえで管理者が整理してください。TrueNAS実機での権限・NFS性能は環境ごとに確認が必要です。
 

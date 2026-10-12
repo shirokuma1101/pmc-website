@@ -6,6 +6,7 @@ fail() { log "ERROR: $*" >&2; exit 1; }
 source /usr/local/lib/render-log.sh
 source /usr/local/lib/map-storage.sh
 check_map_storage /output "${MAP_REQUIRE_NFS:-false}" || fail "Output storage check failed."
+check_local_map_work_storage /work || fail "Local work storage check failed."
 
 if [[ "${BLUEMAP_ENABLED:-false}" == "true" && "${BLUEMAP_ACCEPT_DOWNLOAD:-false}" != "true" ]]; then
   fail "Set BLUEMAP_ACCEPT_DOWNLOAD=true after accepting Mojang's EULA and confirming a Java Edition license."
@@ -35,13 +36,13 @@ world_name="${MAP_WORLD_NAME:-world}"
 world_id="${MAP_WORLD_ID:-$world_name}"
 world_label="${MAP_WORLD_LABEL:-$world_id}"
 snapshot_label="${MAP_SNAPSHOT_LABEL:-$created_at}"
-next="$(prepare_map_snapshot /output "$world_id" "$snapshot_id")" || fail "Cannot prepare snapshot output."
-snapshot_root="/output/worlds/$world_id/snapshots"
-target="$snapshot_root/$snapshot_id"
-
 run_root="/work/run"
 rm -rf "$run_root"
 mkdir -p "$run_root/extracted" "$run_root/renderer/plugins"
+next="$(prepare_map_snapshot "$run_root" "$world_id" "$snapshot_id")" || fail "Cannot prepare local snapshot output."
+snapshot_root="/output/worlds/$world_id/snapshots"
+target="$snapshot_root/$snapshot_id"
+[[ ! -e "$target" ]] || fail "Snapshot already exists: $world_id/$snapshot_id"
 log "Extracting $(basename "$archive")"
 /usr/local/bin/extract_archive.py "$archive" "$run_root/extracted"
 
@@ -209,14 +210,14 @@ if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
   log "Rendering BlueMap from converted Java world"
   /usr/local/bin/render-bluemap "$renderer/$world_name" "$next/bluemap" "$run_root/bluemap"
 fi
-[[ ! -e "$target" ]] || fail "Snapshot already exists: $world_id/$snapshot_id"
 bluemap_url=''
 if [[ "${BLUEMAP_ENABLED:-false}" == "true" ]]; then
   bluemap_url="${MAP_PUBLIC_BASE_URL:-/minecraft-map}/worlds/$world_id/snapshots/$snapshot_id/bluemap/"
 fi
 printf 'ok\n' > "$next/health.txt"
-mkdir -p "$snapshot_root"
-mv -T "$next" "$target"
+log "Copying completed snapshot to output storage"
+publish_map_snapshot "$next" /output "$world_id" "$snapshot_id" || fail "Cannot publish completed snapshot."
+log "Snapshot copy finished"
 catalog_args=()
 if [[ -n "$bluemap_url" ]]; then
   catalog_args=(--bluemap-url "$bluemap_url")
@@ -233,4 +234,5 @@ fi
   --source "$(basename "$archive")" \
   --dynmap-world "$world_name" \
   "${catalog_args[@]}"
+rm -rf -- "$next"
 log "Complete: $target"

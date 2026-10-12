@@ -36,9 +36,8 @@ sed -e "s|/opt/java25/bin/java|$test_directory/java|g" \
   -e "s|/usr/local/share/bluemap|$test_directory/assets|g" \
   "$script_directory/generator/render-bluemap.sh" > "$test_directory/render-bluemap.sh"
 BLUEMAP_ACCEPT_DOWNLOAD=true bash "$test_directory/render-bluemap.sh" \
-  "$test_directory/world" "$test_directory/NAS output/bluemap" "$test_directory/work/bluemap"
-[[ -f "$test_directory/NAS output/bluemap/maps/world/model.json.gz" ]]
+  "$test_directory/world" "$test_directory/work/snapshot/bluemap" "$test_directory/work/bluemap"
+[[ -f "$test_directory/work/snapshot/bluemap/maps/world/model.json.gz" ]]
 [[ -f "$test_directory/work/bluemap/config/core.conf" ]]
-[[ ! -d "$test_directory/NAS output/config" ]]
-[[ -z "$(find "$test_directory/work" -name '*.gz' -print)" ]]
-echo 'PASS: BlueMap CLI config/cache stay local while web output uses external storage'
+[[ -z "$(find "$test_directory/NAS output" -name '*.gz' -print)" ]]
+echo 'PASS: BlueMap CLI config and web output stay local during rendering'
