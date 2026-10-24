@@ -86,6 +86,7 @@
 
 - プロジェクト名は `pmc-website`、サイトの表示名は `PostMineClan` を基本とし、旧モックアップ名 `Chronicle` は使用しません。
 - フォントはGoogleのNoto Sans JPに統一し、新しいフォントを勝手に追加しません。
+- 不要なセカンダリラベルや説明を避ける。レイアウトに説明させる。
 - Directusは本プロジェクト専用のCompose構成です。他サイトと共有する構成や削除済みのコレクション接頭辞 `pmc_` を再導入しません。既存の意図的な識別子を一括置換しないでください。
 - `.env`、`.env.local`、認証情報、Cookie、OTP、Webhook URL、DB・アップロードデータ、バックアップはコミット・公開しません。
 - `FRONTEND_REQUIREMENTS_DRAFT.md` はローカル仕様メモです。更新が必要な場合もGit管理対象へ戻したり、force addしたりしません。
