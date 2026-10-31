@@ -12,7 +12,8 @@ readonly TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 readonly STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 readonly LOG_FILE="${BACKUP_DIR}/update-${TIMESTAMP}.log"
 readonly MIN_FREE_KB="${PRODUCTION_UPDATE_MIN_FREE_KB:-1048576}"
-readonly REQUIRED_SERVICES=(database directus frontend cloudflared)
+readonly REQUIRED_SERVICES=(database directus frontend gateway map-static cloudflared)
+readonly NETWORK_SERVICES=(gateway map-static cloudflared)
 readonly COMPOSE=(docker compose --env-file "${ENV_FILE}")
 
 MODE="update"
@@ -29,6 +30,8 @@ Modes:
   --help          Show this help.
 
 With no mode, the script performs the full interactive production update.
+Gateway, map-static, and cloudflared images are pulled before approval and
+their containers are updated after the Frontend switch.
 Schema application always requires entering APPLY at the prompt.
 USAGE
 }
@@ -217,6 +220,9 @@ update_source() {
 }
 
 build_and_validate() {
+  log "Pulling gateway, map-static, and Cloudflare Tunnel images"
+  "${COMPOSE[@]}" pull "${NETWORK_SERVICES[@]}"
+
   log "Building Frontend image"
   "${COMPOSE[@]}" build frontend
   log "Validating Directus extension"
@@ -262,6 +268,9 @@ switch_frontend() {
   log "Switching Frontend to the prebuilt image"
   "${COMPOSE[@]}" up -d --no-deps --wait --wait-timeout 180 frontend
   [[ "$(service_health frontend)" == "healthy" ]] || die "Frontend did not become healthy."
+
+  log "Updating gateway, map-static, and Cloudflare Tunnel containers"
+  "${COMPOSE[@]}" up -d --no-deps --wait --wait-timeout 180 "${NETWORK_SERVICES[@]}"
 }
 
 check_url() {
@@ -290,6 +299,9 @@ post_update_checks() {
     [[ "${health}" == "healthy" || "${health}" == "running" ]] || die "Service ${service} is not healthy (health=${health})."
     log "Service ${service}: state=running health=${health}"
   done
+
+  log "Cloudflare Tunnel version"
+  "${COMPOSE[@]}" exec -T cloudflared cloudflared --version
 
   local app_url directus_url
   app_url="$(read_env_value NEXT_PUBLIC_APP_URL)"
@@ -335,4 +347,6 @@ main() {
   post_update_checks
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
