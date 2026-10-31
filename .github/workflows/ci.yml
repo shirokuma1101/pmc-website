@@ -65,6 +65,8 @@ jobs:
         run: |
           bash -n scripts/production-update.sh
           bash scripts/production-update.sh --help
+          bash -n scripts/test-production-update.sh
+          bash scripts/test-production-update.sh
 
       - name: Validate map generator scripts
         run: |

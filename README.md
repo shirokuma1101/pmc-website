@@ -172,6 +172,11 @@ cp .env.example .env
 ./scripts/production-update.sh --dry-run
 ```
 
+通常更新ではFrontend・Directusに加え、gateway・map-static・cloudflaredも更新します。
+配信・Tunnel用イメージを事前取得し、スキーマ承認後にコンテナを切り替えます。
+`--dry-run`はイメージ取得・ビルドまで行いますが、稼働コンテナは切り替えません。
+更新スクリプト自体の修正を反映する際は、クリーンなmainで先に`git pull --ff-only origin main`を実行してから起動してください。
+
 ホスト側でnpmは実行しません。詳細、手動確認項目、復旧時の注意は`PRODUCTION_UPDATE.md`を参照してください。
 サポーター機能の初回公開時は、[Stripe本番移行手順](docs/supporter-production-rollout.md)で追加env・Webhook・受付開始条件も確認してください。
 

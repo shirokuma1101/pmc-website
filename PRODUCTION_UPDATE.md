@@ -1,7 +1,7 @@
 # 本番環境アップデート手順
 
 この手順書は、稼働中のpmc-websiteをDocker Compose構成のまま更新するためのものです。
-PostgreSQL、Directus uploads、`.env`をバックアップしてから、Directusのスキーマと拡張、Frontendを更新します。
+PostgreSQL、Directus uploads、`.env`をバックアップしてから、Directusのスキーマと拡張、Frontend、配信・Tunnelコンテナを更新します。
 
 ホスト側で`npm`は実行しません。アプリケーションのビルド、Directusスキーマ操作、bootstrapは、すべて`docker compose`経由で実行します。
 
@@ -39,7 +39,7 @@ df -h
 
 - 現在のブランチが`main`
 - Gitの作業ツリーに本番ホスト固有の未コミット変更がない
-- `database`、`directus`、`frontend`、`cloudflared`が稼働している
+- `database`、`directus`、`frontend`、`gateway`、`map-static`、`cloudflared`が稼働している
 - Docker Composeの設定検証が成功する
 - バックアップとDockerイメージを保存できる空き容量がある
 
@@ -240,7 +240,9 @@ Directus 12.6はNode.js要件とAPIの互換性に変更があるため、今回
 ESLint 10とTypeScript 7も既存のReact・TypeScript用Lintプラグインのpeer条件を満たさないため採用しません。
 GitHub Actionsは既存のメジャータグが最新の同系列リリースを参照します。
 
-`production-update.sh`はスキーマdry-runより後にDirectusを再作成するため、今回のイメージ更新ではこの手順書の手動手順を使用します。
+`production-update.sh`はgateway・map-static・cloudflaredの指定イメージを取得し、スキーマ承認後にコンテナを更新します。
+`--preflight`・`--backup-only`では取得・切り替えを行わず、`--dry-run`では取得しても切り替えません。
+ただしDBイメージの更新や、スキーマdry-run前に新しいDirectusへ切り替える必要がある依存更新では、引き続きこの手順書の手動手順を使用します。
 スキーマ・bootstrapの確認後、手順12でFrontendと合わせて`gateway`・`map-static`・`cloudflared`も更新してください。
 内部マイグレーション後の復旧では、古いDirectusイメージへの切り戻しだけで済ませず、バックアップからのDB復元を検討します。
 
@@ -309,21 +311,36 @@ unset directus_admin_otp
 docker compose --env-file .env logs --tail=200 directus
 ```
 
-## 12. Frontendの切り替え
+## 12. Frontend・配信・Tunnelの切り替え
 
 事前にビルドした新しいFrontendイメージでコンテナを再作成します。
 
 ```sh
 docker compose --env-file .env up -d --no-deps frontend
-docker compose --env-file .env up -d --wait gateway map-static cloudflared
+docker compose --env-file .env up -d --no-deps --wait gateway map-static cloudflared
 docker compose --env-file .env ps
 ```
 
-Frontendのhealth checkがhealthyになることを確認します。
+Frontend・配信サービスのhealth checkと、Tunnelの稼働バージョンを確認します。
+cloudflaredの切り替え中はTunnelが短時間再接続します。
 
 ```sh
-docker compose --env-file .env ps frontend directus cloudflared
+docker compose --env-file .env ps frontend directus gateway map-static cloudflared
+docker compose --env-file .env exec -T cloudflared cloudflared --version
 ```
+
+### 更新スクリプト実行後もcloudflaredが古い場合
+
+更新済みの`docker-compose.yml`が本番ホストにあることを確認し、cloudflaredだけ取得・更新します。
+
+```sh
+docker compose --env-file .env pull cloudflared
+docker compose --env-file .env up -d --no-deps --wait cloudflared
+docker compose --env-file .env exec -T cloudflared cloudflared --version
+```
+
+修正した更新スクリプトを使用するには、クリーンなmainで先に`git pull --ff-only origin main`を実行し、その後スクリプトを起動してください。
+スクリプト実行中のソース取得だけでは、読み込み済みの更新処理は置き換わりません。
 
 ## 13. 更新後確認
 
