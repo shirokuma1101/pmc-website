@@ -221,7 +221,7 @@ docker compose --env-file .env exec directus \
 
 ### 依存イメージを更新するリリース
 
-PostgreSQL 17.11、Directus 12.5.0、nginx 1.30.5、cloudflared 2026.10.0へ更新する場合は、
+PostgreSQL 17.11、Directus 12.5.1、nginx 1.30.6、cloudflared 2026.10.7へ更新する場合は、
 バックアップとFrontendの事前ビルドを完了してから、固定したイメージを取得します。
 
 ```sh
@@ -229,9 +229,16 @@ docker compose --env-file .env pull database directus gateway map-static cloudfl
 ```
 
 続く`up -d --wait database directus`はDB・Directusコンテナを更新し、Directus起動時の内部マイグレーションを実行します。
-メンテナンス時間を確保し、更新後のDirectus 12.5.0でスキーマdry-runを確認してください。
-snapshotの`directus`バージョンも12.5.0へ更新していますが、この依存更新によるcollection・field・relationの変更はありません。
+メンテナンス時間を確保し、更新後のDirectus 12.5.1でスキーマdry-runを確認してください。
+snapshotの`directus`バージョンも12.5.1へ更新していますが、この依存更新によるcollection・field・relationの変更はありません。
 PostgreSQLは17系のままなので、メジャーバージョン移行の`pg_upgrade`は不要です。
+PostgreSQLのタグは17.11のまま、ベースイメージ更新を含むdigestを更新しています。
+FrontendのNode.jsは22.23.4へ更新します。ホストで開発・テストを実行する場合も、
+更新したテスト依存に合わせてNode.js 22.22.2以上を使用してください。
+
+Directus 12.6はNode.js要件とAPIの互換性に変更があるため、今回は12.5.1に留めます。
+ESLint 10とTypeScript 7も既存のReact・TypeScript用Lintプラグインのpeer条件を満たさないため採用しません。
+GitHub Actionsは既存のメジャータグが最新の同系列リリースを参照します。
 
 `production-update.sh`はスキーマdry-runより後にDirectusを再作成するため、今回のイメージ更新ではこの手順書の手動手順を使用します。
 スキーマ・bootstrapの確認後、手順12でFrontendと合わせて`gateway`・`map-static`・`cloudflared`も更新してください。

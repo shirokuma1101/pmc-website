@@ -33,7 +33,7 @@ Browser
 
 ## 必要環境
 
-- Node.js 22以降
+- Node.js 22.22.2以降（開発・CI・Frontendイメージは22系）
 - Docker Desktop、またはDocker EngineとDocker Compose v2
 - npm
 
@@ -116,8 +116,8 @@ uploads volumeを作成します。旧`pmc-website-dev_*` volumeは自動削除�
 
 ## Directusの管理対象
 
-- `docker-compose.dev.yml`: ローカルDirectus 12.5.0とPostgreSQL 17.11
-- `docker-compose.yml`: 本番Frontend、Directus 12.5.0、PostgreSQL 17.11
+- `docker-compose.dev.yml`: ローカルDirectus 12.5.1とPostgreSQL 17.11
+- `docker-compose.yml`: 本番Frontend、Directus 12.5.1、PostgreSQL 17.11
 - `directus/schema/snapshot.yaml`: collections、fields、relationsのスキーマ
 - `directus/bootstrap.mjs`: ローカル用folder、role、policy、ユーザー、初期設定
 - `directus/extensions/directus-extension-pmc-website`: `/pmc-website`専用API

@@ -182,14 +182,14 @@ describe("OrganizationEditor", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<OrganizationEditor members={[manager]} initialSections={sections} accounts={accounts} />);
 
-    fireEvent.click(screen.getByRole("radio", { name: /^Basic / }));
+    fireEvent.click(screen.getByRole("radio", { name: /^Basic\b/ }));
     fireEvent.click(screen.getByRole("button", { name: "表記を保存" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
       `/api/admin/organization/${manager.profileId}/supporter`,
       expect.objectContaining({ method: "PUT", body: JSON.stringify({ tier: "basic" }) }),
     ));
-    expect(screen.getByRole("radio", { name: /^Basic / })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^Basic\b/ })).toBeChecked();
     expect(screen.getByText("サポーター表記を保存しました。")).toBeInTheDocument();
   });
 });
