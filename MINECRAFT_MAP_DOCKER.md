@@ -137,7 +137,9 @@ BLUEMAP_HEAP=4G
 BLUEMAP_RELIGHT_TIMEOUT_SECONDS=86400
 ```
 
-`npm run map:build`の後に`npm run map:generate`を実行します。BlueMap 5.28とJava 25を含む生成イメージを使用します。BlueMap有効時は、先にChunkyで変換済みJavaワールドの既存チャンクを読み込み直し、Paperに照明を再計算・保存させます。その後、Dynmap・BlueMapをローカルで描画し、完成した生成物を保存先へコピーします。新しい地形は生成せず、元のバックアップも変更しません。再計算の完了を待つため、ワールドの大きさに応じて生成時間が増えます。既定の待ち時間は24時間で、必要なら`BLUEMAP_RELIGHT_TIMEOUT_SECONDS`を延長してください。生成が完了したスナップショットだけが公開され、`catalog.json`に`blueMapUrl`が追加されます。`/map`の「表示」から「BlueMap 3D」を選ぶと、同じワールド・スナップショットの3D地図を表示します。未生成のスナップショットでは選択できません。生成物は`minecraft-map/output/worlds/<ワールドID>/snapshots/<スナップショットID>/bluemap/`に保存され、既存のNginxから配信されます。
+`npm run map:build`の後に`npm run map:generate`を実行します。BlueMap 5.29とJava 25を含む生成イメージを使用します。BlueMap有効時は、先にChunkyで変換済みJavaワールドの既存チャンクを読み込み直し、Paperに照明を再計算・保存させます。その後、Dynmap・BlueMapをローカルで描画し、完成した生成物を保存先へコピーします。新しい地形は生成せず、元のバックアップも変更しません。再計算の完了を待つため、ワールドの大きさに応じて生成時間が増えます。既定の待ち時間は24時間で、必要なら`BLUEMAP_RELIGHT_TIMEOUT_SECONDS`を延長してください。生成が完了したスナップショットだけが公開され、`catalog.json`に`blueMapUrl`が追加されます。`/map`の「表示」から「BlueMap 3D」を選ぶと、同じワールド・スナップショットの3D地図を表示します。未生成のスナップショットでは選択できません。生成物は`minecraft-map/output/worlds/<ワールドID>/snapshots/<スナップショットID>/bluemap/`に保存され、既存のNginxから配信されます。
+
+依存更新後は生成イメージを再ビルドしてください。Chunkerは1.21.0、Paper用Javaは21.0.13、BlueMap用Javaは25.0.5を使用します。変換先のJava 1.21.4とPaper・Dynmap・Chunkyの組み合わせは維持します。Chunky 1.5系はJava 25とMinecraft 26.1以降を対象とするため、Paper用には採用しません。既存の公開済み地図は自動更新されません。BlueMap 5.28の生成済みwebrootを再利用する場合は、公式の5.29移行手順に従って、そのwebrootの`index.html`を再生成してください。
 
 BlueMap描画は時間・CPU・メモリ・ディスク容量を追加で使用します。必要に応じて`MAP_MEMORY_LIMIT`を`BLUEMAP_HEAP`より十分大きく設定してください。既存のスナップショットにBlueMapを後付けする処理はありません。履歴生成スクリプトは生成済みIDをスキップするため、過去分が必要なら元のバックアップから新しいスナップショットとして生成してください。静的ファイルは公開URLで閲覧可能であり、履歴の閲覧権限をサーバー側で制限する仕組みはありません。
 

@@ -3,8 +3,8 @@ set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 container_name="pmc-supporter-storage-test-$$"
-postgres_image='postgres:17.11-alpine3.24@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24'
-directus_image='directus/directus:12.5.0@sha256:7de5d6898b955dab1672619aed590035dcade4f8d7396d913e55543e114d1331'
+postgres_image='postgres:17.11-alpine3.24@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b'
+directus_image='directus/directus:12.5.1@sha256:ef6fc027605ea659a972356e0c35fd7f88b02118b0b3a322dafbec3cc709fdab'
 
 # Only this script's temporary container is stopped; no project volumes or databases are touched.
 docker run --detach --rm --name "$container_name" --tmpfs /var/lib/postgresql/data \
